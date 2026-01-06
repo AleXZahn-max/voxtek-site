@@ -1,0 +1,1754 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="description" content="VoxTek Enterprises - The future of secure technology.">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+    <title>VoxTek Enterprises | Submission is Safety</title>
+    <style>
+        /* --- 1. CORE VARIABLES --- */
+        :root {
+            --bg-color: #020202;
+            --text-main: #e0e0e0;
+            --vox-cyan: #00f3ff;
+            --vox-cyan-dim: rgba(0, 243, 255, 0.1);
+            --vox-blue: #0044ff;
+            --alert-red: #ff003c;
+            --alastor-red: #8a0000;
+            --panel-bg: rgba(5, 8, 12, 0.95);
+            --font-tech: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            --font-code: 'Courier New', monospace;
+            --scan-line-color: rgba(0, 243, 255, 0.03);
+        }
+
+        /* THEMES */
+        body.theme-val {
+            --vox-cyan: #ff00ff;
+            --vox-cyan-dim: rgba(255, 0, 255, 0.1);
+            --vox-blue: #aa00aa;
+            --scan-line-color: rgba(255, 0, 255, 0.03);
+        }
+        
+        body.theme-radio {
+            --vox-cyan: #ff0000;
+            --vox-cyan-dim: rgba(255, 0, 0, 0.4);
+            --vox-blue: #330000;
+            --bg-color: #1a0000;
+            filter: contrast(1.5) sepia(1) hue-rotate(-50deg) saturate(3);
+            animation: worldShake 0.1s infinite;
+            overflow: hidden !important;
+            pointer-events: none;
+        }
+        
+        @keyframes worldShake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        html { scroll-behavior: smooth; }
+        
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+            *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font-tech); cursor: crosshair; }
+        
+        button, a, input, .sq, .tech-card, .logo-container, input[type="range"] { cursor: pointer; }
+        input[type="text"] { cursor: text; }
+
+        body { 
+            background-color: var(--bg-color); 
+            color: var(--text-main); 
+            overflow-x: hidden; width: 100vw; min-height: 100vh;
+            background-image: 
+                linear-gradient(var(--scan-line-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--scan-line-color) 1px, transparent 1px);
+            background-size: 30px 30px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--vox-cyan) #000;
+            transition: all 0.5s ease;
+        }
+
+        /* --- 2. CUSTOM SCROLLBAR --- */
+        ::-webkit-scrollbar { width: 8px; background: #000; }
+        ::-webkit-scrollbar-track { border-left: 1px solid #222; }
+        ::-webkit-scrollbar-thumb { background: var(--vox-cyan); border-radius: 0; box-shadow: 0 0 10px var(--vox-cyan); border: 1px solid black; }
+        ::-webkit-scrollbar-thumb:hover { background: white; }
+
+        /* --- 3. FX LAYERS --- */
+        .crt-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03)); background-size: 100% 3px, 3px 100%; pointer-events: none; z-index: 9000; }
+        .vignette { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, rgba(0,0,0,0) 60%, rgba(0,20,40,0.8) 100%); pointer-events: none; z-index: 8999; }
+
+        /* --- 4. EASTER EGG --- */
+        #easterEggLayer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: black; z-index: 100000; display: none;
+            flex-direction: column; justify-content: center; align-items: center;
+            overflow: hidden;
+        }
+        #easterEggLayer.active { display: flex; }
+
+        .hypno-spiral {
+            width: 100vw; height: 100vw;
+            background: repeating-conic-gradient(from 0deg, #000 0deg 10deg, var(--vox-cyan) 10deg 20deg);
+            border-radius: 50%;
+            animation: spinHypno 2s infinite linear;
+            opacity: 0.3; position: absolute;
+        }
+        .egg-text {
+            font-size: 100px; font-weight: 900; color: white; z-index: 2;
+            text-shadow: 0 0 20px var(--vox-cyan); text-transform: uppercase;
+            animation: textPulse 0.1s infinite; text-align: center;
+            padding: 0 20px;
+        }
+        @keyframes spinHypno { to { transform: rotate(360deg); } }
+        @keyframes textPulse { 0% { transform: scale(1); color: white; } 50% { transform: scale(1.05); color: var(--vox-cyan); } 100% { transform: scale(1); color: white; } }
+
+        /* --- 5. VSOD --- */
+        #vsod-layer {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            background: #8a0000;
+            color: white; font-family: 'Courier New', monospace;
+            z-index: 2147483647;
+            display: none; flex-direction: column;
+            padding: 10% 100px; font-size: 20px; line-height: 1.5;
+            cursor: none; user-select: none;
+            pointer-events: auto !important;
+        }
+        #vsod-layer.active { display: flex; animation: flashRed 0.2s; }
+        @keyframes flashRed { 0% { background: #fff; } 100% { background: #8a0000; } }
+        
+        .sad-face { font-size: 150px; margin-bottom: 40px; transform: rotate(90deg); display:inline-block; }
+        
+        .glitch-bar {
+            width: 100%; height: 5px; background: white; position: absolute; top: 50%; left: 0;
+            animation: scanKill 2s infinite; opacity: 0.5;
+        }
+        @keyframes scanKill { 0% { top: 0%; } 100% { top: 100%; } }
+
+        /* --- 6. WEBCAM --- */
+        #cam-container {
+            position: fixed; bottom: 20px; left: 20px; width: 160px; height: 120px;
+            border: 2px solid var(--vox-cyan); background: #000;
+            z-index: 5000; display: none; flex-direction: column;
+            box-shadow: 0 0 15px var(--vox-cyan);
+        }
+        #cam-container video { width: 100%; height: 100%; object-fit: cover; opacity: 0.7; filter: grayscale(100%) contrast(1.2); }
+        #cam-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 1px solid rgba(255,255,255,0.2); pointer-events: none; }
+        .cam-label { background: var(--vox-cyan); color: #000; font-size: 10px; padding: 2px 5px; font-weight: bold; position: absolute; top: 0; left: 0; }
+        .rec-dot { width: 8px; height: 8px; background: red; border-radius: 50%; position: absolute; top: 5px; right: 5px; animation: blink 1s infinite; }
+
+        /* --- 7. UI ELEMENTS --- */
+        #notification-area { position: fixed; top: 80px; right: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 10px; pointer-events: none; max-width: 90vw; }
+        .vox-toast {
+            background: rgba(0, 0, 0, 0.95); border-left: 4px solid var(--vox-cyan); padding: 15px 25px;
+            color: white; font-family: var(--font-code); font-size: 13px; min-width: 300px; max-width: 100%;
+            box-shadow: 0 0 20px var(--vox-cyan-dim); transform: translateX(100%);
+            animation: slideIn 0.3s forwards; pointer-events: auto; position: relative;
+        }
+        .vox-toast.error { border-left-color: var(--alert-red); }
+        @keyframes slideIn { to { transform: translateX(0); } }
+        @keyframes blink { 50% { opacity: 0; } }
+
+        /* Header */
+        header { 
+            display: flex; justify-content: space-between; align-items: center; padding: 15px 50px; margin-top: 35px;
+            background: rgba(5, 5, 5, 0.85); border-bottom: 1px solid rgba(0, 243, 255, 0.2); 
+            position: sticky; top: 0; z-index: 100; backdrop-filter: blur(20px); 
+            flex-wrap: wrap; 
+        }
+        .logo-container { display: flex; align-items: center; text-decoration: none; }
+        .vox-logo-svg { width: 45px; height: 45px; margin-right: 15px; filter: drop-shadow(0 0 5px var(--vox-cyan)); }
+        .logo { font-size: 26px; font-weight: 900; letter-spacing: 3px; color: white; text-transform: uppercase; }
+        .logo span { color: var(--vox-cyan); }
+        nav ul { display: flex; gap: 30px; list-style: none; flex-wrap: wrap; align-items: center;}
+        nav a { color: #aaa; text-decoration: none; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; transition: 0.3s; font-weight: 700; position: relative; display: inline-block; padding: 5px; }
+        nav a:hover, nav a:focus { color: var(--vox-cyan); text-shadow: 0 0 10px var(--vox-cyan); outline: none; }
+        nav a::after { content:''; position:absolute; bottom:-5px; left:0; width:0; height:2px; background:var(--vox-cyan); transition:0.3s; }
+        nav a:hover::after, nav a:focus::after { width:100%; }
+
+        /* Sections */
+        .reveal { opacity: 0; transform: translateY(30px); transition: all 0.8s ease; }
+        .reveal.active { opacity: 1; transform: translateY(0); }
+        .section-header { text-align: center; margin: 120px 0 60px; padding: 0 10px; }
+        .section-header h2 { font-size: 40px; color: white; text-transform: uppercase; letter-spacing: 5px; display: inline-block; position: relative; word-wrap: break-word; max-width: 100%; }
+        .section-header h2::after { content:''; display:block; width: 50%; height: 3px; background: var(--vox-cyan); margin: 15px auto 0; box-shadow: 0 0 10px var(--vox-cyan); }
+
+        /* Hero */
+        .hero { height: 90vh; min-height: 600px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; position: relative; padding: 0 20px; }
+        .hero h1 { font-size: 8vw; max-size: 100px; line-height: 0.9; text-transform: uppercase; font-weight: 900; margin-bottom: 20px; color: white; position: relative; display: inline-block; text-shadow: 4px 4px 0px rgba(0, 243, 255, 0.1); }
+        @media (min-width: 1200px) { .hero h1 { font-size: 100px; } }
+        
+        .glitch-text::before, .glitch-text::after { 
+            content: attr(data-text); 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            background: transparent; 
+            opacity: 0.8; pointer-events: none; 
+        }
+        .glitch-text::before { color: var(--vox-cyan); z-index: -1; animation: glitch 3s infinite reverse; }
+        .glitch-text::after { color: #ff00ff; z-index: -2; animation: glitch 2s infinite; }
+        @keyframes glitch { 0% { clip-path: inset(0 0 0 0); transform: translate(0); } 20% { clip-path: inset(20% 0 10% 0); transform: translate(-2px, 2px); } 100% { clip-path: inset(0 0 0 0); transform: translate(0); } }
+        
+        .btn-tech {
+            background: transparent; border: 1px solid var(--vox-cyan); color: var(--vox-cyan);
+            padding: 15px 40px; font-weight: bold; text-transform: uppercase; letter-spacing: 3px;
+            cursor: pointer; position: relative; transition: 0.3s; text-decoration: none; display: inline-block;
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.1);
+        }
+        .btn-tech:hover { background: var(--vox-cyan); color: black; box-shadow: 0 0 40px var(--vox-cyan); outline: none; }
+
+        /* Timeline */
+        .timeline-container { max-width: 800px; margin: 0 auto; position: relative; border-left: 2px solid #333; padding-left: 40px; padding-right: 20px; }
+        .timeline-item { margin-bottom: 50px; position: relative; }
+        .timeline-item::before { content:''; position: absolute; left: -46px; top: 0; width: 10px; height: 10px; background: var(--vox-cyan); border-radius: 50%; box-shadow: 0 0 10px var(--vox-cyan); }
+        .t-date { color: var(--vox-cyan); font-family: var(--font-code); font-weight: bold; font-size: 14px; margin-bottom: 5px; }
+        .t-title { color: white; font-size: 20px; text-transform: uppercase; margin-bottom: 10px; font-weight: bold; }
+        .t-desc { color: #888; line-height: 1.6; }
+
+        /* Products */
+        .products-grid { display: flex; justify-content: center; gap: 40px; flex-wrap: wrap; padding: 0 20px; }
+        .tech-card {
+            background: var(--panel-bg); border: 1px solid #333; padding: 40px; width: 350px; max-width: 100%;
+            position: relative; transition: 0.4s; clip-path: polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px);
+        }
+        .tech-card:hover { border-color: var(--vox-cyan); transform: translateY(-10px); }
+        .badge { position: absolute; top: 0; right: 0; background: var(--vox-blue); color: white; padding: 5px 15px; font-size: 10px; font-weight: bold; clip-path: polygon(0 0, 100% 0, 100% 100%, 10px 100%); }
+
+        /* Reviews */
+        .reviews-wrapper { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 50px; padding: 0 20px; }
+        @media (max-width: 768px) { .reviews-wrapper { grid-template-columns: 1fr; } }
+        
+        .review-form { background: var(--panel-bg); border: 1px solid var(--vox-cyan); padding: 40px; height: fit-content; }
+        .form-label { display: block; color: var(--vox-cyan); font-size: 11px; margin-bottom: 8px; font-weight: bold; letter-spacing: 1px; }
+        .form-input { width: 100%; background: #000; border: 1px solid #333; color: white; padding: 15px; font-family: var(--font-code); outline: none; transition: 0.3s; margin-bottom: 20px; }
+        .form-input:focus { border-color: var(--vox-cyan); box-shadow: 0 0 10px rgba(0, 243, 255, 0.2); }
+        
+        .rating-squares { display: flex; gap: 5px; cursor: pointer; margin-bottom: 20px; }
+        .sq { width: 40px; height: 40px; border: 1px solid #555; transition: 0.2s; position: relative; } 
+        @media (min-width: 769px) { .sq { width: 25px; height: 25px; } }
+        .sq:focus { outline: 2px solid var(--vox-cyan); }
+        .sq.active { background: var(--vox-cyan); border-color: var(--vox-cyan); box-shadow: 0 0 10px var(--vox-cyan); }
+
+        .review-feed { display: flex; flex-direction: column; gap: 20px; max-height: 600px; overflow-y: auto; padding-right: 10px; }
+        .review-item { background: rgba(255,255,255,0.03); border-left: 3px solid #333; padding: 20px; animation: slideIn 0.5s; }
+        .review-item.good { border-left-color: var(--vox-cyan); }
+        .review-item.bad { border-left-color: var(--alert-red); }
+        .r-name { font-weight: bold; color: white; font-size: 14px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 5px; }
+        .r-squares { display: flex; gap: 2px; }
+        .r-sq { width: 8px; height: 8px; background: #333; }
+        .r-sq.fill { background: var(--vox-cyan); }
+        .r-text { color: #aaa; font-style: italic; margin-top: 10px; font-size: 13px; word-break: break-word; }
+
+        /* Terminal */
+        .terminal-wrapper { padding: 80px 0; background: #000; display: flex; justify-content: center; border-top: 1px solid #222; border-bottom: 1px solid #222; }
+        .terminal-box { 
+            width: 900px; max-width: 95vw; border: 1px solid var(--vox-cyan); background: rgba(5, 5, 8, 0.98);
+            font-family: var(--font-code); box-shadow: 0 0 50px rgba(0, 243, 255, 0.05); display: flex; flex-direction: column;
+        }
+        .term-bar { background: #111; padding: 8px 15px; color: #666; font-size: 11px; display: flex; justify-content: space-between; border-bottom: 1px solid #333; }
+        .term-screen { height: 400px; padding: 20px; color: var(--vox-cyan); font-size: 14px; overflow-y: auto; }
+        .term-input { display: flex; padding: 15px; background: #050505; border-top: 1px solid #333; align-items: center; }
+        #cmdInput { background: transparent; border: none; color: white; width: 100%; outline: none; font-family: var(--font-code); font-size: 14px; margin-left: 10px; }
+        .matrix-rain { color: #0f0; opacity: 0.5; font-size: 12px; }
+
+        /* Eye */
+        .vox-eye-container { position: fixed; bottom: 30px; right: 30px; width: 70px; height: 70px; z-index: 5000; transition: transform 0.2s; pointer-events: none; }
+        @media (hover: none) and (pointer: coarse) { .vox-eye-container { display: none; } }
+        
+        .eye-svg { width: 100%; height: 100%; filter: drop-shadow(0 0 10px var(--vox-cyan)); }
+        .pupil-group { transition: transform 0.05s; will-change: transform; }
+        
+        .news-ticker { background: var(--vox-cyan); color: black; font-weight: 900; font-family: var(--font-code); padding: 5px 0; border-bottom: 2px solid var(--vox-blue); position: fixed; top: 0; width: 100%; z-index: 9000; font-size: 13px; white-space: nowrap; overflow: hidden; }
+        .ticker-move { display: inline-block; animation: tick 30s infinite linear; will-change: transform; }
+        @keyframes tick { 0% { transform: translateX(100vw); } 100% { transform: translateX(-100%); } }
+
+        footer { text-align: center; padding: 60px 20px; color: #444; font-size: 11px; border-top: 1px solid #111; background: #010101; }
+        
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            header { flex-direction: column; gap: 20px; padding: 15px; }
+            nav ul { justify-content: center; gap: 15px; }
+            .hero h1 { font-size: 40px; }
+            .section-header h2 { font-size: 28px; }
+            .timeline-container { padding-left: 25px; }
+            .timeline-item::before { left: -29px; }
+            .btn-tech { padding: 15px 20px; width: 100%; text-align: center; }
+            #notification-area { top: 60px; left: 10px; right: 10px; width: auto; align-items: center; }
+            .vox-toast { min-width: auto; width: 100%; }
+            #cam-container { width: 100px; height: 75px; bottom: 10px; left: 10px; }
+            #vsod-layer { padding: 50px 20px; }
+            .egg-text { font-size: 50px; }
+            
+            /* Slide Menu Mobile */
+            #slide-music-menu { width: 90vw !important; right: -95vw !important; }
+            #slide-music-menu.open { right: 0 !important; }
+        }
+
+        /* --- SUBPAGE STYLES --- */
+        .view-section { display: none; width: 100%; min-height: 80vh; padding-top: 40px; }
+        .view-section.active-view { display: block; animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- MESSENGER STYLES --- */
+        .messenger-container {
+            max-width: 900px; margin: 40px auto; 
+            border: 1px solid var(--vox-cyan); background: rgba(0,0,0,0.9);
+            height: 600px; display: flex; flex-direction: column;
+            box-shadow: 0 0 30px rgba(0,243,255,0.1);
+        }
+        
+        /* Auth Screen */
+        .auth-screen { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; }
+        .auth-box { width: 300px; text-align: center; }
+        .auth-tabs { display: flex; margin-bottom: 20px; width: 100%; border-bottom: 1px solid #333; }
+        .auth-tab { flex: 1; padding: 10px; background: transparent; border: none; color: #666; font-weight: bold; transition: 0.3s; }
+        .auth-tab.active { color: var(--vox-cyan); border-bottom: 2px solid var(--vox-cyan); }
+        .auth-form { display: none; }
+        .auth-form.active { display: block; animation: fadeIn 0.3s; }
+
+        /* Chat UI */
+        .chat-ui { width: 100%; height: 100%; display: none; }
+        .chat-ui.active { display: flex; }
+        .chat-sidebar { width: 250px; border-right: 1px solid #333; background: #050505; display: flex; flex-direction: column; }
+        .chat-main { flex: 1; display: flex; flex-direction: column; background: #000; }
+        
+        .contact-item { padding: 15px; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 10px; transition: 0.2s; }
+        .contact-item:hover { background: #111; }
+        .contact-item.active { background: rgba(0,243,255,0.1); border-left: 3px solid var(--vox-cyan); }
+        .c-avatar { width: 30px; height: 30px; background: #333; border-radius: 50%; }
+        .c-name { font-size: 14px; color: white; font-weight: bold; }
+        .c-status { font-size: 10px; color: #666; }
+
+        .chat-header { padding: 15px; border-bottom: 1px solid #333; background: #080808; display: flex; justify-content: space-between; align-items: center; }
+        .chat-messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .msg { max-width: 70%; padding: 10px 15px; border-radius: 5px; font-size: 13px; line-height: 1.4; }
+        .msg.received { background: #111; border-left: 2px solid #555; align-self: flex-start; color: #ccc; }
+        .msg.sent { background: rgba(0,243,255,0.1); border-right: 2px solid var(--vox-cyan); align-self: flex-end; color: white; text-align: right; }
+        
+        .chat-input-area { padding: 15px; border-top: 1px solid #333; display: flex; gap: 10px; background: #050505; }
+
+        /* --- UPDATED: VIDEO PLAYER STYLES --- */
+        .video-wrapper {
+            max-width: 900px; margin: 40px auto; 
+            border: 2px solid #333; background: #000;
+            position: relative; box-shadow: 0 0 20px rgba(0,0,0,0.8);
+        }
+        
+        /* MAGIC FULLSCREEN FIX: Container becomes fullscreen, keeping child controls visible */
+        .video-wrapper:fullscreen {
+            width: 100vw; height: 100vh;
+            display: flex; justify-content: center; align-items: center;
+            background: black;
+            border: none;
+        }
+        .video-wrapper:fullscreen .video-screen-container {
+            height: 100%; width: 100%; border: none;
+        }
+        .video-wrapper:fullscreen video {
+            object-fit: contain;
+        }
+        .video-wrapper:fullscreen .custom-video-controls {
+            position: fixed; bottom: 0; width: 100%;
+            background: rgba(0,0,0,0.6);
+            padding-bottom: 20px;
+        }
+
+        .video-screen-container {
+            width: 100%; aspect-ratio: 16/9; background: #050505; position: relative; overflow: hidden;
+            border-bottom: 1px solid #333;
+        }
+        .video-overlay-crt {
+            position: absolute; top:0; left:0; width:100%; height:100%; 
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 3px, 3px 100%; pointer-events: none; z-index: 5;
+        }
+        .video-tag {
+            position: absolute; top: 10px; left: 10px; background: var(--vox-cyan); color: black;
+            font-weight: bold; font-size: 10px; padding: 2px 5px; z-index: 6; font-family: var(--font-code);
+        }
+        #customVideoPlayer { width: 100%; height: 100%; outline: none; display:block; }
+        
+        /* CUSTOM CONTROLS OVERLAY */
+        .custom-video-controls {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            background: rgba(0, 0, 0, 0.85); border-top: 1px solid var(--vox-cyan);
+            padding: 10px; z-index: 2147483647; /* High z-index for Fullscreen */
+            display: flex; flex-direction: column; gap: 5px;
+            transform: translateY(100%); transition: transform 0.3s ease;
+        }
+        .video-wrapper:hover .custom-video-controls, 
+        .custom-video-controls:hover {
+            transform: translateY(0);
+        }
+        
+        .c-row { display: flex; align-items: center; gap: 15px; }
+        
+        .c-btn {
+            background: transparent; border: 1px solid #444; color: var(--vox-cyan);
+            font-family: var(--font-code); font-size: 12px; font-weight: bold;
+            padding: 5px 10px; min-width: 30px; text-align: center;
+        }
+        .c-btn:hover { background: var(--vox-cyan); color: black; border-color: var(--vox-cyan); }
+        
+        .c-time { font-family: var(--font-code); font-size: 11px; color: #aaa; min-width: 100px; }
+        
+        /* Custom Range Slider */
+        .vox-range {
+            -webkit-appearance: none; width: 100%; height: 6px; background: #222; outline: none; flex: 1; border: 1px solid #333;
+        }
+        .vox-range::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 10px; height: 14px; background: var(--vox-cyan); cursor: pointer;
+            box-shadow: 0 0 5px var(--vox-cyan);
+        }
+
+        .video-controls-panel {
+            padding: 20px; display: flex; justify-content: center; gap: 20px; align-items: center; background: #080808;
+        }
+        .file-upload-btn {
+            position: relative; overflow: hidden; display: inline-block;
+        }
+        .file-upload-btn input[type=file] {
+            font-size: 100px; position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer;
+        }
+
+        /* --- SLIDE OUT MUSIC MENU --- */
+        #slide-music-menu {
+            position: fixed; top: 80px; right: -320px; width: 300px; height: auto;
+            background: rgba(5, 8, 12, 0.98); border: 1px solid var(--vox-cyan); border-right: none;
+            z-index: 9500; transition: right 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
+            padding: 20px; display: flex; flex-direction: column; gap: 15px;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.8);
+            backdrop-filter: blur(10px);
+        }
+        #slide-music-menu.open { right: 0; }
+        
+        .music-header { font-size: 14px; font-weight: bold; color: var(--vox-cyan); border-bottom: 1px solid #333; padding-bottom: 10px; display:flex; justify-content:space-between;}
+        
+        .visualizer-container {
+            width: 100%; height: 60px; background: #000; border: 1px solid #333;
+            display: flex; align-items: flex-end; justify-content: space-between; padding: 2px;
+        }
+        #audioCanvas { width: 100%; height: 100%; }
+        
+        .cover-art-box {
+            width: 100%; height: 200px; background: #111; border: 1px solid #333;
+            display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;
+        }
+        #coverImg { width: 100%; height: 100%; object-fit: cover; opacity: 0.5; filter: grayscale(100%); transition:0.3s; }
+        .cover-art-box:hover #coverImg { opacity: 1; filter: grayscale(0%); }
+        .cover-text { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.7); color: white; padding: 5px; font-size: 10px; text-align: center; }
+
+        .music-controls { display: flex; flex-direction: column; gap: 10px; }
+        .range-wrap { display: flex; align-items: center; gap: 10px; font-size: 10px; color: #666; }
+        input[type="range"] {
+            -webkit-appearance: none; width: 100%; height: 4px; background: #333; outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 10px; height: 10px; background: var(--vox-cyan); cursor: pointer; box-shadow: 0 0 5px var(--vox-cyan);
+        }
+
+        #toggleMenuBtn {
+            position: absolute; left: -40px; top: 0; width: 40px; height: 40px;
+            background: var(--vox-cyan); border: none; color: black; font-weight: bold;
+            display: flex; justify-content: center; align-items: center; font-size: 20px;
+            clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 10px 50%);
+        }
+
+    </style>
+</head>
+<body id="top">
+
+    <div class="crt-overlay" aria-hidden="true"></div>
+    <div class="vignette" aria-hidden="true"></div>
+    <div id="notification-area" aria-live="polite"></div>
+
+    <audio id="bg-music" src="embient.mp3" loop crossorigin="anonymous"></audio>
+
+    <div id="vsod-layer">
+        <div class="glitch-bar"></div>
+        <div class="sad-face">:(</div>
+        <h1 style="font-size: 50px; margin-bottom: 20px;">SIGNAL LOST</h1>
+        <p>THE RADIO IS DEAD. LONG LIVE THE RADIO.</p>
+        <p style="margin-top: 20px; color: #ff0000;" id="vsod-percent">System Corruption: 100%</p>
+        <div style="margin-top: 50px; font-size: 14px; opacity: 0.8; border-top: 1px solid white; padding-top: 20px;">
+            <p>Error: ALASTOR_INTERFERENCE_DETECTED</p>
+            <p>Status: FATAL_EXCEPTION_0x666</p>
+            <p>Action: PRAY</p>
+        </div>
+    </div>
+
+    <div id="cam-container">
+        <div class="cam-label">SUBJECT #8940</div>
+        <div class="rec-dot"></div>
+        <video id="webcamFeed" autoplay muted playsinline></video>
+        <div id="cam-overlay"></div>
+    </div>
+
+    <div id="easterEggLayer" role="dialog" aria-modal="true" aria-label="Easter Egg Protocol VOX">
+        <div class="hypno-spiral"></div>
+        <div class="egg-text">TRUST US</div>
+        <div class="egg-text" style="font-size: 40px; margin-top: 20px; animation-delay: 0.5s;">VOX IS WATCHING YOU</div>
+        <button id="closeEasterEgg" class="btn-tech" style="z-index: 4; margin-top: 50px;">RESIST (ESC)</button>
+    </div>
+
+    <div class="news-ticker" role="marquee" aria-label="News Ticker">
+        <div class="ticker-move">
+            /// VOXTEK STOCK SURGES 666% /// DO NOT TRUST THE RADIO /// VIDEO IS THE FUTURE /// VANGUARD SYSTEM V10.0 RELEASED /// SUBMIT TO THE SIGNAL ///
+        </div>
+    </div>
+
+    <div class="vox-eye-container" aria-hidden="true">
+        <svg class="eye-svg" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="45" stroke="var(--vox-cyan)" stroke-width="2" fill="none" stroke-dasharray="10 5" />
+            <circle cx="50" cy="50" r="30" fill="black" />
+            <g class="pupil-group" id="eyePupil">
+                <circle cx="50" cy="50" r="12" stroke="var(--vox-cyan)" stroke-width="2" fill="none"/>
+                <circle cx="50" cy="50" r="5" fill="var(--alert-red)" />
+            </g>
+        </svg>
+    </div>
+
+    <div id="slide-music-menu">
+        <button id="toggleMenuBtn" aria-label="Toggle Music Menu">♫</button>
+        <div class="music-header">
+            <span>VOXTEK AUDIO</span>
+            <span style="font-size:10px;">V.2.0</span>
+        </div>
+        
+        <div class="cover-art-box">
+            <img id="coverImg" src="https://placehold.co/200x200/000000/00f3ff/png?text=VOX+BEATS" alt="Cover Art">
+            <div class="cover-text"> </div>
+            <label class="file-upload-btn" style="position:absolute; top:5px; right:5px; background:rgba(0,0,0,0.8); border:1px solid #333; padding:2px 5px; font-size:9px;">
+                UPLOAD ART
+                <input type="file" id="coverUpload" accept="image/*">
+            </label>
+        </div>
+
+        <div class="visualizer-container">
+            <canvas id="audioCanvas"></canvas>
+        </div>
+
+        <div class="music-controls">
+            <div class="range-wrap">
+                <span>VOL</span>
+                <input type="range" id="volumeControl" min="0" max="1" step="0.01" value="0.2">
+            </div>
+            <div class="range-wrap">
+                <span>SEEK</span>
+                <input type="range" id="seekControl" min="0" max="100" value="0">
+            </div>
+            <div style="display:flex; justify-content:space-between; font-family:var(--font-code); font-size:10px;">
+                <span id="currentTime">00:00</span>
+                <span id="durationTime">--:--</span>
+            </div>
+            <button class="btn-tech" id="playPauseBtn" style="padding:5px; font-size:12px; width:100%;">PLAY STREAM</button>
+        </div>
+        
+        <div style="border-top:1px solid #333; padding-top:10px; margin-top:10px;">
+            <label class="btn-tech file-upload-btn" style="width:100%; font-size:10px; padding:8px; text-align:center;">
+                LOAD LOCAL FILE (SAVE)
+                <input type="file" id="localAudioInput" accept="audio/*">
+            </label>
+            <div style="font-size:9px; color:#555; margin-top:5px; text-align:center;">Saves to Local Storage</div>
+        </div>
+    </div>
+
+    <header role="banner">
+        <a href="#top" class="logo-container" onclick="Router.go('home')" aria-label="VoxTek Home">
+            <svg class="vox-logo-svg" viewBox="0 0 100 100" aria-hidden="true">
+                <path d="M10,10 L90,10 L80,80 L20,80 Z" stroke="var(--vox-cyan)" stroke-width="4" fill="none"/>
+                <path d="M35,30 L50,65 L65,30" stroke="var(--vox-cyan)" stroke-width="5" fill="none" stroke-linecap="round"/>
+                <circle cx="50" cy="65" r="5" fill="var(--vox-cyan)"/>
+            </svg>
+            <div class="logo">VOX<span>TEK</span></div>
+        </a>
+        
+        <nav role="navigation">
+            <ul>
+                <li><a href="#about" onclick="Router.go('home')">About</a></li>
+                <li><a href="#products" onclick="Router.go('home')">Tech</a></li>
+                <li><a href="#terminal" onclick="Router.go('home')">Terminal</a></li>
+                <li><a href="#" onclick="Router.go('video')" style="color:white;">BROADCAST</a></li>
+                <li><a href="#" onclick="Router.go('messenger')" style="color:var(--vox-cyan);">MESSENGER</a></li>
+                </ul>
+        </nav>
+    </header>
+
+    <div id="view-home" class="view-section active-view">
+        <main>
+            <section class="hero" aria-label="Welcome">
+                <h1 class="glitch-text" id="heroTitle" data-text="Trust Us With Your Technology">Trust Us With<br>Your Technology</h1>
+                <p style="color: #bbb; margin-top: 20px; font-size: 18px; max-width: 600px; padding: 0 10px;">
+                    The future is bright. The future is blue. <br> 
+                    Welcome to a perfectly curated reality.
+                </p>
+                <button class="btn-tech" id="initBtn" style="margin-top:40px;">INITIATE CONTROL</button>
+            </section>
+
+            <section id="about" aria-labelledby="about-title">
+                <div class="section-header"><h2 id="about-title">Our Vision</h2></div>
+                <div class="timeline-container reveal">
+                    <div class="timeline-item">
+                        <div class="t-date">2019 - THE FALL</div>
+                        <div class="t-title">Foundation</div>
+                        <div class="t-desc">VoxTek is established in Pentagram City. The first television broadcast hypnotizes 10% of the population instantly.</div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="t-date">2022 - THE SILENCE</div>
+                        <div class="t-title">Radio Obsolescence</div>
+                        <div class="t-desc">Old mediums are purged. VoxTek acquires 90% of all media outlets. Video becomes the only truth.</div>
+                    </div>
+                    <div class="timeline-item">
+                        <div class="t-date">2026 - TOTALITY</div>
+                        <div class="t-title">Vanguard System</div>
+                        <div class="t-desc">Release of the Vanguard Neural Link. Security is now biological. We are inside your head. You are safe.</div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="products" aria-labelledby="products-title">
+                <div class="section-header"><h2 id="products-title">Systems</h2></div>
+                <div class="products-grid reveal">
+                    <div class="tech-card" tabindex="0">
+                        <div class="badge">V10.0 STABLE</div>
+                        <h3>VANGUARD BUILDER</h3>
+                        <p>The ultimate CLI deployment tool. Compiles to C++, secures your code, and monitors your soul. Mandatory for all developers.</p>
+                        <button type="button" class="btn-tech" id="downloadBtn" style="margin-top:20px; width:100%; text-align:center;">DOWNLOAD .EXE</button>
+                    </div>
+                    <div class="tech-card" tabindex="0">
+                        <div class="badge">SOLD OUT</div>
+                        <h3>VOX WATCH</h3>
+                        <p>Monitors heart rate, location, and rebellious thoughts. Electric shock therapy included for free.</p>
+                        <button class="btn-tech" style="margin-top:20px; width:100%; border-color:#555; color:#555; cursor:not-allowed;" disabled>RESTRICTED</button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="reviews" aria-labelledby="reviews-title">
+                <div class="section-header"><h2 id="reviews-title">Citizen Voices</h2></div>
+                <div class="reviews-wrapper">
+                    <div class="review-form reveal">
+                        <h3 style="color:white; margin-bottom:20px; border-bottom:1px solid var(--vox-cyan); padding-bottom:10px;">SUBMIT REPORT</h3>
+                        <form id="reviewForm" onsubmit="return false;">
+                            <label for="revName" class="form-label">CITIZEN ID</label>
+                            <input type="text" id="revName" class="form-input" placeholder="e.g. #8940" maxlength="20" required autocomplete="off">
+                            
+                            <label class="form-label" id="ratingLabel">SATISFACTION</label>
+                            <div class="rating-squares" id="ratingBox" role="radiogroup" aria-labelledby="ratingLabel">
+                                <div class="sq" data-v="1" role="radio" aria-checked="false" tabindex="0" aria-label="1 Star"></div>
+                                <div class="sq" data-v="2" role="radio" aria-checked="false" tabindex="0" aria-label="2 Stars"></div>
+                                <div class="sq" data-v="3" role="radio" aria-checked="false" tabindex="0" aria-label="3 Stars"></div>
+                                <div class="sq" data-v="4" role="radio" aria-checked="false" tabindex="0" aria-label="4 Stars"></div>
+                                <div class="sq" data-v="5" role="radio" aria-checked="true" tabindex="0" aria-label="5 Stars"></div>
+                            </div>
+
+                            <label for="revText" class="form-label">TESTIMONY</label>
+                            <input type="text" id="revText" class="form-input" placeholder="Praise VoxTek..." maxlength="140" required autocomplete="off">
+                            
+                            <button type="submit" class="btn-tech" style="width:100%">TRANSMIT</button>
+                        </form>
+                    </div>
+
+                    <div class="review-feed" id="reviewFeed" role="log" aria-live="polite">
+                        <div class="review-item good">
+                            <div class="r-name">Velvet <div class="r-squares" aria-label="5 out of 5 stars"><div class="r-sq fill"></div><div class="r-sq fill"></div><div class="r-sq fill"></div><div class="r-sq fill"></div><div class="r-sq fill"></div></div></div>
+                            <div class="r-text">"Trendy. Fast. Secure. The only brand that matters. Everything else is trash. #VoxTek"</div>
+                        </div>
+                        <div class="review-item good">
+                            <div class="r-name">Valentino <div class="r-squares" aria-label="5 out of 5 stars"><div class="r-sq fill"></div><div class="r-sq fill"></div><div class="r-sq fill"></div><div class="r-sq fill"></div><div class="r-sq fill"></div></div></div>
+                            <div class="r-text">"My employees are so much more... obedient... with the new watches. Good work, Vox."</div>
+                        </div>
+                         <div class="review-item good">
+                            <div class="r-name">Citizen #772 <div class="r-squares" aria-label="5 out of 5 stars"><div class="r-sq fill"></div><div class="r-sq fill"></div><div class="r-sq fill"></div><div class="r-sq fill"></div><div class="r-sq fill"></div></div></div>
+                            <div class="r-text">"I haven't slept in days but I feel fantastic! The signal keeps me warm."</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="terminal" aria-labelledby="terminal-title">
+                <div class="section-header"><h2 id="terminal-title">Mainframe Access</h2></div>
+                <div class="terminal-wrapper">
+                    <div class="terminal-box reveal" role="application" aria-label="Terminal Emulator">
+                        <div class="term-bar"><span>root@vox-mainframe</span><span>ENCRYPTED_SSH_V3</span></div>
+                        <div class="term-screen" id="termScreen" role="log" aria-live="polite"></div>
+                        <div class="term-input">
+                            <span style="color:var(--vox-cyan);" aria-hidden="true">root@vanguard:~#</span>
+                            <label for="cmdInput" class="sr-only">Terminal Input</label>
+                            <input type="text" id="cmdInput" autocomplete="off" spellcheck="false" inputmode="text">
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="view-messenger" class="view-section">
+        <div class="section-header"><h2>VOX MESSENGER</h2></div>
+        
+        <div class="messenger-container">
+            <div id="msgAuth" class="auth-screen">
+                <div class="auth-box">
+                    <div class="auth-tabs">
+                        <button class="auth-tab active" onclick="AuthSystem.switchTab('login')">LOGIN</button>
+                        <button class="auth-tab" onclick="AuthSystem.switchTab('register')">REGISTER</button>
+                    </div>
+                    
+                    <div id="formLogin" class="auth-form active">
+                        <input type="text" id="loginUser" class="form-input" placeholder="USERNAME">
+                        <input type="password" id="loginPass" class="form-input" placeholder="PASSWORD">
+                        <button class="btn-tech" style="width:100%" onclick="AuthSystem.login()">CONNECT</button>
+                    </div>
+
+                    <div id="formRegister" class="auth-form">
+                        <input type="text" id="regUser" class="form-input" placeholder="NEW USERNAME">
+                        <input type="password" id="regPass" class="form-input" placeholder="CREATE PASSWORD">
+                        <button class="btn-tech" style="width:100%" onclick="AuthSystem.register()">CREATE ID</button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="msgApp" class="chat-ui">
+                <div class="chat-sidebar">
+                    <div style="padding:15px; border-bottom:1px solid #333; color:white; font-weight:bold;">CONTACTS</div>
+                    <div class="contact-item active">
+                        <div class="c-avatar" style="background:var(--vox-cyan);"></div>
+                        <div>
+                            <div class="c-name">VOX [CEO]</div>
+                            <div class="c-status">Online</div>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <div class="c-avatar" style="background:#aa00aa;"></div>
+                        <div>
+                            <div class="c-name">Valentino</div>
+                            <div class="c-status">Busy</div>
+                        </div>
+                    </div>
+                    <div class="contact-item">
+                        <div class="c-avatar" style="background:#ff003c;"></div>
+                        <div>
+                            <div class="c-name">Velvet</div>
+                            <div class="c-status">Streaming</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-main">
+                    <div class="chat-header">
+                        <span style="color:white; font-weight:bold;">CHAT: VOX [CEO]</span>
+                        <button class="btn-tech" style="padding:5px 15px; font-size:10px; border:none;" onclick="AuthSystem.logout()">LOGOUT</button>
+                    </div>
+                    <div class="chat-messages" id="chatFeed">
+                        <div class="msg received">Welcome to the team. Don't disappoint me.</div>
+                        <div class="msg received">Remember: Video is the only future.</div>
+                    </div>
+                    <div class="chat-input-area">
+                        <input type="text" id="msgInput" class="form-input" style="margin-bottom:0;" placeholder="Type message...">
+                        <button class="btn-tech" style="padding:10px 20px;" onclick="AuthSystem.send()">SEND</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-video" class="view-section">
+        <div class="section-header"><h2>BROADCAST STATION</h2></div>
+        
+        <div class="video-wrapper" id="broadcastContainer">
+            <div class="video-screen-container">
+                <div class="video-tag" id="signalStatus">SIGNAL STATUS: OFFLINE</div>
+                <div class="video-overlay-crt"></div>
+                
+                <video id="customVideoPlayer" playsinline></video>
+                
+                <div class="custom-video-controls">
+                    <input type="range" class="vox-range" id="vProgress" value="0" min="0" max="100" step="0.1" style="height:3px; margin-bottom:5px;">
+                    
+                    <div class="c-row">
+                        <button id="vPlayBtn" class="c-btn">► PLAY</button>
+                        <button id="vStopBtn" class="c-btn">■ STOP</button>
+                        <span id="vTime" class="c-time">00:00 / 00:00</span>
+                        
+                        <div style="flex:1;"></div>
+                        
+                        <span style="font-size:10px; color:#666; font-weight:bold;">VOL</span>
+                        <input type="range" class="vox-range" id="vVol" min="0" max="1" step="0.1" value="1" style="width:60px; flex:none;">
+                        <button id="vFull" class="c-btn" style="min-width:20px;">[ ]</button>
+                    </div>
+                </div>
+
+                <div id="vidPlaceholder" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:white; text-align:center; pointer-events:none;">
+                    <p style="font-family:var(--font-code);">WAITING FOR SIGNAL INPUT...</p>
+                </div>
+            </div>
+
+            <div class="video-controls-panel">
+                <span style="color:white; font-size:12px; font-weight:bold;">SOURCE INPUT:</span>
+                <label class="btn-tech file-upload-btn">
+                    SELECT FILE (SAVE)
+                    <input type="file" id="videoInput" accept="video/mp4, video/webm, video/ogg">
+                </label>
+                <div style="font-size:9px; color:#555; text-align:center;">Saves to Local Storage</div>
+            </div>
+        </div>
+        <div style="text-align:center; color:#666; margin-top:20px; font-size:12px;">
+            SECURE CHANNEL ESTABLISHED. CONTENT MONITORED BY VANGUARD.
+        </div>
+    </div>
+
+    <footer>
+        <p>&copy; 2026 VOXTEK ENTERPRISES. TRUST THE SIGNAL. FAILURE IS NOT AN OPTION.</p>
+    </footer>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // --- 0. INDEXED DB SYSTEM (PERSISTENCE) ---
+            const DbSystem = {
+                dbName: 'VoxMediaDB',
+                version: 1,
+                db: null,
+                init() {
+                    const req = indexedDB.open(this.dbName, this.version);
+                    req.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains('media')) {
+                            db.createObjectStore('media', { keyPath: 'type' });
+                        }
+                    };
+                    req.onsuccess = (e) => {
+                        this.db = e.target.result;
+                        console.log("Persistence Module Loaded.");
+                        this.loadMedia('audio');
+                        this.loadMedia('video');
+                    };
+                    req.onerror = (e) => console.error("DB Error", e);
+                },
+                saveFile(type, file) {
+                    if (!this.db) return;
+                    voxNotify(`SAVING ${type.toUpperCase()} TO MEMORY...`, 'info');
+                    const tx = this.db.transaction('media', 'readwrite');
+                    const store = tx.objectStore('media');
+                    store.put({ type: type, blob: file, date: new Date() });
+                    tx.oncomplete = () => voxNotify('SAVE COMPLETE. DATA PERSISTENT.', 'success');
+                    tx.onerror = () => voxNotify('SAVE FAILED. DISK FULL?', 'error');
+                },
+                loadMedia(type) {
+                    if (!this.db) return;
+                    const tx = this.db.transaction('media', 'readonly');
+                    const store = tx.objectStore('media');
+                    const req = store.get(type);
+                    req.onsuccess = (e) => {
+                        const data = e.target.result;
+                        if (data && data.blob) {
+                            const url = URL.createObjectURL(data.blob);
+                            if (type === 'audio') {
+                                MusicSystem.loadFromUrl(url);
+                                voxNotify('RESTORED AUDIO FROM MEMORY.', 'info');
+                            } else if (type === 'video') {
+                                VideoSystem.loadFromUrl(url);
+                                voxNotify('RESTORED VIDEO FROM MEMORY.', 'info');
+                            }
+                        }
+                    };
+                }
+            };
+
+            // --- 1. SOUND ENGINE (SFX) ---
+            const SoundFX = {
+                ctx: new (window.AudioContext || window.webkitAudioContext)(),
+                playTone(freq, type, duration) {
+                    if (this.ctx.state === 'suspended') this.ctx.resume();
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = type;
+                    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                    gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start();
+                    osc.stop(this.ctx.currentTime + duration);
+                },
+                hover() { this.playTone(400, 'sine', 0.1); },
+                click() { this.playTone(800, 'square', 0.1); },
+                error() { this.playTone(150, 'sawtooth', 0.3); },
+                staticNoise() {
+                    const bufferSize = this.ctx.sampleRate * 2.0; 
+                    const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+                    const noise = this.ctx.createBufferSource();
+                    noise.buffer = buffer;
+                    const gain = this.ctx.createGain();
+                    gain.gain.value = 0.1;
+                    noise.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    noise.start();
+                    noise.loop = true; 
+                }
+            };
+
+            // --- 1.1 AMBIENT MUSIC & VISUALIZER SYSTEM ---
+            const MusicSystem = {
+                audio: document.getElementById('bg-music'),
+                menu: document.getElementById('slide-music-menu'),
+                toggleBtn: document.getElementById('toggleMenuBtn'),
+                playBtn: document.getElementById('playPauseBtn'),
+                volSlider: document.getElementById('volumeControl'),
+                seekSlider: document.getElementById('seekControl'),
+                canvas: document.getElementById('audioCanvas'),
+                localInput: document.getElementById('localAudioInput'),
+                ctx: null,
+                analyser: null,
+                source: null,
+                audioCtx: null,
+                animationId: null,
+                useSimulation: false,
+
+                init() {
+                    this.audio.volume = 0.2; 
+
+                    this.toggleBtn.addEventListener('click', () => {
+                        this.menu.classList.toggle('open');
+                        SoundFX.click();
+                    });
+
+                    this.playBtn.addEventListener('click', () => {
+                        if (this.audio.paused) {
+                            this.startAudioContext();
+                            this.audio.play();
+                            this.playBtn.textContent = "PAUSE STREAM";
+                        } else {
+                            this.audio.pause();
+                            this.playBtn.textContent = "RESUME STREAM";
+                        }
+                        SoundFX.click();
+                    });
+
+                    this.volSlider.addEventListener('input', (e) => {
+                        this.audio.volume = e.target.value;
+                    });
+
+                    this.audio.addEventListener('timeupdate', () => {
+                        if (!isNaN(this.audio.duration)) {
+                            const pct = (this.audio.currentTime / this.audio.duration) * 100;
+                            this.seekSlider.value = pct;
+                            document.getElementById('currentTime').textContent = this.fmtTime(this.audio.currentTime);
+                            document.getElementById('durationTime').textContent = this.fmtTime(this.audio.duration);
+                        }
+                    });
+
+                    this.seekSlider.addEventListener('input', (e) => {
+                         const time = (e.target.value / 100) * this.audio.duration;
+                         this.audio.currentTime = time;
+                    });
+
+                    document.getElementById('coverUpload').addEventListener('change', (e) => {
+                        const file = e.target.files[0];
+                        if(file) {
+                             const url = URL.createObjectURL(file);
+                             document.getElementById('coverImg').src = url;
+                        }
+                    });
+
+                    this.localInput.addEventListener('change', (e) => {
+                         const file = e.target.files[0];
+                         if (file) {
+                             DbSystem.saveFile('audio', file); // Save to DB
+                             const url = URL.createObjectURL(file);
+                             this.loadFromUrl(url);
+                         }
+                    });
+                },
+                
+                loadFromUrl(url) {
+                    this.audio.src = url;
+                    this.useSimulation = false;
+                    this.audio.play().then(() => {
+                         this.playBtn.textContent = "PAUSE STREAM";
+                         this.startAudioContext();
+                    }).catch(err => console.log("Autoplay blocked"));
+                },
+
+                fmtTime(s) {
+                    const m = Math.floor(s / 60);
+                    const sec = Math.floor(s % 60);
+                    return `${m < 10 ? '0'+m : m}:${sec < 10 ? '0'+sec : sec}`;
+                },
+
+                startAudioContext() {
+                    if (this.audioCtx) return;
+                    
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.audioCtx = new AudioContext();
+
+                    try {
+                        this.analyser = this.audioCtx.createAnalyser();
+                        this.source = this.audioCtx.createMediaElementSource(this.audio);
+                        this.source.connect(this.analyser);
+                        this.analyser.connect(this.audioCtx.destination);
+                        this.analyser.fftSize = 64; 
+                        this.useSimulation = false;
+                    } catch (e) {
+                        console.log("CORS detected or AudioContext error. Switching to Simulated Visualizer.");
+                        this.useSimulation = true;
+                    }
+                    
+                    this.draw();
+                },
+
+                draw() {
+                    if (!this.canvas) return;
+                    const ctx = this.canvas.getContext('2d');
+                    const w = this.canvas.width;
+                    const h = this.canvas.height;
+                    
+                    let bufferLength, dataArray;
+                    if (!this.useSimulation && this.analyser) {
+                        bufferLength = this.analyser.frequencyBinCount;
+                        dataArray = new Uint8Array(bufferLength);
+                    } else {
+                        bufferLength = 32;
+                    }
+
+                    const drawFrame = () => {
+                        this.animationId = requestAnimationFrame(drawFrame);
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; 
+                        ctx.fillRect(0, 0, w, h);
+
+                        const barWidth = (w / bufferLength) * 2.5;
+                        let barHeight;
+                        let x = 0;
+
+                        let isSilent = true;
+
+                        if (!this.useSimulation && this.analyser) {
+                            this.analyser.getByteFrequencyData(dataArray);
+                            for(let i=0; i<bufferLength; i++) {
+                                if(dataArray[i] > 0) isSilent = false;
+                            }
+                        }
+
+                        for(let i = 0; i < bufferLength; i++) {
+                            if (!this.useSimulation && !isSilent) {
+                                barHeight = dataArray[i] / 2;
+                            } else if (!this.audio.paused) {
+                                barHeight = Math.random() * (h - 10);
+                            } else {
+                                barHeight = 2; 
+                            }
+
+                            ctx.fillStyle = `rgb(0, ${barHeight + 100}, 255)`; 
+                            ctx.fillRect(x, h - barHeight, barWidth, barHeight);
+                            x += barWidth + 1;
+                        }
+                    };
+                    drawFrame();
+                }
+            };
+            MusicSystem.init();
+
+            // --- 1.2 CUSTOM VIDEO PLAYER SYSTEM ---
+            const VideoSystem = {
+                input: document.getElementById('videoInput'),
+                video: document.getElementById('customVideoPlayer'),
+                wrapper: document.getElementById('broadcastContainer'), // CONTAINER FOR FULLSCREEN
+                playBtn: document.getElementById('vPlayBtn'),
+                stopBtn: document.getElementById('vStopBtn'),
+                fullBtn: document.getElementById('vFull'),
+                progress: document.getElementById('vProgress'),
+                vol: document.getElementById('vVol'),
+                timeDisplay: document.getElementById('vTime'),
+                statusTag: document.getElementById('signalStatus'),
+                placeholder: document.getElementById('vidPlaceholder'),
+                
+                init() {
+                    if(!this.input) return;
+
+                    // Upload
+                    this.input.addEventListener('change', (e) => {
+                        const file = e.target.files[0];
+                        if (file) {
+                            DbSystem.saveFile('video', file); // Save to DB
+                            const url = URL.createObjectURL(file);
+                            this.loadFromUrl(url);
+                        }
+                    });
+
+                    // Play/Pause Button
+                    this.playBtn.addEventListener('click', () => this.togglePlay());
+                    
+                    // Click on video to toggle
+                    this.video.addEventListener('click', () => this.togglePlay());
+
+                    // Stop
+                    this.stopBtn.addEventListener('click', () => {
+                        this.video.pause();
+                        this.video.currentTime = 0;
+                        this.playBtn.textContent = "► PLAY";
+                        this.statusTag.textContent = "SIGNAL STATUS: STANDBY";
+                    });
+
+                    // Fullscreen (CONTAINER)
+                    this.fullBtn.addEventListener('click', () => {
+                        if (this.wrapper.requestFullscreen) this.wrapper.requestFullscreen();
+                        else if (this.wrapper.webkitRequestFullscreen) this.wrapper.webkitRequestFullscreen();
+                    });
+
+                    // Volume
+                    this.vol.addEventListener('input', (e) => {
+                        this.video.volume = e.target.value;
+                    });
+
+                    // Progress Update (Video -> Slider)
+                    this.video.addEventListener('timeupdate', () => {
+                        if(this.video.duration) {
+                            const pct = (this.video.currentTime / this.video.duration) * 100;
+                            this.progress.value = pct;
+                            this.timeDisplay.textContent = `${this.fmt(this.video.currentTime)} / ${this.fmt(this.video.duration)}`;
+                        }
+                    });
+
+                    // Progress Control (Slider -> Video)
+                    this.progress.addEventListener('input', (e) => {
+                        if(this.video.duration) {
+                            const t = (e.target.value / 100) * this.video.duration;
+                            this.video.currentTime = t;
+                        }
+                    });
+                    
+                    // Video End
+                    this.video.addEventListener('ended', () => {
+                        this.playBtn.textContent = "► PLAY";
+                        this.statusTag.textContent = "SIGNAL STATUS: END TRANSMISSION";
+                    });
+                },
+                
+                loadFromUrl(url) {
+                    this.video.src = url;
+                    this.video.play().catch(e => console.log("Auto-play prevented"));
+                    this.statusTag.textContent = "SIGNAL STATUS: STABLE";
+                    this.statusTag.style.background = "var(--vox-cyan)";
+                    this.placeholder.style.display = 'none';
+                    this.playBtn.textContent = "|| PAUSE";
+                },
+
+                togglePlay() {
+                    if(this.video.paused) {
+                        this.video.play();
+                        this.playBtn.textContent = "|| PAUSE";
+                        this.statusTag.textContent = "SIGNAL STATUS: STABLE";
+                        this.statusTag.style.background = "var(--vox-cyan)";
+                    } else {
+                        this.video.pause();
+                        this.playBtn.textContent = "► PLAY";
+                        this.statusTag.textContent = "SIGNAL STATUS: PAUSED";
+                        this.statusTag.style.background = "#555";
+                    }
+                },
+
+                fmt(s) {
+                    const m = Math.floor(s / 60);
+                    const sec = Math.floor(s % 60);
+                    return `${m<10?'0'+m:m}:${sec<10?'0'+sec:sec}`;
+                }
+            };
+            VideoSystem.init();
+
+            // --- KEYBIND HANDLER (SPACEBAR) ---
+            document.addEventListener('keydown', (e) => {
+                // If user is typing in an input/textarea, ignore spacebar
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+                // If video is active and user presses space, let it play/pause (don't open menu)
+                if (document.activeElement === document.getElementById('customVideoPlayer') || 
+                   (document.getElementById('view-video').classList.contains('active-view') && !document.getElementById('slide-music-menu').classList.contains('open'))) {
+                       if (e.code === 'Space') {
+                           e.preventDefault();
+                           VideoSystem.togglePlay();
+                           return;
+                       }
+                }
+
+                if (e.code === 'Space') {
+                    e.preventDefault(); // Prevent page scroll
+                    const menu = document.getElementById('slide-music-menu');
+                    menu.classList.toggle('open');
+                    SoundFX.click();
+                }
+            });
+
+            // --- 2. LOCAL STORAGE ---
+            const Memory = {
+                check() {
+                    if (localStorage.getItem('vox_citizen') === 'true') {
+                        const title = document.getElementById('heroTitle');
+                        title.innerHTML = "Welcome Back,<br>Citizen";
+                        title.setAttribute('data-text', "Welcome Back, Citizen"); 
+                        document.getElementById('initBtn').textContent = "AWAITING ORDERS";
+                        voxNotify('Identity verified. Welcome back.', 'success');
+                    }
+                },
+                register() {
+                    localStorage.setItem('vox_citizen', 'true');
+                    SoundFX.click();
+                }
+            };
+
+            // --- UTILS ---
+            const throttle = (func, limit) => {
+                let inThrottle;
+                return function() {
+                    const args = arguments;
+                    const context = this;
+                    if (!inThrottle) {
+                        func.apply(context, args);
+                        inThrottle = true;
+                        setTimeout(() => inThrottle = false, limit);
+                    }
+                }
+            };
+
+            // --- NOTIFICATIONS ---
+            const voxNotify = (msg, type = 'info') => {
+                const area = document.getElementById('notification-area');
+                if (!area) return;
+
+                const toast = document.createElement('div');
+                toast.className = `vox-toast ${type === 'error' ? 'error' : ''}`;
+                
+                const header = document.createElement('div');
+                header.style.fontWeight = 'bold';
+                header.style.marginBottom = '5px';
+                header.textContent = '/// SYSTEM ALERT ///';
+                
+                const message = document.createElement('div');
+                message.textContent = msg; 
+                
+                toast.appendChild(header);
+                toast.appendChild(message);
+                area.appendChild(toast);
+                SoundFX.click();
+                
+                const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                if(!prefersReducedMotion) {
+                    document.body.style.boxShadow = `inset 0 0 50px ${type === 'error' ? 'red' : 'var(--vox-cyan)'}`;
+                    setTimeout(() => document.body.style.boxShadow = 'none', 150);
+                }
+
+                setTimeout(() => {
+                    toast.style.transform = 'translateX(120%)';
+                    setTimeout(() => { if(toast.parentNode) toast.parentNode.removeChild(toast); }, 300);
+                }, 3000);
+            };
+
+            // --- 3. EASTER EGG ---
+            const easterEgg = {
+                seq: [],
+                target: 'vox',
+                layer: document.getElementById('easterEggLayer'),
+                btn: document.getElementById('closeEasterEgg'),
+                init() {
+                    document.addEventListener('keydown', this.handleKey.bind(this));
+                    this.btn.addEventListener('click', this.close.bind(this));
+                },
+                handleKey(e) {
+                    if (this.layer.classList.contains('active') && (e.key === 'Escape' || e.key === 'Back')) {
+                        this.close();
+                        return;
+                    }
+                    this.seq.push(e.key.toLowerCase());
+                    if (this.seq.length > 3) this.seq.shift();
+                    
+                    if (this.seq.join('') === this.target) {
+                        this.open();
+                    }
+                },
+                open() {
+                    this.layer.classList.add('active');
+                    this.btn.focus();
+                    document.body.style.overflow = 'hidden';
+                    SoundFX.playTone(100, 'sawtooth', 1);
+                },
+                close() {
+                    this.layer.classList.remove('active');
+                    document.body.style.overflow = 'auto';
+                    this.seq = [];
+                }
+            };
+            easterEgg.init();
+
+            // --- 4. DOWNLOAD HANDLER ---
+            const downloadSystem = {
+                btn: document.getElementById('downloadBtn'),
+                init() {
+                    if (!this.btn) return;
+                    this.btn.addEventListener('click', this.startDownload.bind(this));
+                    this.btn.addEventListener('mouseenter', () => SoundFX.hover());
+                },
+                startDownload() {
+                    voxNotify('Initiating secure handshake...', 'info');
+                    this.btn.textContent = 'ENCRYPTING...';
+                    this.btn.disabled = true;
+                    this.btn.style.cursor = 'wait';
+                    setTimeout(() => { this.generateFile(); }, 1500);
+                },
+                generateFile() {
+                    const size = 1024 * 100;
+                    const buffer = new Uint8Array(size);
+                    buffer[0] = 0x4D; buffer[1] = 0x5A; // MZ
+                    for (let i = 2; i < size; i++) buffer[i] = Math.floor(Math.random() * 256);
+                    const blob = new Blob([buffer], { type: 'application/octet-stream' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = 'Vanguard_Installer_v10.exe'; 
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+
+                    this.btn.textContent = 'DOWNLOAD .EXE';
+                    this.btn.disabled = false;
+                    this.btn.style.cursor = 'pointer';
+                    voxNotify('Payload delivered. Execute at own risk.', 'success');
+                }
+            };
+            downloadSystem.init();
+
+            // --- 5. REVIEW SYSTEM ---
+            const reviewSystem = {
+                rating: 5,
+                squares: document.querySelectorAll('.sq'),
+                form: document.getElementById('reviewForm'),
+                feed: document.getElementById('reviewFeed'),
+                init() {
+                    this.squares.forEach(s => {
+                        s.addEventListener('mouseover', () => { this.highlight(s.dataset.v); SoundFX.hover(); });
+                        s.addEventListener('click', () => { 
+                            this.rating = parseInt(s.dataset.v, 10); 
+                            this.highlight(this.rating); 
+                            this.updateAria(this.rating);
+                            SoundFX.click();
+                        });
+                    });
+                    
+                    const ratingBox = document.getElementById('ratingBox');
+                    ratingBox.addEventListener('mouseleave', () => {
+                         if (window.matchMedia('(hover: hover)').matches) this.highlight(this.rating);
+                    });
+
+                    this.form.addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        this.submit();
+                    });
+                    this.highlight(5);
+                },
+                highlight(v) {
+                    this.squares.forEach(s => {
+                        if (parseInt(s.dataset.v, 10) <= v) s.classList.add('active');
+                        else s.classList.remove('active');
+                    });
+                },
+                updateAria(v) {
+                    this.squares.forEach(s => {
+                         s.setAttribute('aria-checked', parseInt(s.dataset.v, 10) === v ? 'true' : 'false');
+                    });
+                },
+                submit() {
+                    const nameInput = document.getElementById('revName');
+                    const textInput = document.getElementById('revText');
+                    const name = nameInput.value.trim();
+                    const text = textInput.value.trim();
+
+                    if (!name || !text) {
+                        voxNotify("Input data required.", "error");
+                        return;
+                    }
+
+                    const item = document.createElement('div');
+                    item.className = `review-item ${this.rating >= 4 ? 'good' : 'bad'}`;
+                    
+                    const header = document.createElement('div');
+                    header.className = 'r-name';
+                    header.textContent = name;
+                    
+                    const starsDiv = document.createElement('div');
+                    starsDiv.className = 'r-squares';
+                    for (let i = 0; i < 5; i++) {
+                        const sq = document.createElement('div');
+                        sq.className = `r-sq ${i < this.rating ? 'fill' : ''}`;
+                        starsDiv.appendChild(sq);
+                    }
+                    header.appendChild(starsDiv);
+
+                    const body = document.createElement('div');
+                    body.className = 'r-text';
+                    body.textContent = `"${text}"`;
+
+                    item.appendChild(header);
+                    item.appendChild(body);
+
+                    item.style.height = '0';
+                    item.style.opacity = '0';
+                    this.feed.prepend(item);
+                    void item.offsetWidth; 
+
+                    item.style.height = 'auto';
+                    item.style.opacity = '1';
+                    item.style.transition = '0.5s';
+
+                    nameInput.value = '';
+                    textInput.value = '';
+                    nameInput.focus();
+                    voxNotify("Review processed. Obedience verified.", "success");
+                    SoundFX.click();
+                }
+            };
+            reviewSystem.init();
+
+            // --- 6. TERMINAL & ALASTOR LOGIC ---
+            const terminal = {
+                screen: document.getElementById('termScreen'),
+                input: document.getElementById('cmdInput'),
+                fs: {
+                    'readme.txt': 'Welcome to Vanguard OS v10. Do not attempt to decompile.',
+                    'passwords.log': 'ERROR: ENCRYPTED. LEVEL 5 CLEARANCE REQUIRED.',
+                    'alastor_report.log': 'Target Status: MIA. Radio Signal: 0%. Threat: Negligible.'
+                },
+                matrixInterval: null,
+                init() {
+                    setTimeout(() => this.print("Initializing..."), 500);
+                    setTimeout(() => this.print("Mounting File System... [OK]", "#0f0"), 800);
+                    setTimeout(() => this.print("Type 'help' for commands."), 1200);
+
+                    this.input.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') this.processCmd();
+                    });
+                },
+                print(txt, color = 'var(--vox-cyan)') {
+                    const l = document.createElement('div');
+                    l.style.color = color;
+                    l.style.marginBottom = '5px';
+                    l.textContent = txt; 
+                    this.screen.appendChild(l);
+                    this.screen.scrollTop = this.screen.scrollHeight;
+                },
+                triggerCrash() {
+                    // ALASTOR VIRUS ACTIVATION
+                    SoundFX.staticNoise(); // Constant noise
+                    document.body.classList.add('theme-radio'); // Shake and red filter
+                    const vsod = document.getElementById('vsod-layer');
+                    vsod.classList.add('active'); // Full screen cover
+                    
+                    // Kill interactions
+                    window.onkeydown = (e) => e.preventDefault();
+                    document.body.style.cursor = 'none';
+
+                    // Update VSOD percent forever
+                    let p = 0;
+                    setInterval(() => {
+                        if (p < 99) p++;
+                        else p = 666;
+                        document.getElementById('vsod-percent').textContent = "Corruption: " + p + "%";
+                        document.getElementById('vsod-percent').style.fontSize = (20 + Math.random()*5) + "px";
+                    }, 100);
+                },
+                processCmd() {
+                    const raw = this.input.value.trim();
+                    if (!raw) return;
+                    
+                    const parts = raw.split(/\s+/);
+                    const cmd = parts[0].toLowerCase();
+                    const arg = parts[1];
+
+                    const echo = document.createElement('div');
+                    echo.style.color = 'white';
+                    echo.textContent = `root@vanguard:~# ${raw}`;
+                    this.screen.appendChild(echo);
+                    this.input.value = '';
+
+                    switch (cmd) {
+                        case 'help':
+                            this.print("COMMANDS: ls, cat [file], clear, whoami, matrix, radio, exit");
+                            break;
+                        case 'ls':
+                            this.print("FILES:");
+                            Object.keys(this.fs).forEach(f => this.print(`- ${f}`));
+                            this.print("- vanguard.exe");
+                            break;
+                        case 'cat':
+                            if (this.fs[arg]) {
+                                this.print(this.fs[arg], "#ccc");
+                            } else if (arg === 'vanguard.exe') {
+                                this.print("[BINARY DATA CANNOT BE DISPLAYED]", "red");
+                            } else {
+                                this.print(`Error: File '${arg ? arg : ''}' not found.`, "red");
+                            }
+                            break;
+                        case 'clear':
+                            while(this.screen.firstChild) this.screen.removeChild(this.screen.firstChild);
+                            break;
+                        case 'whoami':
+                            this.print("User: LOYAL_CITIZEN_8940");
+                            break;
+                        case 'radio':
+                        case 'alastor':
+                            this.print("!!! ALERT: FORBIDDEN FREQUENCY DETECTED !!!", "red");
+                            this.print("RUNNING DIAGNOSTICS...", "red");
+                            setTimeout(() => this.triggerCrash(), 2000);
+                            break;
+                        case 'matrix': 
+                            if (this.matrixInterval) clearInterval(this.matrixInterval);
+                            this.print("Injecting code...", "#0f0");
+                            let count = 0;
+                            this.matrixInterval = setInterval(() => {
+                                if(count > 50) { clearInterval(this.matrixInterval); return; }
+                                let line = "";
+                                for (let i = 0; i < 30; i++) line += Math.floor(Math.random() * 2);
+                                this.print(line, "#0f0");
+                                count++;
+                            }, 50);
+                            break;
+                        case 'val':
+                            document.body.classList.add('theme-val');
+                            this.print("Fashion Mode Activated.", "#ff00ff");
+                            break;
+                        case 'vox':
+                             document.body.className = '';
+                             this.print("Trust the signal.", "var(--vox-cyan)");
+                             break;
+                        default:
+                            this.print("Command not found.", "red");
+                    }
+                }
+            };
+            terminal.init();
+
+            // --- 7. EYE TRACKING ---
+            const eyeLogic = {
+                pupil: document.getElementById('eyePupil'),
+                svg: document.querySelector('.eye-svg'),
+                rect: null,
+                init() {
+                    if (window.matchMedia('(hover: none) and (pointer: coarse)').matches) return;
+
+                    window.addEventListener('resize', throttle(() => {
+                        this.rect = this.svg.getBoundingClientRect();
+                    }, 500));
+                    this.rect = this.svg.getBoundingClientRect();
+
+                    document.addEventListener('mousemove', (e) => {
+                        requestAnimationFrame(() => this.move(e));
+                    });
+                },
+                move(e) {
+                    if (!this.rect || !this.pupil) return;
+                    
+                    const cx = this.rect.left + this.rect.width / 2;
+                    const cy = this.rect.top + this.rect.height / 2;
+                    const dx = e.clientX - cx;
+                    const dy = e.clientY - cy;
+                    const angle = Math.atan2(dy, dx);
+                    
+                    const maxDist = 15; 
+                    const dist = Math.min(Math.sqrt(dx * dx + dy * dy), 100); 
+                    const r = (dist / 100) * maxDist; 
+
+                    this.pupil.style.transform = `translate(${Math.cos(angle) * r}px, ${Math.sin(angle) * r}px)`;
+                }
+            };
+            eyeLogic.init();
+
+             // --- 8. WEBCAM ---
+            const CamSystem = {
+                el: document.getElementById('webcamFeed'),
+                box: document.getElementById('cam-container'),
+                stream: null,
+                init() {
+                    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                        navigator.mediaDevices.getUserMedia({ video: true })
+                            .then(stream => {
+                                this.stream = stream;
+                                this.box.style.display = 'flex';
+                                this.el.srcObject = stream;
+                                voxNotify('Biometric scan active.', 'success');
+                            })
+                            .catch(err => {
+                                console.log("Cam error:", err);
+                            });
+                    }
+                }
+            };
+
+            // --- 9. KONAMI CODE ---
+            const Konami = {
+                seq: [],
+                code: ['arrowup','arrowup','arrowdown','arrowdown','arrowleft','arrowright','arrowleft','arrowright','b','a'],
+                init() {
+                    document.addEventListener('keydown', (e) => {
+                        this.seq.push(e.key.toLowerCase());
+                        if (this.seq.length > this.code.length) this.seq.shift();
+                        if (JSON.stringify(this.seq) === JSON.stringify(this.code)) {
+                            document.body.classList.toggle('theme-val');
+                            voxNotify('OVERRIDE: VALENTINO MODE ACTIVATED', 'info');
+                            SoundFX.playTone(600, 'square', 0.5);
+                        }
+                    });
+                }
+            };
+            Konami.init();
+
+            // --- 10. INIT LOGIC ---
+            document.getElementById('initBtn').addEventListener('click', function() {
+                this.textContent = "SYNCING...";
+                Memory.register();
+                CamSystem.init(); 
+                DbSystem.init(); // Initialize Database
+                
+                // Auto-start music on first interaction
+                const music = document.getElementById('bg-music');
+                if(music.paused) {
+                    const btn = document.getElementById('playPauseBtn');
+                    MusicSystem.startAudioContext();
+                    music.play().then(() => {
+                         btn.textContent = "PAUSE STREAM";
+                    }).catch(e => console.log("Auto-play blocked, user must use menu"));
+                }
+            });
+
+            // Scroll Reveal
+            const revealObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('active');
+                        revealObserver.unobserve(entry.target); 
+                    }
+                });
+            }, { threshold: 0.1 });
+            document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+            Memory.check();
+
+            // --- 11. ROUTER & AUTH SYSTEM ---
+            window.Router = {
+                go(page) {
+                    document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active-view'));
+                    
+                    if (page === 'home') {
+                         document.getElementById('view-home').classList.add('active-view');
+                    } else if (page === 'messenger') {
+                         document.getElementById('view-messenger').classList.add('active-view');
+                    } else if (page === 'video') {
+                         document.getElementById('view-video').classList.add('active-view');
+                    }
+                }
+            };
+
+            window.AuthSystem = {
+                currentUser: null,
+                init() {
+                    const saved = localStorage.getItem('vox_user');
+                    if (saved) {
+                        this.currentUser = JSON.parse(saved);
+                        this.showApp();
+                    } else {
+                        this.showAuth();
+                    }
+                },
+                switchTab(tab) {
+                    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+                    
+                    if(tab === 'login') {
+                        document.querySelector('#msgAuth .auth-tabs button:first-child').classList.add('active');
+                        document.getElementById('formLogin').classList.add('active');
+                    } else {
+                        document.querySelector('#msgAuth .auth-tabs button:last-child').classList.add('active');
+                        document.getElementById('formRegister').classList.add('active');
+                    }
+                    SoundFX.click();
+                },
+                register() {
+                    const u = document.getElementById('regUser').value.trim();
+                    const p = document.getElementById('regPass').value.trim();
+                    if(!u || !p) return voxNotify('Credentials required.', 'error');
+                    
+                    const db = { u, p };
+                    localStorage.setItem('vox_db', JSON.stringify(db));
+                    voxNotify('Identity Created. Please Login.', 'success');
+                    this.switchTab('login');
+                },
+                login() {
+                    const u = document.getElementById('loginUser').value.trim();
+                    const p = document.getElementById('loginPass').value.trim();
+                    const db = JSON.parse(localStorage.getItem('vox_db'));
+                    
+                    if (db && u === db.u && p === db.p) {
+                        this.currentUser = u;
+                        localStorage.setItem('vox_user', JSON.stringify(u));
+                        voxNotify('Welcome to the network.', 'success');
+                        this.showApp();
+                    } else {
+                        voxNotify('Invalid Identity.', 'error');
+                        SoundFX.error();
+                    }
+                },
+                logout() {
+                    localStorage.removeItem('vox_user');
+                    this.currentUser = null;
+                    this.showAuth();
+                    voxNotify('Disconnected.', 'info');
+                },
+                showAuth() {
+                    document.getElementById('msgAuth').style.display = 'flex';
+                    document.getElementById('msgApp').classList.remove('active');
+                },
+                showApp() {
+                    document.getElementById('msgAuth').style.display = 'none';
+                    document.getElementById('msgApp').classList.add('active');
+                },
+                send() {
+                    const inp = document.getElementById('msgInput');
+                    const txt = inp.value.trim();
+                    if(!txt) return;
+                    
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = 'msg sent';
+                    msgDiv.textContent = txt;
+                    document.getElementById('chatFeed').appendChild(msgDiv);
+                    inp.value = '';
+                    
+                    // FAKE ERROR
+                    setTimeout(() => {
+                         voxNotify('Transmission Error: Encrypted Channel Broken.', 'error');
+                         msgDiv.style.opacity = 0.5;
+                         msgDiv.style.textDecoration = "line-through";
+                         msgDiv.style.color = "red";
+                         SoundFX.error();
+                    }, 500);
+                }
+            };
+
+            AuthSystem.init();
+
+        })();
+    </script>
+</body>
+</html>
