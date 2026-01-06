@@ -1382,6 +1382,7 @@
                     drawFrame();
                 }
             };
+            window.MusicSystem = MusicSystem;
             MusicSystem.init();
 
             // --- 1.2 CUSTOM VIDEO PLAYER SYSTEM ---
@@ -1597,6 +1598,7 @@
                     return `${m<10?'0'+m:m}:${sec<10?'0'+sec:sec}`;
                 }
             };
+            window.VideoSystem = VideoSystem;
             VideoSystem.init();
 
             // --- KEYBIND HANDLER ---
