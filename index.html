@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="description" content="VoxTek Enterprises - The future of secure technology.">
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     <title>VoxTek Enterprises | Submission is Safety</title>
@@ -82,6 +82,10 @@
             -moz-user-select: none;    /* Firefox */
             -ms-user-select: none;     /* IE10+/Edge */
             user-select: none;         /* Standard */
+            overflow-x: hidden; 
+            width: 100vw; 
+            position: relative; /* Важно для iOS/Android */
+            overscroll-behavior-y: none; /* Отключает эффект "пружины" при прокрутке за край */
         }
 
         /* --- 2. CUSTOM SCROLLBAR --- */
@@ -516,6 +520,80 @@
             clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 10px 50%);
         }
 
+        /* --- MOBILE OPTIMIZATION --- */
+        @media (max-width: 768px) {
+            /* 1. Отключаем тяжелые наложения */
+            .crt-overlay, .vignette, .scan-line-color { 
+                display: none !important; 
+            }
+            
+            /* 2. Убираем размытие фона (очень тяжело для Android) */
+            header, #slide-music-menu {
+                backdrop-filter: none !important;
+                background: rgba(0, 0, 0, 0.95) !important;
+            }
+
+            /* 3. Упрощаем тени */
+            .tech-card, .btn-tech, .vox-toast {
+                box-shadow: none !important;
+                border: 1px solid var(--vox-cyan);
+            }
+
+            /* 4. Убираем анимацию "тряски" мира, если батарея садится */
+            body.theme-radio {
+                animation: none !important;
+                filter: none !important;
+                background: #330000;
+            }
+            
+            /* 5. Увеличиваем кнопки для пальцев */
+            .btn-tech, nav a {
+                min-height: 44px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            /* 6. Фикс для клавиатуры Android (чтобы не ломала верстку) */
+            .video-wrapper:fullscreen {
+                background: #000;
+            }
+        }
+
+        /* Частицы курсора (0 и 1) */
+        .cursor-particle {
+            position: fixed;
+            top: 0; left: 0;
+            font-family: var(--font-code);
+            font-size: 10px;
+            color: var(--vox-cyan);
+            pointer-events: none; /* Чтобы не мешали кликать */
+            z-index: 9999;
+            opacity: 1;
+            animation: particleFade 1s forwards;
+        }
+        
+        /* Если включен режим Аластора (красный) */
+        body.theme-radio .cursor-particle {
+            color: red;
+            font-family: 'Courier New', serif;
+        }
+
+        @keyframes particleFade {
+            0% { transform: translateY(0) scale(1); opacity: 0.8; }
+            100% { transform: translateY(20px) scale(0.5); opacity: 0; }
+        }
+
+        /* Пульсация глаза при прослушивании */
+        .vox-eye-container.listening .eye-svg {
+            filter: drop-shadow(0 0 20px var(--vox-cyan));
+            animation: eyePulse 1.5s infinite alternate;
+        }
+        
+        @keyframes eyePulse {
+            from { transform: scale(1); }
+            to { transform: scale(1.1); }
+        }
     </style>
 </head>
 <body id="top">
@@ -907,57 +985,72 @@
                 // Removed auto-load to prefer playlist logic
             };
 
-// --- 0.1 STATIC EFFECT (TV NOISE) ---
+            // --- 0.1 STATIC EFFECT (OPTIMIZED) ---
             const StaticFX = {
                 canvas: document.getElementById('staticCanvas'),
                 ctx: null,
                 active: true,
+                fps: 15, // Ограничиваем FPS для шума (было 60)
+                now: 0,
+                then: Date.now(),
+                interval: 1000 / 15, // Интервал обновления
+                delta: 0,
+
                 init() {
                     if(!this.canvas) return;
                     this.ctx = this.canvas.getContext('2d');
                     this.resize();
                     window.addEventListener('resize', () => this.resize());
+                    
+                    // На мобильных уменьшаем разрешение канваса для скорости
+                    if (window.innerWidth < 768) {
+                        this.fps = 10; // Еще меньше FPS на телефоне
+                        this.interval = 1000 / 10;
+                    }
+                    
                     this.loop();
                 },
                 resize() {
                     if (this.canvas && this.canvas.parentElement) {
                         const rect = this.canvas.parentElement.getBoundingClientRect();
-                        this.canvas.width = rect.width;
-                        this.canvas.height = rect.height;
+                        // Важно: на мобильных делаем канвас меньше размером и растягиваем CSS-ом
+                        const scale = window.innerWidth < 768 ? 0.5 : 1; 
+                        this.canvas.width = rect.width * scale;
+                        this.canvas.height = rect.height * scale;
+                        // CSS оставит его визуально на весь экран
                     }
                 },
                 toggle(on) {
                     this.active = on;
                     this.canvas.style.opacity = on ? '0.15' : '0';
-                    if (on) this.resize(); // Обновляем размер при включении
+                    if (on) this.resize();
                 },
                 loop() {
-                    if (this.active && this.canvas) {
+                    requestAnimationFrame(() => this.loop());
+
+                    if (!this.active || !this.canvas) return;
+
+                    // Логика троттлинга (пропуска кадров)
+                    this.now = Date.now();
+                    this.delta = this.now - this.then;
+
+                    if (this.delta > this.interval) {
+                        this.then = this.now - (this.delta % this.interval);
+
                         const w = this.canvas.width;
                         const h = this.canvas.height;
                         
-                        // --- ИСПРАВЛЕНИЕ ОШИБКИ ЗДЕСЬ ---
-                        // Проверяем, что ширина и высота больше 0 перед отрисовкой
                         if (w > 0 && h > 0) {
-                            try {
-                                const idata = this.ctx.createImageData(w, h);
-                                const buffer32 = new Uint32Array(idata.data.buffer);
-                                
-                                for(let i = 0; i < buffer32.length; i++) {
-                                    // Оптимизация: рисуем пиксели реже
-                                    if (Math.random() < 0.1) {
-                                        buffer32[i] = 0xffffffff; // Белый
-                                    } else {
-                                        buffer32[i] = 0x00000000; // Прозрачный
-                                    }
-                                }
-                                this.ctx.putImageData(idata, 0, 0);
-                            } catch (e) {
-                                // Игнорируем ошибки при изменении размера
+                            // Создаем шум
+                            const idata = this.ctx.createImageData(w, h);
+                            const buffer32 = new Uint32Array(idata.data.buffer);
+                            
+                            for(let i = 0; i < buffer32.length; i++) {
+                                if (Math.random() < 0.1) buffer32[i] = 0xffffffff;
                             }
+                            this.ctx.putImageData(idata, 0, 0);
                         }
                     }
-                    requestAnimationFrame(() => this.loop());
                 }
             };
 
@@ -1461,6 +1554,119 @@
                 }
             });
 
+            // --- 1.3 VOICE CONTROL SYSTEM (VOX LISTENING) ---
+            const VoiceSystem = {
+                recognition: null,
+                eye: document.querySelector('.vox-eye-container'),
+                isListening: false,
+
+                init() {
+                    // Проверка поддержки браузером
+                    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                    if (!SpeechRecognition) return;
+
+                    this.recognition = new SpeechRecognition();
+                    this.recognition.continuous = true; // Слушать постоянно
+                    this.recognition.lang = 'en-US'; // Команды на английском (стиль Vox)
+                    this.recognition.interimResults = false;
+
+                    this.recognition.onstart = () => {
+                        this.isListening = true;
+                        if(this.eye) this.eye.classList.add('listening');
+                        voxNotify('VOX LISTENING PROTOCOL: ACTIVE', 'info');
+                    };
+
+                    this.recognition.onend = () => {
+                        // Если перестал слушать сам по себе — перезапускаем
+                        if (this.isListening) this.recognition.start();
+                    };
+
+                    this.recognition.onresult = (event) => {
+                        const last = event.results.length - 1;
+                        const command = event.results[last][0].transcript.trim().toLowerCase();
+                        console.log("Heard:", command);
+                        this.execute(command);
+                    };
+                },
+
+                start() {
+                    if (this.recognition) {
+                        try {
+                            this.recognition.start();
+                        } catch(e) { console.log("Voice already active"); }
+                    }
+                },
+
+                execute(cmd) {
+                    // Простые команды
+                    if (cmd.includes('play music') || cmd.includes('start music')) {
+                        MusicSystem.audio.play();
+                        voxNotify('COMMAND: PLAY MUSIC', 'success');
+                    }
+                    else if (cmd.includes('silence') || cmd.includes('stop') || cmd.includes('quiet')) {
+                        MusicSystem.audio.pause();
+                        VideoSystem.video.pause();
+                        voxNotify('COMMAND: SILENCE', 'error');
+                    }
+                    else if (cmd.includes('terminal') || cmd.includes('console')) {
+                        document.querySelector('#terminal').scrollIntoView({ behavior: 'smooth' });
+                        voxNotify('ACCESSING MAINFRAME...', 'info');
+                    }
+                    else if (cmd.includes('report') || cmd.includes('review')) {
+                        document.querySelector('#reviews').scrollIntoView({ behavior: 'smooth' });
+                        voxNotify('OPENING REPORT FORM', 'info');
+                    }
+                    else if (cmd.includes('hello') || cmd.includes('vox')) {
+                        SoundFX.playTone(600, 'sine', 0.2);
+                        // Глаз "моргает" (быстрая анимация)
+                        if(this.eye) {
+                            this.eye.style.transform = "scale(1.5)";
+                            setTimeout(() => this.eye.style.transform = "scale(1)", 200);
+                        }
+                    }
+                }
+            };
+
+            // --- 1.4 CURSOR TRAIL SYSTEM ---
+            const CursorFX = {
+                chars: ['0', '1'], // Из чего состоит шлейф
+                init() {
+                    // Оптимизация: не запускаем на телефонах
+                    if (window.matchMedia('(hover: none)').matches) return;
+
+                    let throttleTimer;
+                    document.addEventListener('mousemove', (e) => {
+                        // Создаем частицу не каждый пиксель, а чуть реже
+                        if (!throttleTimer) {
+                            throttleTimer = setTimeout(() => {
+                                this.createParticle(e.clientX, e.clientY);
+                                throttleTimer = null;
+                            }, 50); // Каждые 50мс
+                        }
+                    });
+                },
+
+                createParticle(x, y) {
+                    const span = document.createElement('span');
+                    span.className = 'cursor-particle';
+                    span.textContent = this.chars[Math.floor(Math.random() * this.chars.length)];
+                    
+                    // Небольшой разброс позиции
+                    const offsetX = (Math.random() - 0.5) * 10;
+                    const offsetY = (Math.random() - 0.5) * 10;
+                    
+                    span.style.left = (x + offsetX) + 'px';
+                    span.style.top = (y + offsetY) + 'px';
+                    
+                    document.body.appendChild(span);
+
+                    // Удаляем элемент через 1 секунду (после анимации)
+                    setTimeout(() => {
+                        span.remove();
+                    }, 1000);
+                }
+            };
+
             // --- 2. LOCAL STORAGE ---
             const Memory = {
                 check() {
@@ -1888,18 +2094,49 @@
                 this.textContent = "SYNCING...";
                 Memory.register();
                 CamSystem.init(); 
-                DbSystem.init(); // Initialize Database
+                DbSystem.init();
                 
-                // Auto-start music on first interaction
+                // --- НОВЫЕ СТРОКИ: ЗАПУСК НОВЫХ СИСТЕМ ---
+                VoiceSystem.init(); // Подготовка
+                VoiceSystem.start(); // Запуск прослушивания
+                CursorFX.init();    // Запуск шлейфа
+                // ------------------------------------------
+                
+                // (Твой старый код запуска музыки остается здесь)
                 const music = document.getElementById('bg-music');
                 if(music.paused) {
                     const btn = document.getElementById('playPauseBtn');
                     MusicSystem.startAudioContext();
                     music.play().then(() => {
                          btn.textContent = "PAUSE STREAM";
-                    }).catch(e => console.log("Auto-play blocked, user must use menu"));
+                    }).catch(e => console.log("Auto-play blocked"));
                 }
             });
+
+            // --- SECURITY PROTOCOL (NO COPY) ---
+            const SecuritySystem = {
+                init() {
+                    // Запрет правой кнопки мыши
+                    document.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                    });
+
+                    // Запрет выделения и перетаскивания (кроме полей ввода)
+                    document.addEventListener('selectstart', (e) => {
+                        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                            e.preventDefault();
+                        }
+                    });
+
+                    // Запрет копирования Ctrl+C (кроме полей ввода)
+                    document.addEventListener('copy', (e) => {
+                        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                            e.preventDefault();
+                        }
+                    });
+                }
+            };
+            SecuritySystem.init();
 
             // Scroll Reveal
             const revealObserver = new IntersectionObserver((entries) => {
