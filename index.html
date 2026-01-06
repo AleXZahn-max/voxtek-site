@@ -1037,9 +1037,8 @@
                     this.resize();
                     window.addEventListener('resize', () => this.resize());
                     
-                    // На мобильных уменьшаем разрешение канваса для скорости
                     if (window.innerWidth < 768) {
-                        this.fps = 10; // Еще меньше FPS на телефоне
+                        this.fps = 10;
                         this.interval = 1000 / 10;
                     }
                     
@@ -1197,7 +1196,7 @@
                         }
                     });
 
-this.localInput.addEventListener('change', (e) => {
+                    this.localInput.addEventListener('change', (e) => {
                          const files = Array.from(e.target.files);
                          if (files.length > 0) {
                              files.forEach(file => {
@@ -1781,7 +1780,7 @@ this.localInput.addEventListener('change', (e) => {
             // --- 3. EASTER EGG ---
             const easterEgg = {
                 seq: [],
-                target: 'vox',
+                target: 'hipno',
                 layer: document.getElementById('easterEggLayer'),
                 btn: document.getElementById('closeEasterEgg'),
                 init() {
@@ -1789,6 +1788,7 @@ this.localInput.addEventListener('change', (e) => {
                     this.btn.addEventListener('click', this.close.bind(this));
                 },
                 handleKey(e) {
+                    if (!e.key) return;
                     if (this.layer.classList.contains('active') && (e.key === 'Escape' || e.key === 'Back')) {
                         this.close();
                         return;
@@ -2124,6 +2124,8 @@ this.localInput.addEventListener('change', (e) => {
                 code: ['arrowup','arrowup','arrowdown','arrowdown','arrowleft','arrowright','arrowleft','arrowright','b','a'],
                 init() {
                     document.addEventListener('keydown', (e) => {
+                        if (!e.key) return;
+
                         this.seq.push(e.key.toLowerCase());
                         if (this.seq.length > this.code.length) this.seq.shift();
                         if (JSON.stringify(this.seq) === JSON.stringify(this.code)) {
@@ -2238,8 +2240,8 @@ window.AuthSystem = {
                         window.fbAuthListener(window.auth, (user) => {
                             if (user) {
                                 this.currentUser = user;
-                                this.showApp();
                                 voxNotify('IDENTITY CONFIRMED. WELCOME, AGENT.', 'success');
+                                this.showApp();
                             } else {
                                 this.currentUser = null;
                                 this.showAuth();
@@ -2261,8 +2263,13 @@ window.AuthSystem = {
                     SoundFX.click();
                 },
                 register() {
-                    const u = document.getElementById('regUser').value.trim(); // Это теперь Email!
+                    let u = document.getElementById('regUser').value.trim();
                     const p = document.getElementById('regPass').value.trim();
+                    
+                    // Если пользователь не ввел @, добавляем фейковый домен
+                    if (!u.includes('@')) {
+                        u = u + '@voxtek.net';
+                    }
                     
                     if(!u || !p) return voxNotify('Credentials required.', 'error');
                     
@@ -2302,8 +2309,8 @@ window.AuthSystem = {
                 showApp() {
                     document.getElementById('msgAuth').style.display = 'none';
                     document.getElementById('msgApp').classList.add('active');
-                    // Тут можно запустить загрузку чата
-                    CloudSystem.loadChat();
+                    // Запускаем загрузку чата
+                    if(window.CloudSystem) CloudSystem.loadChat();
                 },
                 send() {
                     const inp = document.getElementById('msgInput');
