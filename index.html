@@ -1444,10 +1444,30 @@
                     if (files.length > 0) {
                         Array.from(files).forEach(file => {
                             if (file.type.startsWith('video/')) {
-                                CloudSystem.uploadMedia(file, 'video');
+                                // Создаем локальную временную ссылку на файл в памяти браузера
+                                // Это полностью бесплатно и не требует обращения к Firebase
+                                const localUrl = URL.createObjectURL(file);
+                                
+                                // Добавляем видео в локальный плейлист плеера
+                                this.playlist.push({
+                                    name: file.name,
+                                    url: localUrl
+                                });
+                                
+                                voxNotify(`LOCAL SIGNAL READY: ${file.name.substring(0, 20)}...`, 'success');
+                            } else {
+                                voxNotify('INVALID FORMAT: VIDEO ONLY', 'error');
                             }
                         });
-                        voxNotify(`INITIATING CLOUD UPLOAD (${files.length} CLIPS)...`, 'info');
+                        
+                        // Обновляем визуальный список видео в интерфейсе
+                        this.renderPlaylist();
+
+                        // Если сейчас ничего не воспроизводится, автоматически запускаем первый файл
+                        if (this.currentIndex === -1 && this.playlist.length > 0) {
+                            this.currentIndex = 0;
+                            this.playCurrent();
+                        }
                     }
                 },
 
