@@ -271,7 +271,7 @@
         .matrix-rain { color: #0f0; opacity: 0.5; font-size: 12px; }
 
         /* Eye */
-        .vox-eye-container { position: fixed; bottom: 30px; right: 30px; width: 70px; height: 70px; z-index: 5000; transition: transform 0.2s; pointer-events: none; }
+        .vox-eye-container { position: fixed; bottom: 30px; right: 30px; width: 70px; height: 70px; z-index: 5000; transition: transform 0.2s; pointer-events: auto; cursor: pointer; }
         @media (hover: none) and (pointer: coarse) { .vox-eye-container { display: none; } }
         
         .eye-svg { width: 100%; height: 100%; filter: drop-shadow(0 0 10px var(--vox-cyan)); }
@@ -584,15 +584,38 @@
             100% { transform: translateY(20px) scale(0.5); opacity: 0; }
         }
 
-        /* Пульсация глаза при прослушивании */
+        /* ОПТИМИЗИРОВАННАЯ ПУЛЬСАЦИЯ */
         .vox-eye-container.listening .eye-svg {
-            filter: drop-shadow(0 0 20px var(--vox-cyan));
+            /* Убираем drop-shadow, он слишком тяжелый для анимации */
+            /* Вместо этого меняем цвет обводки - это бесплатно для процессора */
+            stroke: var(--vox-cyan); 
+            stroke-width: 3px;
+            
+            /* Подсказываем браузеру использовать видеокарту */
+            will-change: transform; 
             animation: eyePulse 1.5s infinite alternate;
         }
-        
+
+        /* Добавляем легкое свечение через сам контейнер, а не через SVG-фильтр */
+        .vox-eye-container.listening::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border-radius: 50%;
+            box-shadow: 0 0 20px var(--vox-cyan);
+            opacity: 0.5;
+            z-index: -1;
+            animation: glowPulse 1.5s infinite alternate;
+        }
+
         @keyframes eyePulse {
             from { transform: scale(1); }
             to { transform: scale(1.1); }
+        }
+        
+        @keyframes glowPulse {
+            from { opacity: 0.3; transform: scale(0.8); }
+            to { opacity: 0.6; transform: scale(1.2); }
         }
     </style>
 </head>
@@ -948,42 +971,54 @@
         <p>&copy; 2026 VOXTEK ENTERPRISES. TRUST THE SIGNAL. FAILURE IS NOT AN OPTION.</p>
     </footer>
 
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
+  import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+  import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-storage.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDaYxxhxjrvjVgqYcvPH53989Wr5dMgqHI",
+    authDomain: "voxtek-system.firebaseapp.com",
+    projectId: "voxtek-system",
+    storageBucket: "voxtek-system.firebasestorage.app",
+    messagingSenderId: "137141100080",
+    appId: "1:137141100080:web:1b798f2e7aa12a313cd7f5"
+  };
+
+  // Инициализация
+  const app = initializeApp(firebaseConfig);
+  
+  // Делаем инструменты доступными глобально (для основного скрипта)
+  window.auth = getAuth(app);
+  window.db = getFirestore(app);
+  window.storage = getStorage(app);
+
+  // Экспортируем функции
+  window.fbLogin = signInWithEmailAndPassword;
+  window.fbRegister = createUserWithEmailAndPassword;
+  window.fbLogout = signOut;
+  window.fbAuthListener = onAuthStateChanged;
+  
+  // Функции базы данных
+  window.fbAdd = addDoc;
+  window.fbCol = collection;
+  window.fbSnap = onSnapshot;
+  window.fbQuery = query;
+  window.fbOrder = orderBy;
+  window.fbTime = serverTimestamp;
+
+  // Функции хранилища
+  window.fbRef = ref;
+  window.fbUpload = uploadBytes;
+  window.fbUrl = getDownloadURL;
+
+  console.log("VOXTEK CLOUD SYSTEM: ONLINE");
+</script>
+
     <script>
         (function() {
             'use strict';
-
-            // --- 0. INDEXED DB SYSTEM (PERSISTENCE) ---
-            const DbSystem = {
-                dbName: 'VoxMediaDB',
-                version: 1,
-                db: null,
-                init() {
-                    const req = indexedDB.open(this.dbName, this.version);
-                    req.onupgradeneeded = (e) => {
-                        const db = e.target.result;
-                        if (!db.objectStoreNames.contains('media')) {
-                            db.createObjectStore('media', { keyPath: 'type' });
-                        }
-                    };
-                    req.onsuccess = (e) => {
-                        this.db = e.target.result;
-                        console.log("Persistence Module Loaded.");
-                        // Note: We are not auto-loading playlist from DB to simplify logic for now, 
-                        // but individual loads could be implemented here.
-                    };
-                    req.onerror = (e) => console.error("DB Error", e);
-                },
-                saveFile(type, file) {
-                    if (!this.db) return;
-                    voxNotify(`SAVING ${type.toUpperCase()} TO MEMORY...`, 'info');
-                    const tx = this.db.transaction('media', 'readwrite');
-                    const store = tx.objectStore('media');
-                    store.put({ type: type, blob: file, date: new Date() });
-                    tx.oncomplete = () => voxNotify('SAVE COMPLETE. DATA PERSISTENT.', 'success');
-                    tx.onerror = () => voxNotify('SAVE FAILED. DISK FULL?', 'error');
-                },
-                // Removed auto-load to prefer playlist logic
-            };
 
             // --- 0.1 STATIC EFFECT (OPTIMIZED) ---
             const StaticFX = {
@@ -1162,18 +1197,15 @@
                         }
                     });
 
-                    this.localInput.addEventListener('change', (e) => {
+this.localInput.addEventListener('change', (e) => {
                          const files = Array.from(e.target.files);
                          if (files.length > 0) {
                              files.forEach(file => {
-                                 this.playlist.push({ name: file.name, url: URL.createObjectURL(file), file: file });
+                                 // ВМЕСТО локального плейлиста -> Грузим в облако
+                                 // Когда загрузка завершится, CloudSystem сама добавит его в плеер
+                                 CloudSystem.uploadMedia(file, 'audio');
                              });
-                             this.renderPlaylist();
-                             if(this.playlist.length === files.length) { // If it was empty
-                                 this.currentIndex = 0;
-                                 this.loadTrack(0);
-                             }
-                             voxNotify(`ADDED ${files.length} TRACKS TO QUEUE.`, 'info');
+                             voxNotify(`INITIATING CLOUD UPLOAD (${files.length} FILES)...`, 'info');
                          }
                     });
                 },
@@ -1432,15 +1464,12 @@
                     if (files.length > 0) {
                         Array.from(files).forEach(file => {
                             if (file.type.startsWith('video/')) {
-                                this.playlist.push({ name: file.name, url: URL.createObjectURL(file) });
+                                // ВМЕСТО добавления в локальный плейлист -> Грузим в облако
+                                CloudSystem.uploadMedia(file, 'video');
                             }
                         });
-                        this.renderPlaylist();
-                        if (this.currentIndex === -1) {
-                            this.currentIndex = 0;
-                            this.loadTrack(0);
-                        }
-                        voxNotify(`ADDED ${files.length} CLIPS TO QUEUE.`, 'info');
+                        // Сообщаем пользователю, что процесс пошел
+                        voxNotify(`INITIATING CLOUD UPLOAD (${files.length} CLIPS)...`, 'info');
                     }
                 },
 
@@ -1554,31 +1583,37 @@
                 }
             });
 
-            // --- 1.3 VOICE CONTROL SYSTEM (VOX LISTENING) ---
+            // --- 1.3 VOICE CONTROL SYSTEM (CLICK TO TOGGLE) ---
             const VoiceSystem = {
                 recognition: null,
                 eye: document.querySelector('.vox-eye-container'),
-                isListening: false,
+                isListening: false, // Флаг: слушаем мы сейчас или нет
 
                 init() {
-                    // Проверка поддержки браузером
                     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
                     if (!SpeechRecognition) return;
 
                     this.recognition = new SpeechRecognition();
-                    this.recognition.continuous = true; // Слушать постоянно
-                    this.recognition.lang = 'en-US'; // Команды на английском (стиль Vox)
+                    this.recognition.continuous = true;
+                    this.recognition.lang = 'en-US';
                     this.recognition.interimResults = false;
 
+                    // При старте
                     this.recognition.onstart = () => {
-                        this.isListening = true;
-                        if(this.eye) this.eye.classList.add('listening');
-                        voxNotify('VOX LISTENING PROTOCOL: ACTIVE', 'info');
+                        this.eye.classList.add('listening');
+                        voxNotify('VOICE MODULE: ONLINE', 'success');
                     };
 
+                    // При остановке
                     this.recognition.onend = () => {
-                        // Если перестал слушать сам по себе — перезапускаем
-                        if (this.isListening) this.recognition.start();
+                        // Если мы все еще "хотим" слушать (прервалось случайно), перезапускаем
+                        // Если мы нажали выкл (isListening = false), то не перезапускаем
+                        if (this.isListening) { 
+                            try { this.recognition.start(); } catch(e){} 
+                        } else {
+                            this.eye.classList.remove('listening');
+                            voxNotify('VOICE MODULE: OFFLINE', 'info');
+                        }
                     };
 
                     this.recognition.onresult = (event) => {
@@ -1587,42 +1622,54 @@
                         console.log("Heard:", command);
                         this.execute(command);
                     };
+                    
+                    // Делаем глаз кликабельным
+                    if(this.eye) {
+                        this.eye.addEventListener('click', () => this.toggle());
+                    }
+                },
+
+                toggle() {
+                    if (this.isListening) {
+                        this.stop();
+                    } else {
+                        this.start();
+                    }
                 },
 
                 start() {
-                    if (this.recognition) {
+                    if (this.recognition && !this.isListening) {
+                        this.isListening = true;
                         try {
                             this.recognition.start();
                         } catch(e) { console.log("Voice already active"); }
                     }
                 },
+                
+                stop() {
+                    if (this.recognition && this.isListening) {
+                        this.isListening = false;
+                        this.recognition.stop();
+                        // Анимация выключения
+                        this.eye.classList.remove('listening');
+                    }
+                },
 
                 execute(cmd) {
-                    // Простые команды
+                    // (Твои команды остаются теми же)
                     if (cmd.includes('play music') || cmd.includes('start music')) {
                         MusicSystem.audio.play();
                         voxNotify('COMMAND: PLAY MUSIC', 'success');
                     }
-                    else if (cmd.includes('silence') || cmd.includes('stop') || cmd.includes('quiet')) {
+                    else if (cmd.includes('silence') || cmd.includes('stop')) {
                         MusicSystem.audio.pause();
                         VideoSystem.video.pause();
                         voxNotify('COMMAND: SILENCE', 'error');
                     }
-                    else if (cmd.includes('terminal') || cmd.includes('console')) {
-                        document.querySelector('#terminal').scrollIntoView({ behavior: 'smooth' });
-                        voxNotify('ACCESSING MAINFRAME...', 'info');
-                    }
-                    else if (cmd.includes('report') || cmd.includes('review')) {
-                        document.querySelector('#reviews').scrollIntoView({ behavior: 'smooth' });
-                        voxNotify('OPENING REPORT FORM', 'info');
-                    }
                     else if (cmd.includes('hello') || cmd.includes('vox')) {
                         SoundFX.playTone(600, 'sine', 0.2);
-                        // Глаз "моргает" (быстрая анимация)
-                        if(this.eye) {
-                            this.eye.style.transform = "scale(1.5)";
-                            setTimeout(() => this.eye.style.transform = "scale(1)", 200);
-                        }
+                        this.eye.style.transform = "scale(1.5)";
+                        setTimeout(() => this.eye.style.transform = "scale(1)", 200);
                     }
                 }
             };
@@ -2091,26 +2138,43 @@
 
             // --- 10. INIT LOGIC ---
             document.getElementById('initBtn').addEventListener('click', function() {
-                this.textContent = "SYNCING...";
+                const btn = this; // Сохраняем кнопку в переменную
+                
+                // 1. Статус: Синхронизация
+                btn.textContent = "SYNCING...";
+                btn.style.cursor = "wait";
+                btn.disabled = true; // Блокируем, чтобы не нажимали дважды
+
+                // 2. Запуск систем
                 Memory.register();
                 CamSystem.init(); 
-                DbSystem.init();
                 
-                // --- НОВЫЕ СТРОКИ: ЗАПУСК НОВЫХ СИСТЕМ ---
-                VoiceSystem.init(); // Подготовка
-                VoiceSystem.start(); // Запуск прослушивания
-                CursorFX.init();    // Запуск шлейфа
-                // ------------------------------------------
+                VoiceSystem.init(); // Голосовой модуль (ждет клика по глазу)
+                //CursorFX.init();    // Шлейф курсора
                 
-                // (Твой старый код запуска музыки остается здесь)
+                // 3. Запуск музыки
                 const music = document.getElementById('bg-music');
                 if(music.paused) {
-                    const btn = document.getElementById('playPauseBtn');
+                    const playBtn = document.getElementById('playPauseBtn');
                     MusicSystem.startAudioContext();
                     music.play().then(() => {
-                         btn.textContent = "PAUSE STREAM";
+                         playBtn.textContent = "PAUSE STREAM";
                     }).catch(e => console.log("Auto-play blocked"));
                 }
+
+                // 4. Финальный статус: Подключено (через 1.5 секунды для эффекта)
+                setTimeout(() => {
+                    btn.textContent = "CONNECTED";
+                    btn.style.cursor = "default";
+                    btn.disabled = false;
+                    
+                    // Визуальный эффект успеха (Зеленая подсветка)
+                    btn.style.borderColor = "#00ff00"; 
+                    btn.style.color = "#00ff00";
+                    btn.style.boxShadow = "0 0 20px rgba(0, 255, 0, 0.4)";
+                    
+                    voxNotify('SYSTEM LINK ESTABLISHED.', 'success');
+                }, 1500);
             });
 
             // --- SECURITY PROTOCOL (NO COPY) ---
@@ -2166,15 +2230,21 @@
                 }
             };
 
-            window.AuthSystem = {
+window.AuthSystem = {
                 currentUser: null,
                 init() {
-                    const saved = localStorage.getItem('vox_user');
-                    if (saved) {
-                        this.currentUser = JSON.parse(saved);
-                        this.showApp();
-                    } else {
-                        this.showAuth();
+                    // Слушаем реальный статус входа от Google
+                    if (window.fbAuthListener) {
+                        window.fbAuthListener(window.auth, (user) => {
+                            if (user) {
+                                this.currentUser = user;
+                                this.showApp();
+                                voxNotify('IDENTITY CONFIRMED. WELCOME, AGENT.', 'success');
+                            } else {
+                                this.currentUser = null;
+                                this.showAuth();
+                            }
+                        });
                     }
                 },
                 switchTab(tab) {
@@ -2191,35 +2261,39 @@
                     SoundFX.click();
                 },
                 register() {
-                    const u = document.getElementById('regUser').value.trim();
+                    const u = document.getElementById('regUser').value.trim(); // Это теперь Email!
                     const p = document.getElementById('regPass').value.trim();
+                    
                     if(!u || !p) return voxNotify('Credentials required.', 'error');
                     
-                    const db = { u, p };
-                    localStorage.setItem('vox_db', JSON.stringify(db));
-                    voxNotify('Identity Created. Please Login.', 'success');
-                    this.switchTab('login');
+                    voxNotify('CONTACTING SERVERS...', 'info');
+                    window.fbRegister(window.auth, u, p)
+                        .then((cred) => {
+                            voxNotify('ID CREATED. LOGGING IN...', 'success');
+                        })
+                        .catch((error) => {
+                            voxNotify('ERROR: ' + error.message, 'error');
+                            SoundFX.error();
+                        });
                 },
                 login() {
                     const u = document.getElementById('loginUser').value.trim();
                     const p = document.getElementById('loginPass').value.trim();
-                    const db = JSON.parse(localStorage.getItem('vox_db'));
                     
-                    if (db && u === db.u && p === db.p) {
-                        this.currentUser = u;
-                        localStorage.setItem('vox_user', JSON.stringify(u));
-                        voxNotify('Welcome to the network.', 'success');
-                        this.showApp();
-                    } else {
-                        voxNotify('Invalid Identity.', 'error');
-                        SoundFX.error();
-                    }
+                    voxNotify('VERIFYING...', 'info');
+                    window.fbLogin(window.auth, u, p)
+                        .then((cred) => {
+                            // Успех обработает listener в init()
+                        })
+                        .catch((error) => {
+                            voxNotify('ACCESS DENIED. ' + error.message, 'error');
+                            SoundFX.error();
+                        });
                 },
                 logout() {
-                    localStorage.removeItem('vox_user');
-                    this.currentUser = null;
-                    this.showAuth();
-                    voxNotify('Disconnected.', 'info');
+                    window.fbLogout(window.auth).then(() => {
+                        voxNotify('DISCONNECTED.', 'info');
+                    });
                 },
                 showAuth() {
                     document.getElementById('msgAuth').style.display = 'flex';
@@ -2228,30 +2302,82 @@
                 showApp() {
                     document.getElementById('msgAuth').style.display = 'none';
                     document.getElementById('msgApp').classList.add('active');
+                    // Тут можно запустить загрузку чата
+                    CloudSystem.loadChat();
                 },
                 send() {
                     const inp = document.getElementById('msgInput');
                     const txt = inp.value.trim();
                     if(!txt) return;
                     
-                    const msgDiv = document.createElement('div');
-                    msgDiv.className = 'msg sent';
-                    msgDiv.textContent = txt;
-                    document.getElementById('chatFeed').appendChild(msgDiv);
+                    // Отправка в реальную базу
+                    CloudSystem.sendMessage(this.currentUser.email, txt);
                     inp.value = '';
-                    
-                    // FAKE ERROR
-                    setTimeout(() => {
-                         voxNotify('Transmission Error: Encrypted Channel Broken.', 'error');
-                         msgDiv.style.opacity = 0.5;
-                         msgDiv.style.textDecoration = "line-through";
-                         msgDiv.style.color = "red";
-                         SoundFX.error();
-                    }, 500);
                 }
             };
 
             AuthSystem.init();
+
+            // --- NEW: CLOUD SYNC (Chat & Files) ---
+            const CloudSystem = {
+                // ЧАТ (Мессенджер)
+                sendMessage(user, text) {
+                    const msgsRef = window.fbCol(window.db, "messages");
+                    window.fbAdd(msgsRef, {
+                        user: user,
+                        text: text,
+                        createdAt: window.fbTime()
+                    });
+                    SoundFX.click();
+                },
+                loadChat() {
+                    const q = window.fbQuery(
+                        window.fbCol(window.db, "messages"), 
+                        window.fbOrder("createdAt", "asc")
+                    );
+                    
+                    window.fbSnap(q, (snapshot) => {
+                        const feed = document.getElementById('chatFeed');
+                        feed.innerHTML = ''; // Очищаем старое
+                        
+                        snapshot.forEach((doc) => {
+                            const data = doc.data();
+                            const isMe = data.user === window.auth.currentUser.email;
+                            
+                            const msgDiv = document.createElement('div');
+                            msgDiv.className = `msg ${isMe ? 'sent' : 'received'}`;
+                            // Показываем короткое имя вместо email
+                            const shortName = data.user.split('@')[0];
+                            msgDiv.innerHTML = `<b>${shortName}:</b><br>${data.text}`;
+                            feed.appendChild(msgDiv);
+                        });
+                        feed.scrollTop = feed.scrollHeight;
+                    });
+                },
+
+                // ЗАГРУЗКА ФАЙЛОВ (Видео/Аудио)
+                uploadMedia(file, type) {
+                    voxNotify(`UPLOADING ${type.toUpperCase()} TO CLOUD...`, 'info');
+                    
+                    // Папка 'videos' или 'audio' в облаке
+                    const path = `${type}/${Date.now()}_${file.name}`;
+                    const storageRef = window.fbRef(window.storage, path);
+
+                    window.fbUpload(storageRef, file).then((snapshot) => {
+                        voxNotify('UPLOAD COMPLETE. PROCESSING...', 'success');
+                        
+                        // Получаем ссылку
+                        window.fbUrl(snapshot.ref).then((url) => {
+                            console.log("File URL:", url);
+                            // Тут можно сохранить ссылку в базу данных, если захочешь создать общий плейлист
+                            if(type === 'video') VideoSystem.loadFromUrl(url);
+                            if(type === 'audio') MusicSystem.loadFromUrl(url);
+                        });
+                    }).catch(err => {
+                        voxNotify('UPLOAD FAILED: ' + err.message, 'error');
+                    });
+                }
+            };
 
         })();
     </script>
