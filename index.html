@@ -233,7 +233,43 @@
 
         /* Reviews */
         .reviews-wrapper { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 50px; padding: 0 20px; }
-        @media (max-width: 768px) { .reviews-wrapper { grid-template-columns: 1fr; } }
+/* --- ОПТИМИЗАЦИЯ ШРИФТОВ ДЛЯ МОБИЛЬНЫХ (ANDROID) --- */
+        @media (max-width: 768px) {
+            /* 1. Общий текст сайта */
+            body {
+                font-size: 14px; 
+            }
+
+            /* 2. Заголовки секций ( About, Tech и т.д.) */
+            .section-header h2 {
+                font-size: 24px !important; 
+            }
+
+            /* 3. Текст в мессенджере (Vox Network) */
+            .msg-bubble {
+                font-size: 12px; /* Было 14px */
+                padding: 8px 12px;
+            }
+
+            .msg-name {
+                font-size: 9px;
+            }
+
+            .c-name {
+                font-size: 13px;
+            }
+
+            /* 4. Кнопки в настройках профиля */
+            .p-card .btn-tech {
+                font-size: 11px;
+                padding: 10px 5px;
+            }
+
+            /* 5. Поля ввода (чтобы клавиатура не увеличивала масштаб) */
+            .form-input {
+                font-size: 14px;
+            }
+        }
         
         .review-form { background: var(--panel-bg); border: 1px solid var(--vox-cyan); padding: 40px; height: fit-content; }
         .form-label { display: block; color: var(--vox-cyan); font-size: 11px; margin-bottom: 8px; font-weight: bold; letter-spacing: 1px; }
