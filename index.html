@@ -78,6 +78,10 @@
             scrollbar-width: thin;
             scrollbar-color: var(--vox-cyan) #000;
             transition: all 0.5s ease;
+            -webkit-user-select: none; /* Safari */
+            -moz-user-select: none;    /* Firefox */
+            -ms-user-select: none;     /* IE10+/Edge */
+            user-select: none;         /* Standard */
         }
 
         /* --- 2. CUSTOM SCROLLBAR --- */
@@ -345,14 +349,19 @@
             max-width: 900px; margin: 40px auto; 
             border: 2px solid #333; background: #000;
             position: relative; box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            transition: all 0.3s;
         }
         
-        /* MAGIC FULLSCREEN FIX: Container becomes fullscreen, keeping child controls visible */
+        /* MAGIC FULLSCREEN FIX: Container becomes fullscreen */
         .video-wrapper:fullscreen {
             width: 100vw; height: 100vh;
             display: flex; justify-content: center; align-items: center;
             background: black;
             border: none;
+            cursor: none; /* Hide cursor by default in FS, JS will toggle */
+        }
+        .video-wrapper:fullscreen.user-active {
+            cursor: default;
         }
         .video-wrapper:fullscreen .video-screen-container {
             height: 100%; width: 100%; border: none;
@@ -360,10 +369,23 @@
         .video-wrapper:fullscreen video {
             object-fit: contain;
         }
+        
+        /* HIDE EXTERNAL CONTROLS IN FULLSCREEN */
+        .video-wrapper:fullscreen .video-controls-panel, 
+        .video-wrapper:fullscreen + .playlist-container {
+            display: none !important;
+        }
+
         .video-wrapper:fullscreen .custom-video-controls {
             position: fixed; bottom: 0; width: 100%;
             background: rgba(0,0,0,0.6);
             padding-bottom: 20px;
+            opacity: 0; pointer-events: none; /* Hidden by default in FS */
+            transition: opacity 0.5s;
+        }
+
+        .video-wrapper:fullscreen.user-active .custom-video-controls {
+            opacity: 1; pointer-events: auto;
         }
 
         .video-screen-container {
@@ -374,18 +396,30 @@
             position: absolute; top:0; left:0; width:100%; height:100%; 
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
             background-size: 100% 3px, 3px 100%; pointer-events: none; z-index: 5;
+            animation: scanlineMove 10s linear infinite;
         }
+        @keyframes scanlineMove {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 100%; }
+        }
+
+        /* STATIC NOISE CANVAS */
+        #staticCanvas {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1; pointer-events: none; opacity: 0.15; mix-blend-mode: screen;
+        }
+
         .video-tag {
             position: absolute; top: 10px; left: 10px; background: var(--vox-cyan); color: black;
             font-weight: bold; font-size: 10px; padding: 2px 5px; z-index: 6; font-family: var(--font-code);
         }
-        #customVideoPlayer { width: 100%; height: 100%; outline: none; display:block; }
+        #customVideoPlayer { width: 100%; height: 100%; outline: none; display:block; z-index: 2; position: relative; }
         
         /* CUSTOM CONTROLS OVERLAY */
         .custom-video-controls {
             position: absolute; bottom: 0; left: 0; width: 100%;
             background: rgba(0, 0, 0, 0.85); border-top: 1px solid var(--vox-cyan);
-            padding: 10px; z-index: 2147483647; /* High z-index for Fullscreen */
+            padding: 10px; z-index: 2147483647; 
             display: flex; flex-direction: column; gap: 5px;
             transform: translateY(100%); transition: transform 0.3s ease;
         }
@@ -424,14 +458,29 @@
             font-size: 100px; position: absolute; left: 0; top: 0; opacity: 0; cursor: pointer;
         }
 
+        /* PLAYLIST STYLES */
+        .playlist-container {
+            border: 1px solid #333; background: #050505; padding: 10px;
+            max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px;
+            margin-top: 10px;
+        }
+        .playlist-item {
+            padding: 5px 10px; background: #111; color: #aaa; font-size: 11px;
+            cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+        }
+        .playlist-item:hover { background: #222; color: white; }
+        .playlist-item.active { background: rgba(0, 243, 255, 0.1); color: var(--vox-cyan); border-left: 2px solid var(--vox-cyan); }
+        .playlist-remove { color: var(--alert-red); font-weight: bold; padding: 0 5px; }
+        .playlist-remove:hover { color: white; }
+
         /* --- SLIDE OUT MUSIC MENU --- */
         #slide-music-menu {
-            position: fixed; top: 80px; right: -320px; width: 300px; height: auto;
+            position: fixed; top: 80px; right: -320px; width: 300px; height: auto; max-height: 80vh;
             background: rgba(5, 8, 12, 0.98); border: 1px solid var(--vox-cyan); border-right: none;
             z-index: 9500; transition: right 0.4s cubic-bezier(0.4, 0.0, 0.2, 1);
             padding: 20px; display: flex; flex-direction: column; gap: 15px;
             box-shadow: -10px 0 30px rgba(0,0,0,0.8);
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(10px); overflow-y: auto;
         }
         #slide-music-menu.open { right: 0; }
         
@@ -559,10 +608,11 @@
         
         <div style="border-top:1px solid #333; padding-top:10px; margin-top:10px;">
             <label class="btn-tech file-upload-btn" style="width:100%; font-size:10px; padding:8px; text-align:center;">
-                LOAD LOCAL FILE (SAVE)
-                <input type="file" id="localAudioInput" accept="audio/*">
+                ADD TO PLAYLIST
+                <input type="file" id="localAudioInput" accept="audio/*" multiple>
             </label>
-            <div style="font-size:9px; color:#555; margin-top:5px; text-align:center;">Saves to Local Storage</div>
+            <div id="audioPlaylist" class="playlist-container">
+                </div>
         </div>
     </div>
 
@@ -771,6 +821,7 @@
             <div class="video-screen-container">
                 <div class="video-tag" id="signalStatus">SIGNAL STATUS: OFFLINE</div>
                 <div class="video-overlay-crt"></div>
+                <canvas id="staticCanvas"></canvas>
                 
                 <video id="customVideoPlayer" playsinline></video>
                 
@@ -792,17 +843,23 @@
 
                 <div id="vidPlaceholder" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:white; text-align:center; pointer-events:none;">
                     <p style="font-family:var(--font-code);">WAITING FOR SIGNAL INPUT...</p>
+                    <p style="font-size:10px; color:#666; margin-top:5px;">(DRAG & DROP FILE HERE)</p>
                 </div>
             </div>
 
             <div class="video-controls-panel">
-                <span style="color:white; font-size:12px; font-weight:bold;">SOURCE INPUT:</span>
-                <label class="btn-tech file-upload-btn">
-                    SELECT FILE (SAVE)
-                    <input type="file" id="videoInput" accept="video/mp4, video/webm, video/ogg">
-                </label>
-                <div style="font-size:9px; color:#555; text-align:center;">Saves to Local Storage</div>
+                <div style="display:flex; flex-direction:column; gap:10px; align-items:center;">
+                    <span style="color:white; font-size:12px; font-weight:bold;">ADD TO BROADCAST:</span>
+                    <label class="btn-tech file-upload-btn">
+                        SELECT FILE (SAVE)
+                        <input type="file" id="videoInput" accept="video/mp4, video/webm, video/ogg" multiple>
+                    </label>
+                    <div style="font-size:9px; color:#555; text-align:center;">Saves to Local Storage</div>
+                </div>
             </div>
+            
+            <div id="videoPlaylist" class="playlist-container" style="border-top:none; margin-top:0;">
+                </div>
         </div>
         <div style="text-align:center; color:#666; margin-top:20px; font-size:12px;">
             SECURE CHANNEL ESTABLISHED. CONTENT MONITORED BY VANGUARD.
@@ -833,8 +890,8 @@
                     req.onsuccess = (e) => {
                         this.db = e.target.result;
                         console.log("Persistence Module Loaded.");
-                        this.loadMedia('audio');
-                        this.loadMedia('video');
+                        // Note: We are not auto-loading playlist from DB to simplify logic for now, 
+                        // but individual loads could be implemented here.
                     };
                     req.onerror = (e) => console.error("DB Error", e);
                 },
@@ -847,24 +904,60 @@
                     tx.oncomplete = () => voxNotify('SAVE COMPLETE. DATA PERSISTENT.', 'success');
                     tx.onerror = () => voxNotify('SAVE FAILED. DISK FULL?', 'error');
                 },
-                loadMedia(type) {
-                    if (!this.db) return;
-                    const tx = this.db.transaction('media', 'readonly');
-                    const store = tx.objectStore('media');
-                    const req = store.get(type);
-                    req.onsuccess = (e) => {
-                        const data = e.target.result;
-                        if (data && data.blob) {
-                            const url = URL.createObjectURL(data.blob);
-                            if (type === 'audio') {
-                                MusicSystem.loadFromUrl(url);
-                                voxNotify('RESTORED AUDIO FROM MEMORY.', 'info');
-                            } else if (type === 'video') {
-                                VideoSystem.loadFromUrl(url);
-                                voxNotify('RESTORED VIDEO FROM MEMORY.', 'info');
+                // Removed auto-load to prefer playlist logic
+            };
+
+// --- 0.1 STATIC EFFECT (TV NOISE) ---
+            const StaticFX = {
+                canvas: document.getElementById('staticCanvas'),
+                ctx: null,
+                active: true,
+                init() {
+                    if(!this.canvas) return;
+                    this.ctx = this.canvas.getContext('2d');
+                    this.resize();
+                    window.addEventListener('resize', () => this.resize());
+                    this.loop();
+                },
+                resize() {
+                    if (this.canvas && this.canvas.parentElement) {
+                        const rect = this.canvas.parentElement.getBoundingClientRect();
+                        this.canvas.width = rect.width;
+                        this.canvas.height = rect.height;
+                    }
+                },
+                toggle(on) {
+                    this.active = on;
+                    this.canvas.style.opacity = on ? '0.15' : '0';
+                    if (on) this.resize(); // Обновляем размер при включении
+                },
+                loop() {
+                    if (this.active && this.canvas) {
+                        const w = this.canvas.width;
+                        const h = this.canvas.height;
+                        
+                        // --- ИСПРАВЛЕНИЕ ОШИБКИ ЗДЕСЬ ---
+                        // Проверяем, что ширина и высота больше 0 перед отрисовкой
+                        if (w > 0 && h > 0) {
+                            try {
+                                const idata = this.ctx.createImageData(w, h);
+                                const buffer32 = new Uint32Array(idata.data.buffer);
+                                
+                                for(let i = 0; i < buffer32.length; i++) {
+                                    // Оптимизация: рисуем пиксели реже
+                                    if (Math.random() < 0.1) {
+                                        buffer32[i] = 0xffffffff; // Белый
+                                    } else {
+                                        buffer32[i] = 0x00000000; // Прозрачный
+                                    }
+                                }
+                                this.ctx.putImageData(idata, 0, 0);
+                            } catch (e) {
+                                // Игнорируем ошибки при изменении размера
                             }
                         }
-                    };
+                    }
+                    requestAnimationFrame(() => this.loop());
                 }
             };
 
@@ -903,7 +996,7 @@
                 }
             };
 
-            // --- 1.1 AMBIENT MUSIC & VISUALIZER SYSTEM ---
+            // --- 1.1 AMBIENT MUSIC & VISUALIZER SYSTEM (UPDATED WITH PLAYLIST) ---
             const MusicSystem = {
                 audio: document.getElementById('bg-music'),
                 menu: document.getElementById('slide-music-menu'),
@@ -913,6 +1006,9 @@
                 seekSlider: document.getElementById('seekControl'),
                 canvas: document.getElementById('audioCanvas'),
                 localInput: document.getElementById('localAudioInput'),
+                playlistContainer: document.getElementById('audioPlaylist'),
+                playlist: [], // Array of {name, url, file}
+                currentIndex: -1,
                 ctx: null,
                 analyser: null,
                 source: null,
@@ -922,6 +1018,11 @@
 
                 init() {
                     this.audio.volume = 0.2; 
+                    
+                    // Initial track (embedded)
+                    this.playlist.push({ name: 'Brighter', url: 'embient.mp3' });
+                    this.currentIndex = 0;
+                    this.renderPlaylist();
 
                     this.toggleBtn.addEventListener('click', () => {
                         this.menu.classList.toggle('open');
@@ -930,14 +1031,16 @@
 
                     this.playBtn.addEventListener('click', () => {
                         if (this.audio.paused) {
-                            this.startAudioContext();
-                            this.audio.play();
-                            this.playBtn.textContent = "PAUSE STREAM";
+                            this.playCurrent();
                         } else {
                             this.audio.pause();
                             this.playBtn.textContent = "RESUME STREAM";
                         }
                         SoundFX.click();
+                    });
+
+                    this.audio.addEventListener('ended', () => {
+                        this.playNext();
                     });
 
                     this.volSlider.addEventListener('input', (e) => {
@@ -967,22 +1070,87 @@
                     });
 
                     this.localInput.addEventListener('change', (e) => {
-                         const file = e.target.files[0];
-                         if (file) {
-                             DbSystem.saveFile('audio', file); // Save to DB
-                             const url = URL.createObjectURL(file);
-                             this.loadFromUrl(url);
+                         const files = Array.from(e.target.files);
+                         if (files.length > 0) {
+                             files.forEach(file => {
+                                 this.playlist.push({ name: file.name, url: URL.createObjectURL(file), file: file });
+                             });
+                             this.renderPlaylist();
+                             if(this.playlist.length === files.length) { // If it was empty
+                                 this.currentIndex = 0;
+                                 this.loadTrack(0);
+                             }
+                             voxNotify(`ADDED ${files.length} TRACKS TO QUEUE.`, 'info');
                          }
                     });
                 },
-                
-                loadFromUrl(url) {
-                    this.audio.src = url;
-                    this.useSimulation = false;
+
+                renderPlaylist() {
+                    this.playlistContainer.innerHTML = '';
+                    this.playlist.forEach((track, idx) => {
+                        const div = document.createElement('div');
+                        div.className = `playlist-item ${idx === this.currentIndex ? 'active' : ''}`;
+                        div.innerHTML = `
+                            <span>${idx+1}. ${track.name}</span>
+                            <span class="playlist-remove" onclick="MusicSystem.removeTrack(${idx}, event)">×</span>
+                        `;
+                        div.onclick = (e) => {
+                            if(!e.target.classList.contains('playlist-remove')) {
+                                this.currentIndex = idx;
+                                this.playCurrent();
+                            }
+                        };
+                        this.playlistContainer.appendChild(div);
+                    });
+                },
+
+                removeTrack(idx, e) {
+                    e.stopPropagation();
+                    this.playlist.splice(idx, 1);
+                    if(this.currentIndex === idx) {
+                        this.audio.pause();
+                        this.currentIndex = Math.min(idx, this.playlist.length - 1);
+                        if(this.currentIndex >= 0) this.playCurrent();
+                    } else if (this.currentIndex > idx) {
+                        this.currentIndex--;
+                    }
+                    this.renderPlaylist();
+                },
+
+                playCurrent() {
+                    if(this.currentIndex < 0 || this.currentIndex >= this.playlist.length) return;
+                    this.loadTrack(this.currentIndex);
+                    this.startAudioContext();
                     this.audio.play().then(() => {
-                         this.playBtn.textContent = "PAUSE STREAM";
-                         this.startAudioContext();
-                    }).catch(err => console.log("Autoplay blocked"));
+                        this.playBtn.textContent = "PAUSE STREAM";
+                    }).catch(err => console.log("Autoplay blocked", err));
+                    this.renderPlaylist();
+                },
+
+                playNext() {
+                    if(this.currentIndex < this.playlist.length - 1) {
+                        this.currentIndex++;
+                        this.playCurrent();
+                    } else {
+                        // Loop to start
+                        this.currentIndex = 0;
+                        this.playCurrent();
+                    }
+                },
+                
+                loadTrack(idx) {
+                    const track = this.playlist[idx];
+                    
+                    // Check for proxy need (CORS)
+                    let finalUrl = track.url;
+                    if (track.url.startsWith('http') && !track.url.includes(window.location.hostname)) {
+                        finalUrl = `/api/proxy?url=${encodeURIComponent(track.url)}`;
+                    }
+
+                    this.audio.crossOrigin = "anonymous";
+                    this.audio.src = finalUrl;
+                    this.useSimulation = false;
+                    document.querySelector('.cover-text').textContent = track.name.substring(0, 20);
                 },
 
                 fmtTime(s) {
@@ -1063,11 +1231,11 @@
             };
             MusicSystem.init();
 
-            // --- 1.2 CUSTOM VIDEO PLAYER SYSTEM ---
+            // --- 1.2 CUSTOM VIDEO PLAYER SYSTEM (UPDATED) ---
             const VideoSystem = {
                 input: document.getElementById('videoInput'),
                 video: document.getElementById('customVideoPlayer'),
-                wrapper: document.getElementById('broadcastContainer'), // CONTAINER FOR FULLSCREEN
+                wrapper: document.getElementById('broadcastContainer'), 
                 playBtn: document.getElementById('vPlayBtn'),
                 stopBtn: document.getElementById('vStopBtn'),
                 fullBtn: document.getElementById('vFull'),
@@ -1076,18 +1244,34 @@
                 timeDisplay: document.getElementById('vTime'),
                 statusTag: document.getElementById('signalStatus'),
                 placeholder: document.getElementById('vidPlaceholder'),
+                playlistContainer: document.getElementById('videoPlaylist'),
+                
+                playlist: [],
+                currentIndex: -1,
+                hideControlsTimer: null,
                 
                 init() {
+                    StaticFX.init(); // Start Static Noise
+
                     if(!this.input) return;
 
-                    // Upload
+                    // DRAG & DROP
+                    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                        this.wrapper.addEventListener(eventName, (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                        }, false);
+                    });
+                    
+                    this.wrapper.addEventListener('drop', (e) => {
+                        const dt = e.dataTransfer;
+                        const files = dt.files;
+                        this.handleFiles(files);
+                    });
+
+                    // Upload Button
                     this.input.addEventListener('change', (e) => {
-                        const file = e.target.files[0];
-                        if (file) {
-                            DbSystem.saveFile('video', file); // Save to DB
-                            const url = URL.createObjectURL(file);
-                            this.loadFromUrl(url);
-                        }
+                        this.handleFiles(e.target.files);
                     });
 
                     // Play/Pause Button
@@ -1102,12 +1286,25 @@
                         this.video.currentTime = 0;
                         this.playBtn.textContent = "► PLAY";
                         this.statusTag.textContent = "SIGNAL STATUS: STANDBY";
+                        StaticFX.toggle(true);
+                        this.placeholder.style.display = 'block';
                     });
 
                     // Fullscreen (CONTAINER)
                     this.fullBtn.addEventListener('click', () => {
                         if (this.wrapper.requestFullscreen) this.wrapper.requestFullscreen();
                         else if (this.wrapper.webkitRequestFullscreen) this.wrapper.webkitRequestFullscreen();
+                    });
+
+                    // Handle Mouse in Fullscreen
+                    this.wrapper.addEventListener('mousemove', () => {
+                        if (document.fullscreenElement) {
+                            this.wrapper.classList.add('user-active');
+                            clearTimeout(this.hideControlsTimer);
+                            this.hideControlsTimer = setTimeout(() => {
+                                this.wrapper.classList.remove('user-active');
+                            }, 3000);
+                        }
                     });
 
                     // Volume
@@ -1132,28 +1329,99 @@
                         }
                     });
                     
-                    // Video End
+                    // Video End -> Next Track
                     this.video.addEventListener('ended', () => {
-                        this.playBtn.textContent = "► PLAY";
-                        this.statusTag.textContent = "SIGNAL STATUS: END TRANSMISSION";
+                        this.playNext();
                     });
                 },
+
+                handleFiles(files) {
+                    if (files.length > 0) {
+                        Array.from(files).forEach(file => {
+                            if (file.type.startsWith('video/')) {
+                                this.playlist.push({ name: file.name, url: URL.createObjectURL(file) });
+                            }
+                        });
+                        this.renderPlaylist();
+                        if (this.currentIndex === -1) {
+                            this.currentIndex = 0;
+                            this.loadTrack(0);
+                        }
+                        voxNotify(`ADDED ${files.length} CLIPS TO QUEUE.`, 'info');
+                    }
+                },
+
+                renderPlaylist() {
+                    this.playlistContainer.innerHTML = '';
+                    this.playlist.forEach((track, idx) => {
+                        const div = document.createElement('div');
+                        div.className = `playlist-item ${idx === this.currentIndex ? 'active' : ''}`;
+                        div.innerHTML = `
+                            <span>${idx+1}. ${track.name}</span>
+                            <span class="playlist-remove" onclick="VideoSystem.removeTrack(${idx}, event)">×</span>
+                        `;
+                        div.onclick = (e) => {
+                            if(!e.target.classList.contains('playlist-remove')) {
+                                this.currentIndex = idx;
+                                this.playCurrent();
+                            }
+                        };
+                        this.playlistContainer.appendChild(div);
+                    });
+                },
+
+                removeTrack(idx, e) {
+                    e.stopPropagation();
+                    this.playlist.splice(idx, 1);
+                     if(this.currentIndex === idx) {
+                        this.video.pause();
+                        this.currentIndex = -1; // Reset
+                        StaticFX.toggle(true);
+                        this.placeholder.style.display = 'block';
+                    } else if (this.currentIndex > idx) {
+                        this.currentIndex--;
+                    }
+                    this.renderPlaylist();
+                },
                 
-                loadFromUrl(url) {
-                    this.video.src = url;
+                loadTrack(idx) {
+                    const track = this.playlist[idx];
+                    this.video.src = track.url;
                     this.video.play().catch(e => console.log("Auto-play prevented"));
-                    this.statusTag.textContent = "SIGNAL STATUS: STABLE";
+                    this.statusTag.textContent = `SIGNAL: ${track.name.toUpperCase().substring(0,20)}`;
                     this.statusTag.style.background = "var(--vox-cyan)";
                     this.placeholder.style.display = 'none';
                     this.playBtn.textContent = "|| PAUSE";
+                    StaticFX.toggle(false);
+                    this.renderPlaylist();
+                },
+
+                playCurrent() {
+                    if(this.currentIndex < 0 || this.currentIndex >= this.playlist.length) return;
+                    this.loadTrack(this.currentIndex);
+                },
+
+                playNext() {
+                    if(this.currentIndex < this.playlist.length - 1) {
+                        this.currentIndex++;
+                        this.playCurrent();
+                    } else {
+                        // End of playlist
+                        this.playBtn.textContent = "► PLAY";
+                        this.statusTag.textContent = "SIGNAL STATUS: END TRANSMISSION";
+                        StaticFX.toggle(true);
+                    }
                 },
 
                 togglePlay() {
+                    if(this.video.src === "") return; // No source
+
                     if(this.video.paused) {
                         this.video.play();
                         this.playBtn.textContent = "|| PAUSE";
-                        this.statusTag.textContent = "SIGNAL STATUS: STABLE";
                         this.statusTag.style.background = "var(--vox-cyan)";
+                        StaticFX.toggle(false);
+                        this.placeholder.style.display = 'none';
                     } else {
                         this.video.pause();
                         this.playBtn.textContent = "► PLAY";
