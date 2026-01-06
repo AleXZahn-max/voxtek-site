@@ -372,7 +372,7 @@
         }
         .user-list { flex: 1; overflow-y: auto; }
         
-        .contact-item { padding: 15px; border-bottom: 1px solid #111; display: flex; align-items: center; gap: 10px; transition: 0.2s; cursor: pointer; }
+        .contact-item { padding: 15px; border-bottom: 1px solid #111; display: flex; align-items: center; gap: 10px; transition: 0.2s; cursor: pointer; position: relative; }
         .contact-item:hover { background: #111; }
         .contact-item.active { background: rgba(0,243,255,0.1); border-left: 3px solid var(--vox-cyan); }
         .c-avatar { 
@@ -385,6 +385,14 @@
         .c-status { font-size: 10px; color: #666; }
         .c-status.online { color: var(--vox-cyan); }
 
+        .unread-badge {
+            background: var(--alert-red); color: white; font-size: 9px; 
+            font-weight: bold; border-radius: 50%; width: 18px; height: 18px; 
+            display: flex; justify-content: center; align-items: center;
+            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+            box-shadow: 0 0 5px red;
+        }
+
         /* MAIN CHAT AREA */
         .chat-main { flex: 1; display: flex; flex-direction: column; background: #000; position: relative; }
         
@@ -393,7 +401,10 @@
             display: flex; justify-content: space-between; align-items: center; height: 60px;
         }
         .chat-header-info { display:flex; align-items:center; gap:10px; }
-        .chat-title { color:white; font-weight:bold; font-size: 16px; }
+        .chat-title { color:white; font-weight:bold; font-size: 16px; display: flex; flex-direction: column; }
+        .typing-indicator { font-size: 9px; color: var(--vox-cyan); font-style: italic; opacity: 0; transition: opacity 0.3s; }
+        .typing-indicator.active { opacity: 1; animation: pulseType 1s infinite; }
+        @keyframes pulseType { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
 
         .chat-messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; scroll-behavior: smooth; }
         
@@ -447,11 +458,12 @@
         .mobile-menu-btn { display: none; background:none; border:none; color:white; font-size:20px; margin-right:10px; }
         
         @media (max-width: 768px) {
-            .messenger-container { height: calc(100vh - 100px); border:none; width:100%; }
+            .messenger-container { height: calc(100vh - 140px); border:none; width:100%; margin-top: 10px; }
             .mobile-menu-btn { display: block; }
             .chat-sidebar { 
-                position: absolute; left: 0; top: 0; height: 100%; z-index: 5;
-                transform: translateX(-100%); width: 80%; border-right: 2px solid var(--vox-cyan);
+                position: absolute; left: 0; top: 0; height: 100%; z-index: 20;
+                transform: translateX(-100%); width: 85%; border-right: 2px solid var(--vox-cyan);
+                background: black;
             }
             .chat-sidebar.open { transform: translateX(0); }
             .msg-wrapper { max-width: 90%; }
@@ -532,6 +544,13 @@
         
         .vox-range { -webkit-appearance: none; width: 100%; height: 6px; background: #222; outline: none; flex: 1; border: 1px solid #333; }
         .vox-range::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 14px; background: var(--vox-cyan); cursor: pointer; box-shadow: 0 0 5px var(--vox-cyan); }
+        
+        /* Android Touch Targets */
+        @media (max-width: 768px) {
+            .vox-range { height: 10px; }
+            .vox-range::-webkit-slider-thumb { width: 20px; height: 20px; }
+            .c-btn { padding: 10px; }
+        }
 
         .video-controls-panel { padding: 20px; display: flex; justify-content: center; gap: 20px; align-items: center; background: #080808; }
         .file-upload-btn { position: relative; overflow: hidden; display: inline-block; }
@@ -893,7 +912,10 @@
                     <div class="chat-header">
                         <div class="chat-header-info">
                             <button class="mobile-menu-btn" onclick="document.getElementById('chatSidebar').classList.toggle('open')">☰</button>
-                            <span id="chatTitle" class="chat-title">VOXTEK GLOBAL</span>
+                            <div class="chat-title">
+                                <span id="chatTitle">VOXTEK GLOBAL</span>
+                                <span id="typingIndicator" class="typing-indicator">typing...</span>
+                            </div>
                         </div>
                         <button class="btn-tech" style="padding:5px 15px; font-size:10px; border:none;" onclick="AuthSystem.logout()">LOGOUT</button>
                     </div>
@@ -984,7 +1006,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
-  import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, setDoc, doc, where } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, setDoc, doc, where, limit } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
   import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-storage.js";
 
   const firebaseConfig = {
@@ -1017,6 +1039,7 @@
   window.fbOrder = orderBy;
   window.fbWhere = where;
   window.fbTime = serverTimestamp;
+  window.fbLimit = limit;
 
   window.fbRef = ref;
   window.fbUpload = uploadBytes;
@@ -1151,6 +1174,7 @@
                 audioCtx: null,
                 animationId: null,
                 useSimulation: false,
+                isDragging: false,
 
                 init() {
                     this.audio.volume = 0.2; 
@@ -1182,7 +1206,7 @@
                     });
 
                     this.audio.addEventListener('timeupdate', () => {
-                        if (!isNaN(this.audio.duration)) {
+                        if (!this.isDragging && !isNaN(this.audio.duration)) {
                             const pct = (this.audio.currentTime / this.audio.duration) * 100;
                             this.seekSlider.value = pct;
                             document.getElementById('currentTime').textContent = this.fmtTime(this.audio.currentTime);
@@ -1190,9 +1214,12 @@
                         }
                     });
 
-                    this.seekSlider.addEventListener('input', (e) => {
+                    this.seekSlider.addEventListener('mousedown', () => this.isDragging = true);
+                    this.seekSlider.addEventListener('touchstart', () => this.isDragging = true);
+                    this.seekSlider.addEventListener('change', (e) => {
                          const time = (e.target.value / 100) * this.audio.duration;
                          this.audio.currentTime = time;
+                         this.isDragging = false;
                     });
 
                     document.getElementById('coverUpload').addEventListener('change', (e) => {
@@ -1269,14 +1296,18 @@
                 loadTrack(idx) {
                     const track = this.playlist[idx];
                     let finalUrl = track.url;
-                    if (track.url.startsWith('http') && !track.url.includes(window.location.hostname)) {
-                        finalUrl = `/api/proxy?url=${encodeURIComponent(track.url)}`;
-                    }
-
+                    
                     this.audio.crossOrigin = "anonymous";
                     this.audio.src = finalUrl;
                     this.useSimulation = false;
                     document.querySelector('.cover-text').textContent = track.name.substring(0, 20);
+                },
+
+                loadFromUrl(url) {
+                    // Extract simplified name
+                    const name = decodeURIComponent(url.split('/').pop().split('?')[0].split('_').pop());
+                    this.playlist.push({ name: name, url: url });
+                    this.renderPlaylist();
                 },
 
                 fmtTime(s) {
@@ -1370,6 +1401,7 @@
                 playlist: [],
                 currentIndex: -1,
                 hideControlsTimer: null,
+                isDragging: false,
                 
                 init() {
                     StaticFX.init();
@@ -1386,7 +1418,17 @@
                     });
 
                     this.input.addEventListener('change', (e) => {
-                        this.handleFiles(e.target.files);
+                        const files = Array.from(e.target.files);
+                        if (files.length > 0) {
+                            // Prompt for Upload or Local
+                            if (confirm("UPLOAD TO CLOUD DATABASE?\nOK = Upload (Accessible everywhere)\nCancel = Local Play (This device only)")) {
+                                files.forEach(file => {
+                                    CloudSystem.uploadMedia(file, 'video');
+                                });
+                            } else {
+                                this.handleFiles(e.target.files);
+                            }
+                        }
                     });
 
                     this.playBtn.addEventListener('click', () => this.togglePlay());
@@ -1421,17 +1463,20 @@
                     });
 
                     this.video.addEventListener('timeupdate', () => {
-                        if(this.video.duration) {
+                        if(!this.isDragging && this.video.duration) {
                             const pct = (this.video.currentTime / this.video.duration) * 100;
                             this.progress.value = pct;
                             this.timeDisplay.textContent = `${this.fmt(this.video.currentTime)} / ${this.fmt(this.video.duration)}`;
                         }
                     });
 
-                    this.progress.addEventListener('input', (e) => {
+                    this.progress.addEventListener('mousedown', () => this.isDragging = true);
+                    this.progress.addEventListener('touchstart', () => this.isDragging = true);
+                    this.progress.addEventListener('change', (e) => {
                         if(this.video.duration) {
                             const t = (e.target.value / 100) * this.video.duration;
                             this.video.currentTime = t;
+                            this.isDragging = false;
                         }
                     });
                     
@@ -1444,31 +1489,29 @@
                     if (files.length > 0) {
                         Array.from(files).forEach(file => {
                             if (file.type.startsWith('video/')) {
-                                // Создаем локальную временную ссылку на файл в памяти браузера
-                                // Это полностью бесплатно и не требует обращения к Firebase
                                 const localUrl = URL.createObjectURL(file);
-                                
-                                // Добавляем видео в локальный плейлист плеера
                                 this.playlist.push({
                                     name: file.name,
                                     url: localUrl
                                 });
-                                
                                 voxNotify(`LOCAL SIGNAL READY: ${file.name.substring(0, 20)}...`, 'success');
                             } else {
                                 voxNotify('INVALID FORMAT: VIDEO ONLY', 'error');
                             }
                         });
-                        
-                        // Обновляем визуальный список видео в интерфейсе
                         this.renderPlaylist();
-
-                        // Если сейчас ничего не воспроизводится, автоматически запускаем первый файл
                         if (this.currentIndex === -1 && this.playlist.length > 0) {
                             this.currentIndex = 0;
                             this.playCurrent();
                         }
                     }
+                },
+
+                loadFromUrl(url) {
+                    const name = decodeURIComponent(url.split('/').pop().split('?')[0].split('_').pop());
+                    this.playlist.push({ name: name, url: url });
+                    this.renderPlaylist();
+                    voxNotify(`CLOUD VIDEO LINKED: ${name}`, 'success');
                 },
 
                 renderPlaylist() {
@@ -2240,6 +2283,8 @@
             window.MessengerUI = {
                 currentChat: 'global',
                 currentChatName: 'VOXTEK GLOBAL',
+                usersCache: [],
+                unreadCounts: {}, // { uid: count }
                 
                 switchChat(chatId, chatName = 'VOXTEK GLOBAL') {
                     this.currentChat = chatId;
@@ -2249,42 +2294,83 @@
                     
                     // Highlight active contact
                     document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
-                    // We assume the clicked element is handling the class toggle in loop, but if global:
-                    if(chatId === 'global') {
-                        document.querySelector('.contact-item:first-child').classList.add('active');
-                    }
                     
+                    const clickedItem = [...document.querySelectorAll('.contact-item')].find(el => 
+                        el.innerHTML.includes(chatName) || (chatId === 'global' && el.innerHTML.includes('GLOBAL'))
+                    );
+                    if(clickedItem) clickedItem.classList.add('active');
+                    
+                    // Clear unread count for this user
+                    if (chatId !== 'global') {
+                         const partnerId = chatId.replace(window.auth.currentUser.uid, '').replace('_', '');
+                         if (this.unreadCounts[partnerId]) {
+                             this.unreadCounts[partnerId] = 0;
+                             this.renderUsers(this.usersCache); // Re-render to clear badge
+                         }
+                    }
+
                     // Close mobile sidebar
                     if(window.innerWidth < 768) {
                         document.getElementById('chatSidebar').classList.remove('open');
                     }
                     
                     CloudSystem.loadChat(chatId);
+                    CloudSystem.monitorTyping(chatId);
                     SoundFX.click();
                 },
+
+                updateUnread(senderUid) {
+                     if (!this.unreadCounts[senderUid]) this.unreadCounts[senderUid] = 0;
+                     this.unreadCounts[senderUid]++;
+                     this.renderUsers(this.usersCache, senderUid); // Re-render triggers sort
+                },
                 
-                renderUsers(users) {
+                renderUsers(users, bumpUserUid = null) {
+                    this.usersCache = users; // Store for re-renders
                     const container = document.getElementById('usersFeed');
-                    // Keep the first child (Global Chat button)
-                    const globalBtn = container.firstElementChild;
-                    container.innerHTML = '';
-                    container.appendChild(globalBtn);
+                    
+                    // Always keep Global Chat at top
+                    const globalBtnHTML = `
+                        <div class="contact-item ${this.currentChat === 'global' ? 'active' : ''}" onclick="MessengerUI.switchChat('global')">
+                            <div class="c-avatar" style="background:var(--vox-cyan); color:black; font-weight:bold;">#</div>
+                            <div class="c-info">
+                                <div class="c-name">VOXTEK GLOBAL</div>
+                                <div class="c-status online">System Online</div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    container.innerHTML = globalBtnHTML;
                     
                     const myUid = window.auth.currentUser ? window.auth.currentUser.uid : null;
                     
-                    users.forEach(user => {
-                        if(user.uid === myUid) return; // Don't show myself
+                    // Sorting Logic: 
+                    // 1. If bumpUserUid exists, put them first.
+                    // 2. Then sort by Unread Count descending.
+                    // 3. Then by Name.
+                    
+                    let sortedUsers = [...users].filter(u => u.uid !== myUid);
+                    
+                    sortedUsers.sort((a, b) => {
+                        if (a.uid === bumpUserUid) return -1;
+                        if (b.uid === bumpUserUid) return 1;
                         
+                        const unreadA = this.unreadCounts[a.uid] || 0;
+                        const unreadB = this.unreadCounts[b.uid] || 0;
+                        
+                        if (unreadB !== unreadA) return unreadB - unreadA;
+                        return a.name.localeCompare(b.name);
+                    });
+
+                    sortedUsers.forEach(user => {
                         const div = document.createElement('div');
-                        div.className = 'contact-item';
+                        const ids = [myUid, user.uid].sort();
+                        const chatId = ids.join('_');
+                        const isActive = this.currentChat === chatId;
+                        const unread = this.unreadCounts[user.uid] || 0;
+
+                        div.className = `contact-item ${isActive ? 'active' : ''}`;
                         div.onclick = () => {
-                            // Determine Chat ID (alphabetical sort to ensure uniqueness for 2 people)
-                            const ids = [myUid, user.uid].sort();
-                            const chatId = ids.join('_');
-                            // Visually toggle active
-                            document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
-                            div.classList.add('active');
-                            
                             this.switchChat(chatId, user.name);
                         };
                         
@@ -2295,13 +2381,20 @@
                             <div class="c-avatar"><img src="${avatar}"></div>
                             <div class="c-info">
                                 <div class="c-name">${name}</div>
-                                <div class="c-status online">Online</div>
+                                <div class="c-status online">Citizen</div>
                             </div>
+                            ${unread > 0 ? `<div class="unread-badge">${unread}</div>` : ''}
                         `;
                         container.appendChild(div);
                     });
                 },
                 
+                showTyping(isTyping) {
+                    const el = document.getElementById('typingIndicator');
+                    if(isTyping) el.classList.add('active');
+                    else el.classList.remove('active');
+                },
+
                 pingUser(name) {
                     const inp = document.getElementById('msgInput');
                     inp.value += `@${name} `;
@@ -2324,6 +2417,8 @@
             // --- NEW: CLOUD SYNC (Chat & Files) ---
             window.CloudSystem = {
                 chatListener: null,
+                typingListener: null,
+                typingTimeout: null,
                 
                 // USER MANAGEMENT
                 registerUser(user) {
@@ -2344,6 +2439,26 @@
                         snapshot.forEach(doc => users.push(doc.data()));
                         MessengerUI.renderUsers(users);
                     });
+                    
+                    // Listen for incoming private messages for notifications/sorting
+                    if (!window.auth.currentUser) return;
+                    const qMsg = window.fbQuery(
+                         window.fbCol(window.db, "messages_private"),
+                         window.fbWhere("uid", "!=", window.auth.currentUser.uid), // Messages NOT from me
+                         window.fbOrder("uid"), // Required for inequality filter
+                         window.fbOrder("createdAt", "desc"),
+                         window.fbLimit(1)
+                    );
+                    
+                    // Note: This is a simplified listener for the demo to catch "Any" new message
+                    // Ideally, we'd listen to the collection and filter client side or have a 'latest_messages' collection.
+                    // Here we will rely on the generic chatListener to handle active chat updates, 
+                    // and we implement a simple trick: 
+                    // When a user selects a chat, we are fine.
+                    // For background notifications, we would need a Cloud Function or complex queries.
+                    // SIMPLIFICATION FOR THIS SNIPPET:
+                    // We will just let the active chat update. Real background notifications require backend.
+                    // However, we can simulate sorting:
                 },
                 
                 updateProfile() {
@@ -2384,7 +2499,42 @@
 
                     const msgsRef = window.fbCol(window.db, colName);
                     window.fbAdd(msgsRef, payload);
+                    
+                    // Clear typing status immediately
+                    this.setTyping(false);
                     SoundFX.click();
+                },
+                
+                setTyping(isTyping) {
+                    const user = window.auth.currentUser;
+                    const chatId = MessengerUI.currentChat;
+                    if(!user || chatId === 'global') return; // Don't track global typing to save writes
+                    
+                    const ref = window.fbDoc(window.db, "typing", chatId);
+                    // Use merge to update specific user key
+                    window.fbSet(ref, { [user.uid]: isTyping }, { merge: true });
+                },
+
+                monitorTyping(chatId) {
+                    if (this.typingListener) this.typingListener(); // Unsub
+                    if (chatId === 'global') {
+                        MessengerUI.showTyping(false);
+                        return;
+                    }
+                    
+                    const ref = window.fbDoc(window.db, "typing", chatId);
+                    this.typingListener = window.fbSnap(ref, (doc) => {
+                        if (doc.exists()) {
+                            const data = doc.data();
+                            let anyoneTyping = false;
+                            Object.keys(data).forEach(uid => {
+                                if (uid !== window.auth.currentUser.uid && data[uid] === true) {
+                                    anyoneTyping = true;
+                                }
+                            });
+                            MessengerUI.showTyping(anyoneTyping);
+                        }
+                    });
                 },
                 
                 loadChat(chatId) {
@@ -2414,6 +2564,21 @@
                     this.chatListener = window.fbSnap(q, (snapshot) => {
                         feed.innerHTML = '';
                         
+                        snapshot.docChanges().forEach((change) => {
+                            if (change.type === "added") {
+                                const data = change.doc.data();
+                                const isMe = data.uid === window.auth.currentUser.uid;
+                                
+                                // Handling Unread/Sort Logic for Private Messages
+                                if (!isMe && chatId !== 'global') {
+                                    // If we are getting a message in the active chat, just show it.
+                                    // If we were getting a message for a DIFFERENT chat (need global listener for that),
+                                    // we would handle badges there. 
+                                    // Since this listener is scoped to current chat, we assume read.
+                                }
+                            }
+                        });
+
                         snapshot.forEach((doc) => {
                             const data = doc.data();
                             const isMe = data.uid === window.auth.currentUser.uid;
@@ -2456,8 +2621,43 @@
                 }
             };
             
+            // Listen for typing input
+            document.getElementById('msgInput').addEventListener('input', () => {
+                 CloudSystem.setTyping(true);
+                 clearTimeout(CloudSystem.typingTimeout);
+                 CloudSystem.typingTimeout = setTimeout(() => CloudSystem.setTyping(false), 2000);
+            });
+            
             // Auto-init Auth
             if(window.AuthSystem) AuthSystem.init();
+            
+            // Global Message Listener for Badges/Sorting (Simplified for single-file constraint)
+            // We listen to all private messages to update badges even if not in chat
+            setTimeout(() => {
+                if(window.auth.currentUser) {
+                     const qAll = window.fbQuery(
+                         window.fbCol(window.db, "messages_private"),
+                         window.fbWhere("chatId", ">=", window.auth.currentUser.uid), // Primitive filter
+                         window.fbOrder("chatId"),
+                         window.fbOrder("createdAt", "desc"),
+                         window.fbLimit(20)
+                     );
+                     
+                     window.fbSnap(qAll, (snapshot) => {
+                        snapshot.docChanges().forEach((change) => {
+                            if (change.type === "added") {
+                                const data = change.doc.data();
+                                // If msg is for me (part of chatId) and not from me
+                                if (data.chatId.includes(window.auth.currentUser.uid) && data.uid !== window.auth.currentUser.uid) {
+                                    if (MessengerUI.currentChat !== data.chatId) {
+                                        MessengerUI.updateUnread(data.uid);
+                                    }
+                                }
+                            }
+                        });
+                     });
+                }
+            }, 3000);
 
         })();
     </script>
