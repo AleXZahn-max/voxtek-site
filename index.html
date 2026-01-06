@@ -6,6 +6,8 @@
     <meta name="description" content="VoxTek Enterprises - The future of secure technology.">
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     <title>VoxTek Enterprises | Submission is Safety</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#00f3ff">
     <style>
         /* --- 1. CORE VARIABLES --- */
         :root {
@@ -634,6 +636,66 @@
         }
         @keyframes eyePulse { from { transform: scale(1); } to { transform: scale(1.1); } }
         @keyframes glowPulse { from { opacity: 0.3; transform: scale(0.8); } to { opacity: 0.6; transform: scale(1.2); } }
+
+        /* --- ADMIN PANEL STYLES --- */
+        #adminPanel {
+            display: none; /* Скрыто по умолчанию */
+            flex-direction: column;
+            gap: 15px; /* Отступы между элементами */
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%); /* Строго по центру */
+            width: 400px;
+            max-width: 90vw;
+            background: rgba(10, 0, 0, 0.98); /* Почти черный фон */
+            border: 2px solid var(--alert-red);
+            padding: 30px;
+            z-index: 20000; /* Поверх всего */
+            box-shadow: 0 0 50px rgba(255, 0, 0, 0.3), inset 0 0 20px rgba(255,0,0,0.1);
+            backdrop-filter: blur(5px);
+        }
+        
+        #adminPanel h3 {
+            text-align: center;
+            letter-spacing: 3px;
+            animation: blinkRed 2s infinite;
+        }
+
+        @keyframes blinkRed {
+            0%, 100% { opacity: 1; text-shadow: 0 0 10px red; }
+            50% { opacity: 0.5; text-shadow: none; }
+        }
+        /* ADMIN USER LIST */
+        .admin-user-list {
+            max-height: 250px;
+            overflow-y: auto;
+            background: #050505;
+            border: 1px solid #333;
+            margin-top: 10px;
+            padding: 5px;
+        }
+        .admin-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            border-bottom: 1px solid #222;
+            font-size: 11px;
+            color: #aaa;
+        }
+        .admin-row:hover { background: rgba(255, 0, 0, 0.1); color: white; }
+        .ban-btn {
+            background: var(--alert-red);
+            color: black;
+            border: none;
+            font-weight: bold;
+            padding: 2px 8px;
+            font-family: var(--font-code);
+            font-size: 10px;
+        }
+        .ban-btn:hover { background: white; color: red; }
+        .banned-tag { color: red; font-weight: bold; border: 1px solid red; padding: 0 5px; }
     </style>
 </head>
 <body id="top">
@@ -1002,6 +1064,28 @@
     <footer>
         <p>&copy; 2026 VOXTEK ENTERPRISES. TRUST THE SIGNAL. FAILURE IS NOT AN OPTION.</p>
     </footer>
+
+<div id="adminPanel">
+    <h3 style="color:var(--alert-red); margin-bottom:15px; border-bottom:1px solid var(--alert-red); padding-bottom:10px;">/// OVERLORD CONTROL ///</h3>
+    
+    <div style="display:flex; flex-direction:column; gap:5px; margin-bottom:20px;">
+        <label class="form-label" style="color:var(--alert-red);">GLOBAL ALERT BROADCAST</label>
+        <input type="text" id="adminAlertMsg" class="form-input" style="border-color:var(--alert-red); color:var(--alert-red); background:#1a0000;" placeholder="TYPE WARNING MESSAGE...">
+        <button class="btn-tech" style="width:100%; border-color:var(--alert-red); color:var(--alert-red);" onclick="AdminSystem.broadcast()">⚡ TRANSMIT SIGNAL</button>
+    </div>
+
+    <div style="border-top:1px solid #333; padding-top:10px;">
+        <label class="form-label" style="color:var(--vox-cyan);">CITIZEN DATABASE</label>
+        <button class="btn-tech" style="width:100%; font-size:10px; padding:5px; margin-bottom:5px;" onclick="AdminSystem.loadUsers()">↻ REFRESH LIST</button>
+        <div id="adminUserList" class="admin-user-list">
+            <div style="padding:10px; text-align:center;">WAITING FOR DATA...</div>
+        </div>
+    </div>
+    
+    <button class="btn-tech" style="width:100%; border-color:#555; color:#555; margin-top:20px;" onclick="document.getElementById('adminPanel').style.display='none'">CLOSE TERMINAL</button>
+</div>
+
+<button id="adminToggleBtn" onclick="document.getElementById('adminPanel').style.display='flex'" style="display:none; position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:black; color:red; border:1px solid red; padding:5px 10px; z-index:9000; font-family:var(--font-code); font-weight:bold; cursor:pointer;">ADMIN ACCESS</button>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
@@ -1712,7 +1796,7 @@
                         title.innerHTML = "Welcome Back,<br>Citizen";
                         title.setAttribute('data-text', "Welcome Back, Citizen"); 
                         document.getElementById('initBtn').textContent = "AWAITING ORDERS";
-                        voxNotify('Identity verified. Welcome back.', 'success');
+                        //voxNotify('Identity verified. Welcome back.', 'success');
                     }
                 },
                 register() {
@@ -2192,28 +2276,67 @@
                 }
             };
 
-            // --- NEW: AUTH SYSTEM (FIXED) ---
+// --- UPDATED: AUTH SYSTEM (WITH BAN MONITOR) ---
             window.AuthSystem = {
                 currentUser: null,
+                isInitialized: false,
+                banListener: null, // Храним ссылку на слушатель бана
+
                 init() {
+                    if (this.isInitialized) return;
+                    this.isInitialized = true;
+
                     if (window.fbAuthListener) {
                         window.fbAuthListener(window.auth, (user) => {
                             if (user) {
                                 this.currentUser = user;
-                                voxNotify('IDENTITY CONFIRMED. WELCOME, AGENT.', 'success');
                                 this.showApp();
                                 CloudSystem.registerUser(user);
+                                
+                                // ЗАПУСКАЕМ СЛЕЖКУ ЗА БАНОМ
+                                this.monitorBan(user.uid); 
+
+                                if(window.AdminSystem) AdminSystem.init(user);
                             } else {
                                 this.currentUser = null;
+                                if(this.banListener) this.banListener(); // Отключаем слежку при выходе
                                 this.showAuth();
                             }
                         });
                     }
                 },
+
+                // --- ФУНКЦИЯ ПРОВЕРКИ БАНА ---
+                monitorBan(uid) {
+                    // Слушаем изменения в своем профиле в реальном времени
+                    this.banListener = window.fbSnap(window.fbDoc(window.db, "users", uid), (doc) => {
+                        const data = doc.data();
+                        if (data && data.isBanned === true) {
+                            // ЕСЛИ ЗАБАНЕН:
+                            window.fbLogout(window.auth); // 1. Выкидываем из аккаунта
+                            
+                            // 2. Показываем красный экран смерти (VSOD)
+                            const vsod = document.getElementById('vsod-layer');
+                            vsod.classList.add('active');
+                            vsod.innerHTML = `
+                                <div class="sad-face">:(</div>
+                                <h1 style="color:red; font-size:40px;">ACCOUNT TERMINATED</h1>
+                                <p style="margin-top:20px; font-size:18px;">ACCESS TO VOXTEK SYSTEMS REVOKED.</p>
+                                <div style="margin-top:40px; border:1px solid red; padding:20px; background:rgba(50,0,0,0.5);">
+                                    <p style="color:#aaa; font-size:12px;">OFFICIAL REASON:</p>
+                                    <h2 style="color:white; margin-top:10px;">"${data.banReason}"</h2>
+                                </div>
+                                <p style="margin-top:40px; font-size:12px; color:#666;">ID: ${uid}</p>
+                            `;
+                            SoundFX.error();
+                        }
+                    });
+                },
+
+                // (Остальные методы остаются без изменений)
                 switchTab(tab) {
                     document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
                     document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
-                    
                     if(tab === 'login') {
                         document.querySelector('#msgAuth .auth-tabs button:first-child').classList.add('active');
                         document.getElementById('formLogin').classList.add('active');
@@ -2226,38 +2349,23 @@
                 register() {
                     let u = document.getElementById('regUser').value.trim();
                     const p = document.getElementById('regPass').value.trim();
-                    
                     if (!u.includes('@')) u = u + '@voxtek.net';
-                    
                     if(!u || !p) return voxNotify('Credentials required.', 'error');
-                    
                     voxNotify('CONTACTING SERVERS...', 'info');
                     window.fbRegister(window.auth, u, p)
-                        .then((cred) => {
-                            voxNotify('ID CREATED. LOGGING IN...', 'success');
-                        })
-                        .catch((error) => {
-                            voxNotify('ERROR: ' + error.message, 'error');
-                            SoundFX.error();
-                        });
+                        .then((cred) => voxNotify('ID CREATED. LOGGING IN...', 'success'))
+                        .catch((error) => { voxNotify('ERROR: ' + error.message, 'error'); SoundFX.error(); });
                 },
                 login() {
                     let u = document.getElementById('loginUser').value.trim();
                     const p = document.getElementById('loginPass').value.trim();
-                    
                     if (!u.includes('@')) u = u + '@voxtek.net';
-                    
                     voxNotify('VERIFYING...', 'info');
                     window.fbLogin(window.auth, u, p)
-                        .catch((error) => {
-                            voxNotify('ACCESS DENIED. ' + error.message, 'error');
-                            SoundFX.error();
-                        });
+                        .catch((error) => { voxNotify('ACCESS DENIED. ' + error.message, 'error'); SoundFX.error(); });
                 },
                 logout() {
-                    window.fbLogout(window.auth).then(() => {
-                        voxNotify('DISCONNECTED.', 'info');
-                    });
+                    window.fbLogout(window.auth).then(() => voxNotify('DISCONNECTED.', 'info'));
                 },
                 showAuth() {
                     document.getElementById('msgAuth').style.display = 'flex';
@@ -2275,12 +2383,105 @@
                     const inp = document.getElementById('msgInput');
                     const txt = inp.value.trim();
                     if(!txt) return;
-                    
                     CloudSystem.sendMessage(txt);
                     inp.value = '';
                 }
             };
             
+// --- UPDATED: ADMIN SYSTEM (WITH BAN HAMMER) ---
+            window.AdminSystem = {
+                init(user) {
+                    if (user && user.email === 'voxtek@voxtek.net') {
+                        document.getElementById('adminToggleBtn').style.display = 'block';
+                        voxNotify('ADMIN CLEARANCE GRANTED. WELCOME, VOX.', 'error');
+                        this.loadUsers(); // Сразу грузим список
+                    } else {
+                        document.getElementById('adminToggleBtn').style.display = 'none';
+                    }
+                    this.listenForAlerts();
+                },
+                
+                broadcast() {
+                    const msg = document.getElementById('adminAlertMsg').value;
+                    if(!msg) return;
+                    window.fbAdd(window.fbCol(window.db, "system_alerts"), {
+                        message: msg,
+                        timestamp: window.fbTime(),
+                        author: "OVERLORD"
+                    });
+                    document.getElementById('adminAlertMsg').value = '';
+                    voxNotify('GLOBAL ALERT SENT.', 'success');
+                },
+                
+                listenForAlerts() {
+                    const q = window.fbQuery(window.fbCol(window.db, "system_alerts"), window.fbOrder("timestamp", "desc"), window.fbLimit(1));
+                    window.fbSnap(q, (snapshot) => {
+                        snapshot.docChanges().forEach((change) => {
+                            if (change.type === "added") {
+                                const data = change.doc.data();
+                                const now = Date.now();
+                                const alertTime = data.timestamp ? data.timestamp.toMillis() : now;
+                                if (now - alertTime < 10000) {
+                                    voxNotify(`⚠ ${data.message.toUpperCase()} ⚠`, 'error');
+                                    SoundFX.playTone(150, 'sawtooth', 0.5);
+                                }
+                            }
+                        });
+                    });
+                },
+
+                // --- НОВЫЙ ФУНКЦИОНАЛ: СПИСОК И БАН ---
+                loadUsers() {
+                    const list = document.getElementById('adminUserList');
+                    list.innerHTML = '<div style="padding:10px;text-align:center;color:#666">SCANNING DATABASE...</div>';
+                    
+                    // Запрашиваем всех пользователей
+                    const q = window.fbQuery(window.fbCol(window.db, "users"), window.fbOrder("lastSeen", "desc"));
+                    
+                    window.fbSnap(q, (snapshot) => {
+                        list.innerHTML = '';
+                        snapshot.forEach((doc) => {
+                            const u = doc.data();
+                            const div = document.createElement('div');
+                            div.className = 'admin-row';
+                            
+                            // Если пользователь забанен, показываем красную метку
+                            const banStatus = u.isBanned 
+                                ? `<span class="banned-tag">TERMINATED</span>` 
+                                : `<button class="ban-btn" onclick="AdminSystem.banUser('${u.uid}')">BAN</button>`;
+                            
+                            div.innerHTML = `
+                                <div style="display:flex;flex-direction:column;">
+                                    <span style="color:white;font-weight:bold;">${u.name}</span>
+                                    <span style="font-size:9px;">${u.email}</span>
+                                </div>
+                                ${banStatus}
+                            `;
+                            list.appendChild(div);
+                        });
+                    });
+                },
+
+                banUser(uid) {
+                    const reason = prompt("ENTER MANDATORY REASON FOR TERMINATION:");
+                    if (!reason || reason.trim() === "") {
+                        alert("ERROR: REASON REQUIRED TO TERMINATE CITIZEN.");
+                        return;
+                    }
+
+                    if (confirm("CONFIRM TERMINATION? THIS CANNOT BE UNDONE.")) {
+                        // Обновляем документ пользователя: ставим флаг бана и причину
+                        window.fbSet(window.fbDoc(window.db, "users", uid), {
+                            isBanned: true,
+                            banReason: reason,
+                            bannedAt: window.fbTime()
+                        }, { merge: true });
+                        
+                        voxNotify(`CITIZEN ${uid.slice(0,5)} TERMINATED.`, 'success');
+                    }
+                }
+            };
+
             // --- NEW: MESSENGER UI LOGIC ---
             window.MessengerUI = {
                 currentChat: 'global',
@@ -2416,6 +2617,61 @@
                 }
             };
 
+// --- TEXT SCRAMBLE FX ---
+            class ScrambleText {
+                constructor(el) {
+                    this.el = el;
+                    this.chars = '!<>-_\\/[]{}—=+*^?#________';
+                    this.update = this.update.bind(this);
+                }
+                setText(newText) {
+                    const oldText = this.el.innerText;
+                    const length = Math.max(oldText.length, newText.length);
+                    const promise = new Promise((resolve) => this.resolve = resolve);
+                    this.queue = [];
+                    for (let i = 0; i < length; i++) {
+                        const from = oldText[i] || '';
+                        const to = newText[i] || '';
+                        const start = Math.floor(Math.random() * 40);
+                        const end = start + Math.floor(Math.random() * 40);
+                        this.queue.push({ from, to, start, end });
+                    }
+                    cancelAnimationFrame(this.frameRequest);
+                    this.frame = 0;
+                    this.update();
+                    return promise;
+                }
+                update() {
+                    let output = '';
+                    let complete = 0;
+                    for (let i = 0, n = this.queue.length; i < n; i++) {
+                        let { from, to, start, end, char } = this.queue[i];
+                        if (this.frame >= end) {
+                            complete++;
+                            output += to;
+                        } else if (this.frame >= start) {
+                            if (!char || Math.random() < 0.28) {
+                                char = this.randomChar();
+                                this.queue[i].char = char;
+                            }
+                            output += `<span style="color:var(--vox-cyan); opacity:0.5;">${char}</span>`;
+                        } else {
+                            output += from;
+                        }
+                    }
+                    this.el.innerHTML = output;
+                    if (complete === this.queue.length) {
+                        this.resolve();
+                    } else {
+                        this.frameRequest = requestAnimationFrame(this.update);
+                        this.frame++;
+                    }
+                }
+                randomChar() {
+                    return this.chars[Math.floor(Math.random() * this.chars.length)];
+                }
+            }
+            
             // --- NEW: CLOUD SYNC (Chat & Files) ---
             window.CloudSystem = {
                 chatListener: null,
@@ -2591,15 +2847,24 @@
                             const avatarUrl = data.avatar || `https://placehold.co/40x40/000000/00f3ff/png?text=${data.name[0]}`;
                             
                             div.innerHTML = `
-                                <div class="msg-avatar" onclick="MessengerUI.pingUser('${data.name}')">
-                                    <img src="${avatarUrl}">
-                                </div>
-                                <div class="msg-content">
-                                    <div class="msg-name" onclick="MessengerUI.pingUser('${data.name}')">${data.name}</div>
-                                    <div class="msg-bubble">${data.text}</div>
-                                </div>
-                            `;
-                            feed.appendChild(div);
+                            <div class="msg-avatar" onclick="MessengerUI.pingUser('${data.name}')">
+                                <img src="${avatarUrl}">
+                            </div>
+                            <div class="msg-content">
+                                <div class="msg-name" onclick="MessengerUI.pingUser('${data.name}')">${data.name}</div>
+                                <div class="msg-bubble"></div> </div>
+                        `;
+                        feed.appendChild(div);
+
+                        // Применяем эффект дешифровки к тексту сообщения
+                        const bubble = div.querySelector('.msg-bubble');
+                        // Если это мое сообщение - показываем сразу (чтобы не бесило), если чужое - дешифруем
+                        if(isMe) {
+                            bubble.innerText = data.text;
+                        } else {
+                            const scrambler = new ScrambleText(bubble);
+                            scrambler.setText(data.text);
+                        }
                         });
                         feed.scrollTop = feed.scrollHeight;
                     });
@@ -2630,37 +2895,65 @@
                  CloudSystem.typingTimeout = setTimeout(() => CloudSystem.setTyping(false), 2000);
             });
             
-            // Auto-init Auth
-            if(window.AuthSystem) AuthSystem.init();
-            
-            // Global Message Listener for Badges/Sorting (Simplified for single-file constraint)
-            // We listen to all private messages to update badges even if not in chat
-            setTimeout(() => {
-                if(window.auth.currentUser) {
-                     const qAll = window.fbQuery(
-                         window.fbCol(window.db, "messages_private"),
-                         window.fbWhere("chatId", ">=", window.auth.currentUser.uid), // Primitive filter
-                         window.fbOrder("chatId"),
-                         window.fbOrder("createdAt", "desc"),
-                         window.fbLimit(20)
-                     );
-                     
-                     window.fbSnap(qAll, (snapshot) => {
-                        snapshot.docChanges().forEach((change) => {
-                            if (change.type === "added") {
-                                const data = change.doc.data();
-                                // If msg is for me (part of chatId) and not from me
-                                if (data.chatId.includes(window.auth.currentUser.uid) && data.uid !== window.auth.currentUser.uid) {
-                                    if (MessengerUI.currentChat !== data.chatId) {
-                                        MessengerUI.updateUnread(data.uid);
-                                    }
-                                }
-                            }
-                        });
-                     });
-                }
-            }, 3000);
+// --- SAFE INITIALIZATION (ANTI-SPAM & RACE CONDITION FIX) ---
+            let systemLoaded = false; // Глобальный флаг защиты от повторного запуска
 
+            const initVoxSystem = () => {
+                // Если система уже загружена, выходим, чтобы не дублировать уведомления
+                if (systemLoaded) return;
+
+                // Проверяем, загрузился ли Firebase (fbCol)
+                if (window.fbCol && window.auth && window.db) {
+                    
+                    systemLoaded = true; // Ставим флаг: "Система загружена"
+
+                    // 1. Запускаем авторизацию (проверку входа)
+                    if(window.AuthSystem) AuthSystem.init();
+                    
+                    // 2. Запускаем глобальный слушатель сообщений (для бейджиков "unread")
+                    if(window.auth.currentUser) {
+                         try {
+                             const qAll = window.fbQuery(
+                                 window.fbCol(window.db, "messages_private"),
+                                 window.fbWhere("chatId", ">=", window.auth.currentUser.uid),
+                                 window.fbOrder("chatId"),
+                                 window.fbOrder("createdAt", "desc"),
+                                 window.fbLimit(20)
+                             );
+                             
+                             window.fbSnap(qAll, (snapshot) => {
+                                snapshot.docChanges().forEach((change) => {
+                                    if (change.type === "added") {
+                                        const data = change.doc.data();
+                                        // Если сообщение мне (часть chatId) и НЕ от меня
+                                        if (data.chatId.includes(window.auth.currentUser.uid) && data.uid !== window.auth.currentUser.uid) {
+                                            // Если мы сейчас не в этом чате, ставим бейдж
+                                            if (MessengerUI.currentChat !== data.chatId) {
+                                                MessengerUI.updateUnread(data.uid);
+                                            }
+                                        }
+                                    }
+                                });
+                             });
+                         } catch (e) { 
+                             console.log("Waiting for auth to stabilize..."); 
+                         }
+                    }
+
+                    // 3. Запускаем Админские Алерты (красные окна)
+                    if(window.AdminSystem) AdminSystem.listenForAlerts();
+                    
+                    console.log("VOXTEK SYSTEMS: FULLY SYNCHRONIZED");
+                    
+                } else {
+                    // Если Firebase еще не готов, ждем 100мс и пробуем снова
+                    console.log("System Loading...");
+                    setTimeout(initVoxSystem, 100);
+                }
+            };
+
+            // Запускаем процесс
+            initVoxSystem();
         })();
     </script>
 </body>
