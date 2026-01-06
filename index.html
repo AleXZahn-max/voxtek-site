@@ -1014,6 +1014,10 @@
   window.fbUrl = getDownloadURL;
 
   console.log("VOXTEK CLOUD SYSTEM: ONLINE");
+
+  if (window.AuthSystem) {
+      window.AuthSystem.init();
+  }
 </script>
 
     <script>
