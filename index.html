@@ -744,6 +744,37 @@
         .call-video-grid {
             flex: 1; position: relative; display: flex; justify-content: center; align-items: center; overflow: hidden;
         }
+        /* --- Аватар во время звонка (когда нет видео) --- */
+        .avatar-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: #050505; z-index: 1; /* Поверх видео, но под локальным видео */
+            gap: 20px;
+        }
+        .call-avatar-img {
+            width: 120px; height: 120px; border-radius: 50%;
+            border: 3px solid var(--vox-cyan);
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.2);
+            object-fit: cover;
+            animation: pulseAvatar 2s infinite;
+        }
+        .call-avatar-name {
+            font-size: 24px; color: white; font-weight: bold;
+            text-shadow: 0 0 10px var(--vox-cyan);
+            text-transform: uppercase; letter-spacing: 2px;
+        }
+        .call-status-label {
+            font-size: 12px; color: #666; font-family: var(--font-code);
+            margin-top: 5px;
+        }
+        @keyframes pulseAvatar {
+            0% { box-shadow: 0 0 30px rgba(0, 243, 255, 0.2); }
+            50% { box-shadow: 0 0 50px rgba(0, 243, 255, 0.5); }
+            100% { box-shadow: 0 0 30px rgba(0, 243, 255, 0.2); }
+        }
+        /* Скрываем аватар, когда он не нужен */
+        .avatar-overlay.hidden { display: none; }
+
         #remoteVideo { width: 100%; height: 100%; object-fit: cover; }
         #localVideo {
             position: absolute; bottom: 20px; right: 20px;
@@ -1194,16 +1225,21 @@
     <div id="callInterface" class="call-overlay">
         <div class="call-video-grid">
             <video id="remoteVideo" autoplay playsinline></video>
+            
+            <div id="remoteAvatarContainer" class="avatar-overlay">
+                <img id="remoteAvatar" src="" class="call-avatar-img">
+                <div id="remoteName" class="call-avatar-name">CONNECTING...</div>
+                <div id="remoteStatusLabel" class="call-status-label">ESTABLISHING UPLINK</div>
+            </div>
+
             <video id="localVideo" autoplay playsinline muted></video>
-            <div style="position:absolute; top:20px; left:20px; background:rgba(0,0,0,0.5); padding:5px 10px; color:var(--vox-cyan); font-weight:bold;">
+            
+            <div style="position:absolute; top:20px; left:20px; background:rgba(0,0,0,0.5); padding:5px 10px; color:var(--vox-cyan); font-weight:bold; z-index:5;">
                 SECURE LINE: <span id="callStatusText">CONNECTING...</span>
             </div>
         </div>
         <div class="call-controls">
-            <button class="btn-call btn-mute" onclick="CallSystem.toggleAudio()">🎤</button>
-            <button class="btn-call btn-hangup" onclick="CallSystem.endCall()">✖</button>
-            <button class="btn-call btn-mute" onclick="CallSystem.toggleVideo()">📷</button>
-        </div>
+            </div>
     </div>
     
     <div id="incomingCallModal" class="modal-overlay">
@@ -3125,15 +3161,16 @@
                 }
             };
 
-            // --- 13. WEBRTC CALL SYSTEM (FIXED & PRO) ---
+            // --- 13. WEBRTC CALL SYSTEM (FINAL: AVATARS & SYNC) ---
             window.CallSystem = {
                 peerConnection: null,
                 localStream: null,
                 currentCallId: null,
                 ringtoneInterval: null,
-                unsubscribeCall: null,     // Слушатель самого звонка
-                unsubscribeCand: null,     // Слушатель кандидатов
-                unsubscribeGlobal: null,   // Глобальный слушатель
+                unsubscribeCall: null,
+                unsubscribeCand: null,
+                unsubscribeGlobal: null,
+                isCaller: false, // Флаг: я звоню или мне звонят?
                 
                 servers: {
                     iceServers: [
@@ -3141,7 +3178,6 @@
                     ]
                 },
 
-                // ИКОНКИ (SVG)
                 icons: {
                     mic: `<svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.66 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>`,
                     micOff: `<svg viewBox="0 0 24 24"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17l1-1C16.55 9.61 17 8.85 17 8c0-2.43-1.66-4.4-3.87-4.93l-1.4-1.4c4.1.75 7.27 4.26 7.27 8.5h-2c0-1.87-.64-3.61-1.78-4.93zM8 5v.39l6.13 6.13c-.27.83-.82 1.55-1.57 2.04l1.45 1.45C15.55 13.92 16.5 12.57 17 11h-2c0 2.76-2.24 5-5 5-2.23 0-4.14-1.49-4.8-3.64l-1.42-1.42C4.38 12.31 5 14.28 5 16h2c0-2.31 1.6-4.24 3.8-4.78V16c0 .59.13 1.15.36 1.65l2.45 2.45L12 21.71 20.29 13.41 5.41 1.71 4 3.12 8 7.12V5H8z"/></svg>`,
@@ -3150,7 +3186,15 @@
                     hangup: `<svg viewBox="0 0 24 24"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/></svg>`
                 },
 
-                // --- UI UPDATE ---
+                // --- HELPER: GET SAFE NAME ---
+                getMyInfo() {
+                    const u = window.auth.currentUser;
+                    return {
+                        name: u.displayName || u.email.split('@')[0] || "Unknown Agent",
+                        avatar: u.photoURL || `https://placehold.co/120x120/000000/00f3ff/png?text=${(u.email||"U")[0].toUpperCase()}`
+                    };
+                },
+
                 renderControls() {
                     const controls = document.querySelector('.call-controls');
                     if(controls) {
@@ -3159,6 +3203,24 @@
                             <button class="btn-call btn-hangup" onclick="CallSystem.endCall(true)">${this.icons.hangup}</button>
                             <button id="btnToggleCam" class="btn-call btn-mute" onclick="CallSystem.toggleVideo()">${this.icons.cam}</button>
                         `;
+                    }
+                },
+
+                // --- UI UPDATE: AVATAR ---
+                updateRemoteAvatar(show, name, avatarUrl, status) {
+                    const container = document.getElementById('remoteAvatarContainer');
+                    const img = document.getElementById('remoteAvatar');
+                    const nameEl = document.getElementById('remoteName');
+                    const statusEl = document.getElementById('remoteStatusLabel');
+
+                    if(name) nameEl.textContent = name;
+                    if(avatarUrl) img.src = avatarUrl;
+                    if(status) statusEl.textContent = status;
+
+                    if (show) {
+                        container.classList.remove('hidden');
+                    } else {
+                        container.classList.add('hidden');
                     }
                 },
 
@@ -3182,17 +3244,33 @@
                     if (this.ringtoneInterval) { clearInterval(this.ringtoneInterval); this.ringtoneInterval = null; }
                 },
 
-                // --- MAIN LOGIC ---
+                // --- INIT CALL (CALLER) ---
                 async initCall(targetUid) {
+                    this.isCaller = true;
                     this.renderControls();
                     document.getElementById('callInterface').classList.add('active');
                     document.getElementById('callStatusText').textContent = "INITIALIZING UPLINK...";
                     this.startRinging('outgoing');
                     
+                    // Показываем заглушку, пока идет дозвон
+                    this.updateRemoteAvatar(true, "DIALING...", null, "SEARCHING DATABASE...");
+
+                    // 1. Получаем данные того, КОМУ звоним (чтобы видеть аватарку сразу)
+                    try {
+                        const targetDoc = await window.fbGet(window.fbDoc(window.db, "users", targetUid));
+                        if(targetDoc.exists()) {
+                            const tData = targetDoc.data();
+                            const tName = tData.name || "Unknown Target";
+                            const tAv = tData.avatar || `https://placehold.co/120x120/000000/00f3ff/png?text=${tName[0]}`;
+                            this.updateRemoteAvatar(true, tName, tAv, "CALLING...");
+                        }
+                    } catch(e) { console.log("Target info fetch failed", e); }
+
+                    // 2. Local Media
                     try {
                         this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                         document.getElementById('localVideo').srcObject = this.localStream;
-                        document.getElementById('localVideo').muted = true; // Mute self locally
+                        document.getElementById('localVideo').muted = true;
                     } catch(e) {
                         voxNotify("CAMERA/MIC ACCESS DENIED", "error");
                         this.endCall(false);
@@ -3204,6 +3282,8 @@
 
                     this.peerConnection.ontrack = (event) => {
                         document.getElementById('remoteVideo').srcObject = event.streams[0];
+                        // Видео пошло? Скрываем аватарку, если камера не выключена удаленно
+                         this.updateRemoteAvatar(false);
                     };
 
                     this.peerConnection.onicecandidate = (event) => {
@@ -3212,39 +3292,53 @@
                         }
                     };
 
-                    // Создаем документ звонка
                     const callDoc = window.fbDoc(window.fbCol(window.db, "calls"));
                     this.currentCallId = callDoc.id;
 
                     const offerDescription = await this.peerConnection.createOffer();
                     await this.peerConnection.setLocalDescription(offerDescription);
 
+                    const myInfo = this.getMyInfo();
+
                     await window.fbSet(callDoc, {
                         offer: { sdp: offerDescription.sdp, type: offerDescription.type },
                         callerId: window.auth.currentUser.uid,
+                        callerName: myInfo.name,     // ОТПРАВЛЯЕМ ПРАВИЛЬНОЕ ИМЯ
+                        callerAvatar: myInfo.avatar, // И АВАТАР
+                        callerMuted: false,          // Статус камеры
+                        
                         calleeId: targetUid,
-                        callerName: window.auth.currentUser.displayName || "Unknown",
                         createdAt: window.fbTime(),
-                        status: 'ringing' // Добавлен статус
+                        status: 'ringing'
                     });
 
-                    // Слушаем изменения в документе звонка
+                    // Слушаем изменения
                     this.unsubscribeCall = window.fbSnap(callDoc, (snapshot) => {
                         const data = snapshot.data();
                         if (!data) return;
 
-                        // Если собеседник ответил
+                        // Если ответили
                         if (!this.peerConnection.currentRemoteDescription && data.answer) {
                             this.stopRinging();
                             const answerDescription = new RTCSessionDescription(data.answer);
                             this.peerConnection.setRemoteDescription(answerDescription);
                             document.getElementById('callStatusText').textContent = "CONNECTED. SIGNAL SECURE.";
+                            
+                            // Обновим аватар/имя, если они пришли в ответе
+                            if(data.calleeName) {
+                                this.updateRemoteAvatar(false, data.calleeName, data.calleeAvatar);
+                            }
                         }
                         
-                        // ПРОВЕРКА НА СБРОС (Hangup Signal)
+                        // СЛЕЖКА ЗА КАМЕРОЙ СОБЕСЕДНИКА (Callee)
+                        if (data.calleeMuted === true) {
+                            this.updateRemoteAvatar(true, null, null, "CAMERA OFF");
+                        } else if (data.status === 'connected') {
+                            this.updateRemoteAvatar(false);
+                        }
+
                         if (data.status === 'ended') {
-                            this.endCall(false); // false = не писать в базу (уже там)
-                            voxNotify("CALL ENDED BY REMOTE USER", "info");
+                            this.endCall(false);
                         }
                     });
                     
@@ -3255,10 +3349,9 @@
                     });
                 },
 
-                // LISTENER (GLOBAL)
+                // --- LISTEN GLOBAL (RECEIVER) ---
                 listenGlobal() {
                     const uid = window.auth.currentUser.uid;
-                    // Исправлен запрос: сортировка по времени и лимит, чтобы брать самый свежий
                     const q = window.fbQuery(
                         window.fbCol(window.db, "calls"),
                         window.fbWhere("calleeId", "==", uid),
@@ -3270,21 +3363,23 @@
                         snapshot.docChanges().forEach((change) => {
                             if (change.type === 'added') {
                                 const data = change.doc.data();
-                                // Увеличил таймаут до 60 секунд (для разных часов на устройствах)
-                                // И проверяем, что статус звонка 'ringing'
                                 const isRecent = data.createdAt ? (Date.now() - data.createdAt.toMillis() < 60000) : true;
                                 
                                 if (!this.currentCallId && isRecent && data.status === 'ringing') {
                                     this.currentCallId = change.doc.id;
-                                    document.getElementById('callerNameDisplay').textContent = data.callerName;
+                                    
+                                    // Показываем имя звонящего
+                                    const cName = data.callerName || "Unknown Caller";
+                                    document.getElementById('callerNameDisplay').textContent = cName;
+                                    
                                     document.getElementById('incomingCallModal').classList.add('active');
                                     this.startRinging('incoming');
                                     
-                                    // Начинаем слушать отмену звонка до поднятия трубки
+                                    // Следим за отменой
                                     const callDoc = window.fbDoc(window.db, "calls", this.currentCallId);
                                     this.unsubscribeCall = window.fbSnap(callDoc, (snap) => {
                                         if(snap.exists() && snap.data().status === 'ended') {
-                                            this.reject(); // Сбросить, если звонивший отменил
+                                            this.reject();
                                         }
                                     });
                                 }
@@ -3293,7 +3388,9 @@
                     });
                 },
 
+                // --- ANSWER (RECEIVER) ---
                 async answer() {
+                    this.isCaller = false;
                     this.stopRinging();
                     document.getElementById('incomingCallModal').classList.remove('active');
                     document.getElementById('callInterface').classList.add('active');
@@ -3301,6 +3398,9 @@
                     
                     const callId = this.currentCallId;
                     const callDoc = window.fbDoc(window.db, "calls", callId);
+                    
+                    // Показываем аватар звонившего пока грузится видео
+                    this.updateRemoteAvatar(true, "CONNECTING...", null, "SYNCING...");
 
                     try {
                         this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -3315,22 +3415,51 @@
                     this.peerConnection = new RTCPeerConnection(this.servers);
                     this.localStream.getTracks().forEach(track => this.peerConnection.addTrack(track, this.localStream));
 
-                    this.peerConnection.ontrack = (event) => document.getElementById('remoteVideo').srcObject = event.streams[0];
+                    this.peerConnection.ontrack = (event) => {
+                         document.getElementById('remoteVideo').srcObject = event.streams[0];
+                         this.updateRemoteAvatar(false);
+                    };
                     this.peerConnection.onicecandidate = (event) => {
                         if (event.candidate) window.fbAdd(window.fbCol(window.db, `calls/${callId}/calleeCandidates`), event.candidate.toJSON());
                     };
 
-                    const callData = (await window.fbGet(callDoc)).data(); 
-                    await this.peerConnection.setRemoteDescription(new RTCSessionDescription(callData.offer));
+                    const callSnap = await window.fbGet(callDoc);
+                    const callData = callSnap.data(); 
+                    
+                    // Обновляем инфу о звонящем из данных звонка
+                    if(callData) {
+                         this.updateRemoteAvatar(true, callData.callerName, callData.callerAvatar, "CONNECTING...");
+                    }
 
+                    await this.peerConnection.setRemoteDescription(new RTCSessionDescription(callData.offer));
                     const answerDescription = await this.peerConnection.createAnswer();
                     await this.peerConnection.setLocalDescription(answerDescription);
+                    
+                    const myInfo = this.getMyInfo();
 
-                    // Обновляем статус на 'connected'
                     await window.fbSet(callDoc, { 
                         answer: { type: answerDescription.type, sdp: answerDescription.sdp },
-                        status: 'connected'
+                        status: 'connected',
+                        calleeName: myInfo.name,      // ШЛЕМ СВОЕ ИМЯ
+                        calleeAvatar: myInfo.avatar,  // И АВАТАР
+                        calleeMuted: false
                     }, { merge: true });
+                    
+                    // Переподписываемся на слушатель, чтобы ловить выключение камеры
+                    if(this.unsubscribeCall) this.unsubscribeCall();
+                    this.unsubscribeCall = window.fbSnap(callDoc, (snapshot) => {
+                         const data = snapshot.data();
+                         if(!data) return;
+                         
+                         // СЛЕЖКА ЗА КАМЕРОЙ ЗВОНЯЩЕГО (Caller)
+                         if (data.callerMuted === true) {
+                             this.updateRemoteAvatar(true, null, null, "CAMERA OFF");
+                         } else if (data.status === 'connected') {
+                             this.updateRemoteAvatar(false);
+                         }
+                         
+                         if (data.status === 'ended') this.endCall(false);
+                    });
 
                     this.unsubscribeCand = window.fbSnap(window.fbCol(window.db, `calls/${callId}/callerCandidates`), (snapshot) => {
                         snapshot.docChanges().forEach((change) => {
@@ -3344,48 +3473,35 @@
                 reject() {
                     this.stopRinging();
                     document.getElementById('incomingCallModal').classList.remove('active');
-                    // Если есть ID звонка, помечаем как сброшенный
                     if(this.currentCallId) {
                          window.fbSet(window.fbDoc(window.db, "calls", this.currentCallId), { status: 'ended' }, { merge: true });
                     }
                     this.cleanup();
                 },
 
-                // --- NEW: SOFT END CALL (NO RELOAD) ---
                 endCall(notifyDb = true) {
-                    // 1. Уведомить базу данных (если мы нажали кнопку, а не получили сигнал)
                     if (this.currentCallId && notifyDb) {
                         window.fbSet(window.fbDoc(window.db, "calls", this.currentCallId), { status: 'ended' }, { merge: true })
                             .catch(e => console.log("Call end write failed", e));
                     }
-
                     this.cleanup();
                     voxNotify("TRANSMISSION TERMINATED", "info");
                 },
 
                 cleanup() {
                     this.stopRinging();
-                    
-                    // Остановить треки (Камеру/Мик)
                     if (this.localStream) {
                         this.localStream.getTracks().forEach(track => track.stop());
                         this.localStream = null;
                     }
-                    
-                    // Закрыть соединение
                     if (this.peerConnection) {
                         this.peerConnection.close();
                         this.peerConnection = null;
                     }
-
-                    // Отписаться от базы
                     if (this.unsubscribeCall) this.unsubscribeCall();
                     if (this.unsubscribeCand) this.unsubscribeCand();
-
-                    // Очистить переменные
                     this.currentCallId = null;
                     
-                    // Сбросить UI
                     document.getElementById('callInterface').classList.remove('active');
                     document.getElementById('incomingCallModal').classList.remove('active');
                     document.getElementById('remoteVideo').srcObject = null;
@@ -3399,11 +3515,9 @@
                         track.enabled = !track.enabled;
                         const btn = document.getElementById('btnToggleMic');
                         if (track.enabled) {
-                            btn.classList.remove('off');
-                            btn.innerHTML = this.icons.mic;
+                            btn.classList.remove('off'); btn.innerHTML = this.icons.mic;
                         } else {
-                            btn.classList.add('off');
-                            btn.innerHTML = this.icons.micOff;
+                            btn.classList.add('off'); btn.innerHTML = this.icons.micOff;
                         }
                     }
                 },
@@ -3412,13 +3526,20 @@
                     if (this.localStream) {
                         const track = this.localStream.getVideoTracks()[0];
                         track.enabled = !track.enabled;
+                        
+                        // ОБНОВЛЯЕМ БАЗУ ДАННЫХ
+                        if(this.currentCallId) {
+                            const field = this.isCaller ? 'callerMuted' : 'calleeMuted';
+                            window.fbSet(window.fbDoc(window.db, "calls", this.currentCallId), { 
+                                [field]: !track.enabled 
+                            }, { merge: true });
+                        }
+
                         const btn = document.getElementById('btnToggleCam');
                         if (track.enabled) {
-                            btn.classList.remove('off');
-                            btn.innerHTML = this.icons.cam;
+                            btn.classList.remove('off'); btn.innerHTML = this.icons.cam;
                         } else {
-                            btn.classList.add('off');
-                            btn.innerHTML = this.icons.camOff;
+                            btn.classList.add('off'); btn.innerHTML = this.icons.camOff;
                         }
                     }
                 }
@@ -3452,66 +3573,6 @@
                 if(newText && newText !== oldText) {
                     window.fbSet(window.fbDoc(window.db, col, id), { text: newText }, { merge: true });
                     voxNotify("REALITY UPDATED", "success");
-                }
-            };
-
-            // Hook into CloudSystem to allow calling
-            const oldLoadChat = CloudSystem.loadChat;
-            CloudSystem.loadChat = function(chatId) {
-                oldLoadChat.call(this, chatId);
-                
-                // 1. ОПРЕДЕЛЯЕМ HEADER (Вот чего не хватало!)
-                const header = document.querySelector('.chat-header-info');
-
-                // 2. Удаляем старую кнопку, если она есть
-                const existingBtn = document.getElementById('btnStartCall');
-                if(existingBtn) existingBtn.remove();
-                
-                // 3. Если чат личный - создаем кнопку "CALL"
-                if (chatId !== 'global') {
-                    const btn = document.createElement('button');
-                    btn.id = "btnStartCall";
-                    // СТИЛИ (КРУГ + ТЕКСТ CALL)
-                    btn.style = `
-                        margin-left: 15px;
-                        width: 45px; 
-                        height: 45px; 
-                        border-radius: 50%; 
-                        border: 2px solid var(--vox-cyan);
-                        background: transparent;
-                        color: var(--vox-cyan);
-                        font-family: var(--font-code);
-                        font-size: 10px;
-                        font-weight: 900;
-                        letter-spacing: 1px;
-                        display: flex; align-items: center; justify-content: center;
-                        box-shadow: 0 0 10px rgba(0, 243, 255, 0.2);
-                        transition: all 0.3s ease;
-                        cursor: pointer;
-                    `;
-                    btn.textContent = "CALL";
-                    
-                    // Эффекты наведения
-                    btn.onmouseenter = () => { 
-                        btn.style.background = "var(--vox-cyan)"; 
-                        btn.style.color = "black"; 
-                        btn.style.boxShadow = "0 0 25px var(--vox-cyan)";
-                        btn.style.transform = "scale(1.1)";
-                    };
-                    btn.onmouseleave = () => { 
-                        btn.style.background = "transparent"; 
-                        btn.style.color = "var(--vox-cyan)"; 
-                        btn.style.boxShadow = "0 0 10px rgba(0, 243, 255, 0.2)";
-                        btn.style.transform = "scale(1)";
-                    };
-
-                    btn.onclick = () => {
-                        const targetUid = chatId.replace(window.auth.currentUser.uid, '').replace('_', '');
-                        CallSystem.initCall(targetUid);
-                    };
-                    
-                    // Теперь header определен, и ошибка исчезнет
-                    if(header) header.appendChild(btn);
                 }
             };
             
