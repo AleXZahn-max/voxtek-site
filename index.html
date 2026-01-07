@@ -757,14 +757,27 @@
             border-top: 1px solid #333;
         }
         .btn-call {
-            width: 50px; height: 50px; border-radius: 50%; border: none; font-size: 20px;
+            width: 60px; height: 60px; border-radius: 50%; border: 1px solid #333; 
+            font-size: 0; /* Скрываем текст */
             cursor: pointer; display: flex; justify-content: center; align-items: center;
-            transition: 0.3s;
+            transition: 0.3s; background: rgba(0,0,0,0.8);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.1);
         }
-        .btn-hangup { background: var(--alert-red); color: white; }
-        .btn-hangup:hover { box-shadow: 0 0 20px red; }
-        .btn-mute { background: #333; color: white; border: 1px solid #555; }
-        .btn-mute.active { background: var(--vox-cyan); color: black; }
+        .btn-call svg { width: 24px; height: 24px; fill: white; transition: 0.3s; }
+        
+        .btn-hangup { border-color: var(--alert-red); background: rgba(50, 0, 0, 0.5); }
+        .btn-hangup svg { fill: var(--alert-red); }
+        .btn-hangup:hover { background: var(--alert-red); box-shadow: 0 0 20px var(--alert-red); }
+        .btn-hangup:hover svg { fill: black; }
+        
+        .btn-mute { border-color: var(--vox-cyan); }
+        .btn-mute svg { fill: var(--vox-cyan); }
+        .btn-mute:hover { background: var(--vox-cyan); }
+        .btn-mute:hover svg { fill: black; }
+
+        /* Состояние выключенного микрофона/камеры */
+        .btn-mute.off { border-color: #555; background: #222; }
+        .btn-mute.off svg { fill: #777; }
 
         /* Admin Message Tools */
         .msg-tools { margin-left: auto; display: flex; gap: 5px; opacity: 0.5; font-size: 10px; }
@@ -3112,71 +3125,82 @@
                 }
             };
 
-            // --- 13. WEBRTC CALL SYSTEM (FIREBASE) ---
+            // --- 13. WEBRTC CALL SYSTEM (FIXED & PRO) ---
             window.CallSystem = {
                 peerConnection: null,
                 localStream: null,
-                remoteStream: null,
                 currentCallId: null,
-                ringtoneInterval: null, // Для хранения таймера звука
+                ringtoneInterval: null,
+                unsubscribeCall: null,     // Слушатель самого звонка
+                unsubscribeCand: null,     // Слушатель кандидатов
+                unsubscribeGlobal: null,   // Глобальный слушатель
+                
                 servers: {
                     iceServers: [
                         { urls: ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302'] }
                     ]
                 },
-                unsubscribe: null,
 
-                // --- ЗВУКОВАЯ СИСТЕМА ГУДКОВ ---
+                // ИКОНКИ (SVG)
+                icons: {
+                    mic: `<svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.66 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>`,
+                    micOff: `<svg viewBox="0 0 24 24"><path d="M19 11h-1.7c0 .74-.16 1.43-.43 2.05l1.23 1.23c.56-.98.9-2.09.9-3.28zm-4.02.17l1-1C16.55 9.61 17 8.85 17 8c0-2.43-1.66-4.4-3.87-4.93l-1.4-1.4c4.1.75 7.27 4.26 7.27 8.5h-2c0-1.87-.64-3.61-1.78-4.93zM8 5v.39l6.13 6.13c-.27.83-.82 1.55-1.57 2.04l1.45 1.45C15.55 13.92 16.5 12.57 17 11h-2c0 2.76-2.24 5-5 5-2.23 0-4.14-1.49-4.8-3.64l-1.42-1.42C4.38 12.31 5 14.28 5 16h2c0-2.31 1.6-4.24 3.8-4.78V16c0 .59.13 1.15.36 1.65l2.45 2.45L12 21.71 20.29 13.41 5.41 1.71 4 3.12 8 7.12V5H8z"/></svg>`,
+                    cam: `<svg viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/></svg>`,
+                    camOff: `<svg viewBox="0 0 24 24"><path d="M21 6.5l-4 4V7c0-.55-.45-1-1-1H9.82L21 17.18V6.5zM3.27 2L2 3.27 4.73 6H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.21 0 .39-.08.54-.18L19.73 21 21 19.73 3.27 2z"/></svg>`,
+                    hangup: `<svg viewBox="0 0 24 24"><path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/></svg>`
+                },
+
+                // --- UI UPDATE ---
+                renderControls() {
+                    const controls = document.querySelector('.call-controls');
+                    if(controls) {
+                        controls.innerHTML = `
+                            <button id="btnToggleMic" class="btn-call btn-mute" onclick="CallSystem.toggleAudio()">${this.icons.mic}</button>
+                            <button class="btn-call btn-hangup" onclick="CallSystem.endCall(true)">${this.icons.hangup}</button>
+                            <button id="btnToggleCam" class="btn-call btn-mute" onclick="CallSystem.toggleVideo()">${this.icons.cam}</button>
+                        `;
+                    }
+                },
+
+                // --- RINGTONE ---
                 startRinging(type) {
-                    this.stopRinging(); // Сброс перед стартом
-                    
+                    this.stopRinging();
                     if (type === 'outgoing') {
-                        // Гудок для того, кто звонит (Длинный "Туууу....")
-                        // Сразу первый гудок
                         SoundFX.playTone(400, 'sine', 0.8);
-                        // И повтор каждые 2.5 секунды
-                        this.ringtoneInterval = setInterval(() => {
-                            SoundFX.playTone(400, 'sine', 0.8);
-                        }, 2500);
-                    } 
-                    else if (type === 'incoming') {
-                        // Рингтон для входящего (Цифровой тройной писк)
+                        this.ringtoneInterval = setInterval(() => SoundFX.playTone(400, 'sine', 0.8), 2500);
+                    } else if (type === 'incoming') {
                         const playPattern = () => {
                             SoundFX.playTone(800, 'square', 0.1);
                             setTimeout(() => SoundFX.playTone(1200, 'square', 0.1), 150);
                             setTimeout(() => SoundFX.playTone(800, 'square', 0.1), 300);
                         };
-                        
-                        playPattern(); // Сразу играем
-                        this.ringtoneInterval = setInterval(playPattern, 2000); // Повтор каждые 2 сек
+                        playPattern();
+                        this.ringtoneInterval = setInterval(playPattern, 2000);
                     }
                 },
-
                 stopRinging() {
-                    if (this.ringtoneInterval) {
-                        clearInterval(this.ringtoneInterval);
-                        this.ringtoneInterval = null;
-                    }
+                    if (this.ringtoneInterval) { clearInterval(this.ringtoneInterval); this.ringtoneInterval = null; }
                 },
-                // -------------------------------
 
+                // --- MAIN LOGIC ---
                 async initCall(targetUid) {
-                    // 1. Setup UI
+                    this.renderControls();
                     document.getElementById('callInterface').classList.add('active');
                     document.getElementById('callStatusText').textContent = "INITIALIZING UPLINK...";
-                    
-                    // ЗАПУСКАЕМ ГУДКИ (ИСХОДЯЩИЕ)
                     this.startRinging('outgoing');
                     
-                    // 2. Get Local Stream
-                    this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                    document.getElementById('localVideo').srcObject = this.localStream;
+                    try {
+                        this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                        document.getElementById('localVideo').srcObject = this.localStream;
+                        document.getElementById('localVideo').muted = true; // Mute self locally
+                    } catch(e) {
+                        voxNotify("CAMERA/MIC ACCESS DENIED", "error");
+                        this.endCall(false);
+                        return;
+                    }
 
-                    // 3. Create Peer Connection
                     this.peerConnection = new RTCPeerConnection(this.servers);
-                    this.localStream.getTracks().forEach(track => {
-                        this.peerConnection.addTrack(track, this.localStream);
-                    });
+                    this.localStream.getTracks().forEach(track => this.peerConnection.addTrack(track, this.localStream));
 
                     this.peerConnection.ontrack = (event) => {
                         document.getElementById('remoteVideo').srcObject = event.streams[0];
@@ -3184,71 +3208,85 @@
 
                     this.peerConnection.onicecandidate = (event) => {
                         if (event.candidate && this.currentCallId) {
-                            const candidatesCol = window.fbCol(window.db, `calls/${this.currentCallId}/callerCandidates`);
-                            window.fbAdd(candidatesCol, event.candidate.toJSON());
+                            window.fbAdd(window.fbCol(window.db, `calls/${this.currentCallId}/callerCandidates`), event.candidate.toJSON());
                         }
                     };
 
-                    // 4. Create Offer
-                    const offerDescription = await this.peerConnection.createOffer();
-                    await this.peerConnection.setLocalDescription(offerDescription);
-
+                    // Создаем документ звонка
                     const callDoc = window.fbDoc(window.fbCol(window.db, "calls"));
                     this.currentCallId = callDoc.id;
+
+                    const offerDescription = await this.peerConnection.createOffer();
+                    await this.peerConnection.setLocalDescription(offerDescription);
 
                     await window.fbSet(callDoc, {
                         offer: { sdp: offerDescription.sdp, type: offerDescription.type },
                         callerId: window.auth.currentUser.uid,
                         calleeId: targetUid,
                         callerName: window.auth.currentUser.displayName || "Unknown",
-                        createdAt: window.fbTime()
+                        createdAt: window.fbTime(),
+                        status: 'ringing' // Добавлен статус
                     });
 
-                    // 5. Listen for Answer
-                    this.unsubscribe = window.fbSnap(callDoc, (snapshot) => {
+                    // Слушаем изменения в документе звонка
+                    this.unsubscribeCall = window.fbSnap(callDoc, (snapshot) => {
                         const data = snapshot.data();
-                        if (!this.peerConnection.currentRemoteDescription && data?.answer) {
-                            // КОГДА ОТВЕТИЛИ - ОСТАНАВЛИВАЕМ ГУДКИ
+                        if (!data) return;
+
+                        // Если собеседник ответил
+                        if (!this.peerConnection.currentRemoteDescription && data.answer) {
                             this.stopRinging();
-                            
                             const answerDescription = new RTCSessionDescription(data.answer);
                             this.peerConnection.setRemoteDescription(answerDescription);
                             document.getElementById('callStatusText').textContent = "CONNECTED. SIGNAL SECURE.";
                         }
+                        
+                        // ПРОВЕРКА НА СБРОС (Hangup Signal)
+                        if (data.status === 'ended') {
+                            this.endCall(false); // false = не писать в базу (уже там)
+                            voxNotify("CALL ENDED BY REMOTE USER", "info");
+                        }
                     });
                     
-                    // Listen for callee candidates
-                    window.fbSnap(window.fbCol(window.db, `calls/${this.currentCallId}/calleeCandidates`), (snapshot) => {
+                    this.unsubscribeCand = window.fbSnap(window.fbCol(window.db, `calls/${this.currentCallId}/calleeCandidates`), (snapshot) => {
                         snapshot.docChanges().forEach((change) => {
-                            if (change.type === 'added') {
-                                const candidate = new RTCIceCandidate(change.doc.data());
-                                this.peerConnection.addIceCandidate(candidate);
-                            }
+                            if (change.type === 'added') this.peerConnection.addIceCandidate(new RTCIceCandidate(change.doc.data()));
                         });
                     });
                 },
 
-                // LISTENER FOR INCOMING CALLS
+                // LISTENER (GLOBAL)
                 listenGlobal() {
                     const uid = window.auth.currentUser.uid;
+                    // Исправлен запрос: сортировка по времени и лимит, чтобы брать самый свежий
                     const q = window.fbQuery(
                         window.fbCol(window.db, "calls"),
                         window.fbWhere("calleeId", "==", uid),
-                        window.fbLimit(1) // Just verify last one
+                        window.fbOrder("createdAt", "desc"), 
+                        window.fbLimit(1)
                     );
 
-                    window.fbSnap(q, (snapshot) => {
+                    this.unsubscribeGlobal = window.fbSnap(q, (snapshot) => {
                         snapshot.docChanges().forEach((change) => {
                             if (change.type === 'added') {
                                 const data = change.doc.data();
-                                // Check if call is recent (last 20 seconds) to avoid ghosts
-                                if (!this.currentCallId && (!data.createdAt || Date.now() - data.createdAt.toMillis() < 20000)) {
+                                // Увеличил таймаут до 60 секунд (для разных часов на устройствах)
+                                // И проверяем, что статус звонка 'ringing'
+                                const isRecent = data.createdAt ? (Date.now() - data.createdAt.toMillis() < 60000) : true;
+                                
+                                if (!this.currentCallId && isRecent && data.status === 'ringing') {
                                     this.currentCallId = change.doc.id;
                                     document.getElementById('callerNameDisplay').textContent = data.callerName;
                                     document.getElementById('incomingCallModal').classList.add('active');
-                                    
-                                    // ЗАПУСКАЕМ РИНГТОН (ВХОДЯЩИЙ)
                                     this.startRinging('incoming');
+                                    
+                                    // Начинаем слушать отмену звонка до поднятия трубки
+                                    const callDoc = window.fbDoc(window.db, "calls", this.currentCallId);
+                                    this.unsubscribeCall = window.fbSnap(callDoc, (snap) => {
+                                        if(snap.exists() && snap.data().status === 'ended') {
+                                            this.reject(); // Сбросить, если звонивший отменил
+                                        }
+                                    });
                                 }
                             }
                         });
@@ -3256,52 +3294,47 @@
                 },
 
                 async answer() {
-                    // ОСТАНАВЛИВАЕМ РИНГТОН
                     this.stopRinging();
-                    
                     document.getElementById('incomingCallModal').classList.remove('active');
                     document.getElementById('callInterface').classList.add('active');
+                    this.renderControls();
                     
                     const callId = this.currentCallId;
                     const callDoc = window.fbDoc(window.db, "calls", callId);
 
+                    try {
+                        this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                        document.getElementById('localVideo').srcObject = this.localStream;
+                        document.getElementById('localVideo').muted = true;
+                    } catch(e) {
+                        voxNotify("MEDIA ERROR", "error");
+                        this.endCall(true);
+                        return;
+                    }
+
                     this.peerConnection = new RTCPeerConnection(this.servers);
-                    this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                    document.getElementById('localVideo').srcObject = this.localStream;
+                    this.localStream.getTracks().forEach(track => this.peerConnection.addTrack(track, this.localStream));
 
-                    this.localStream.getTracks().forEach(track => {
-                        this.peerConnection.addTrack(track, this.localStream);
-                    });
-
-                    this.peerConnection.ontrack = (event) => {
-                        document.getElementById('remoteVideo').srcObject = event.streams[0];
-                    };
-
+                    this.peerConnection.ontrack = (event) => document.getElementById('remoteVideo').srcObject = event.streams[0];
                     this.peerConnection.onicecandidate = (event) => {
-                        if (event.candidate) {
-                            const candidatesCol = window.fbCol(window.db, `calls/${callId}/calleeCandidates`);
-                            window.fbAdd(candidatesCol, event.candidate.toJSON());
-                        }
+                        if (event.candidate) window.fbAdd(window.fbCol(window.db, `calls/${callId}/calleeCandidates`), event.candidate.toJSON());
                     };
 
                     const callData = (await window.fbGet(callDoc)).data(); 
-                    
-                    const offerDescription = callData.offer;
-                    await this.peerConnection.setRemoteDescription(new RTCSessionDescription(offerDescription));
+                    await this.peerConnection.setRemoteDescription(new RTCSessionDescription(callData.offer));
 
                     const answerDescription = await this.peerConnection.createAnswer();
                     await this.peerConnection.setLocalDescription(answerDescription);
 
-                    const answer = { type: answerDescription.type, sdp: answerDescription.sdp };
-                    await window.fbSet(callDoc, { answer }, { merge: true });
+                    // Обновляем статус на 'connected'
+                    await window.fbSet(callDoc, { 
+                        answer: { type: answerDescription.type, sdp: answerDescription.sdp },
+                        status: 'connected'
+                    }, { merge: true });
 
-                    // Listen for caller candidates
-                    window.fbSnap(window.fbCol(window.db, `calls/${callId}/callerCandidates`), (snapshot) => {
+                    this.unsubscribeCand = window.fbSnap(window.fbCol(window.db, `calls/${callId}/callerCandidates`), (snapshot) => {
                         snapshot.docChanges().forEach((change) => {
-                            if (change.type === 'added') {
-                                const candidate = new RTCIceCandidate(change.doc.data());
-                                this.peerConnection.addIceCandidate(candidate);
-                            }
+                            if (change.type === 'added') this.peerConnection.addIceCandidate(new RTCIceCandidate(change.doc.data()));
                         });
                     });
                     
@@ -3309,37 +3342,85 @@
                 },
 
                 reject() {
-                    // ОСТАНАВЛИВАЕМ РИНГТОН
                     this.stopRinging();
                     document.getElementById('incomingCallModal').classList.remove('active');
-                    this.currentCallId = null;
+                    // Если есть ID звонка, помечаем как сброшенный
+                    if(this.currentCallId) {
+                         window.fbSet(window.fbDoc(window.db, "calls", this.currentCallId), { status: 'ended' }, { merge: true });
+                    }
+                    this.cleanup();
                 },
 
-                endCall() {
-                    // ОСТАНАВЛИВАЕМ РИНГТОН НА ВСЯКИЙ СЛУЧАЙ
+                // --- NEW: SOFT END CALL (NO RELOAD) ---
+                endCall(notifyDb = true) {
+                    // 1. Уведомить базу данных (если мы нажали кнопку, а не получили сигнал)
+                    if (this.currentCallId && notifyDb) {
+                        window.fbSet(window.fbDoc(window.db, "calls", this.currentCallId), { status: 'ended' }, { merge: true })
+                            .catch(e => console.log("Call end write failed", e));
+                    }
+
+                    this.cleanup();
+                    voxNotify("TRANSMISSION TERMINATED", "info");
+                },
+
+                cleanup() {
                     this.stopRinging();
                     
+                    // Остановить треки (Камеру/Мик)
                     if (this.localStream) {
                         this.localStream.getTracks().forEach(track => track.stop());
+                        this.localStream = null;
                     }
+                    
+                    // Закрыть соединение
                     if (this.peerConnection) {
                         this.peerConnection.close();
+                        this.peerConnection = null;
                     }
-                    document.getElementById('callInterface').classList.remove('active');
+
+                    // Отписаться от базы
+                    if (this.unsubscribeCall) this.unsubscribeCall();
+                    if (this.unsubscribeCand) this.unsubscribeCand();
+
+                    // Очистить переменные
                     this.currentCallId = null;
-                    if(this.unsubscribe) this.unsubscribe();
-                    window.location.reload(); // Simple reset for stability
+                    
+                    // Сбросить UI
+                    document.getElementById('callInterface').classList.remove('active');
+                    document.getElementById('incomingCallModal').classList.remove('active');
+                    document.getElementById('remoteVideo').srcObject = null;
+                    document.getElementById('localVideo').srcObject = null;
+                    document.getElementById('callStatusText').textContent = "DISCONNECTED";
                 },
                 
                 toggleAudio() {
-                    const track = this.localStream.getAudioTracks()[0];
-                    track.enabled = !track.enabled;
-                    event.target.classList.toggle('active');
+                    if (this.localStream) {
+                        const track = this.localStream.getAudioTracks()[0];
+                        track.enabled = !track.enabled;
+                        const btn = document.getElementById('btnToggleMic');
+                        if (track.enabled) {
+                            btn.classList.remove('off');
+                            btn.innerHTML = this.icons.mic;
+                        } else {
+                            btn.classList.add('off');
+                            btn.innerHTML = this.icons.micOff;
+                        }
+                    }
                 },
+                
                 toggleVideo() {
-                    const track = this.localStream.getVideoTracks()[0];
-                    track.enabled = !track.enabled;
-                    event.target.classList.toggle('active');
+                    if (this.localStream) {
+                        const track = this.localStream.getVideoTracks()[0];
+                        track.enabled = !track.enabled;
+                        const btn = document.getElementById('btnToggleCam');
+                        if (track.enabled) {
+                            btn.classList.remove('off');
+                            btn.innerHTML = this.icons.cam;
+                        } else {
+                            btn.classList.add('off');
+                            btn.innerHTML = this.icons.camOff;
+                        }
+                    }
                 }
             };
 
