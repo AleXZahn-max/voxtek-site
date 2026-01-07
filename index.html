@@ -858,6 +858,36 @@
             /* Скрываем глаз (он тормозит скролл на телефоне) */
             .vox-eye-container { display: none; }
         }
+        /* --- НОВЫЕ СТИЛИ (IMAGE CHAT, TRUST SCORE, SPY) --- */
+        .chat-img-btn {
+            font-size: 20px; padding: 0 10px; background: none; border: none; color: #666; transition: 0.3s;
+        }
+        .chat-img-btn:hover { color: var(--vox-cyan); transform: scale(1.1); }
+
+        .msg-image {
+            max-width: 250px; border-radius: 5px; border: 1px solid var(--vox-cyan); margin-top: 5px;
+            cursor: pointer; transition: 0.3s;
+        }
+        .msg-image:hover { opacity: 0.8; }
+
+        .trust-badge {
+            font-size: 10px; padding: 2px 5px; background: #111; border: 1px solid #333; margin-left: 5px;
+            color: white; font-weight: bold; font-family: var(--font-code);
+        }
+        .trust-high { color: #0f0; border-color: #0f0; }
+        .trust-low { color: var(--alert-red); border-color: var(--alert-red); }
+
+        /* Сетка для шпионского режима */
+        .spy-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px;
+            max-height: 200px; overflow-y: auto; margin-top: 10px;
+        }
+        .spy-card {
+            background: #000; border: 1px solid #333; padding: 10px; font-size: 10px;
+            display: flex; flex-direction: column; gap: 5px;
+        }
+        .spy-card.active { border-color: var(--alert-red); animation: pulseRed 2s infinite; }
+        @keyframes pulseRed { 0% { box-shadow: 0 0 5px #500; } 50% { box-shadow: 0 0 15px #f00; } 100% { box-shadow: 0 0 5px #500; } }
     </style>
 </head>
 <body id="top">
@@ -1147,10 +1177,13 @@
                         </div>
 
                     <div class="chat-input-area">
+                        <label class="chat-img-btn" title="UPLOAD VISUAL DATA">
+                            📎 <input type="file" id="chatImgInput" accept="image/*" style="display:none;" onchange="CloudSystem.sendImage(this)">
+                        </label>
+    
                         <input type="text" id="msgInput" class="form-input" style="margin-bottom:0;" placeholder="Type encrypted message...">
                         <button class="btn-tech" style="padding:10px 20px;" onclick="AuthSystem.send()">SEND</button>
                     </div>
-                </div>
 
                 <div id="profileModal" class="profile-modal">
                     <div class="p-card">
@@ -1250,6 +1283,21 @@
         <button class="btn-tech" style="width:100%; font-size:10px; padding:5px; margin-bottom:5px;" onclick="AdminSystem.loadUsers()">↻ REFRESH LIST</button>
         <div id="adminUserList" class="admin-user-list" style="border-color:var(--vox-cyan);">
             <div style="padding:10px; text-align:center;">WAITING FOR DATA...</div>
+        </div>
+    </div>
+
+<div style="border-top:1px solid #333; padding-top:10px; margin-top:10px;">
+        <label class="form-label" style="color:var(--alert-red);">ACTIVE SURVEILLANCE</label>
+        <button class="btn-tech" style="width:100%; font-size:10px; padding:5px;" onclick="AdminSystem.monitorCalls()">SCAN FREQUENCIES</button>
+        <div id="spyGrid" class="spy-grid"></div>
+    </div>
+
+    <div style="border-top:1px solid #333; padding-top:10px; margin-top:10px;">
+        <label class="form-label">CITIZEN TRUST ADJUSTMENT</label>
+        <div style="display:flex; gap:5px;">
+            <input type="text" id="adminTargetId" class="form-input" placeholder="User ID / Email" style="margin:0; font-size:10px;">
+            <input type="number" id="adminTrustVal" class="form-input" placeholder="+/-" style="width:60px; margin:0; font-size:10px;">
+            <button class="btn-tech" style="padding:5px;" onclick="AdminSystem.modTrust()">SET</button>
         </div>
     </div>
     
@@ -1727,33 +1775,31 @@
                     StaticFX.init();
                     if(!this.input) return;
 
+                    // Drag & Drop
                     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
                         this.wrapper.addEventListener(eventName, (e) => {
                             e.preventDefault(); e.stopPropagation();
                         }, false);
                     });
                     this.wrapper.addEventListener('drop', (e) => {
-                        const files = e.dataTransfer.files;
-                        this.handleFiles(files);
+                        this.handleFiles(e.dataTransfer.files);
                     });
 
+                    // Загрузка файла
                     this.input.addEventListener('change', (e) => {
                         const files = Array.from(e.target.files);
                         if (files.length > 0) {
-                            // Prompt for Upload or Local
-                            if (confirm("UPLOAD TO CLOUD DATABASE?\nOK = Upload (Accessible everywhere)\nCancel = Local Play (This device only)")) {
-                                files.forEach(file => {
-                                    CloudSystem.uploadMedia(file, 'video');
-                                });
+                            if (confirm("UPLOAD TO CLOUD ARCHIVE? (Private Storage)")) {
+                                files.forEach(file => CloudSystem.uploadMedia(file, 'video'));
                             } else {
                                 this.handleFiles(e.target.files);
                             }
                         }
                     });
 
+                    // Кнопки плеера
                     this.playBtn.addEventListener('click', () => this.togglePlay());
                     this.video.addEventListener('click', () => this.togglePlay());
-
                     this.stopBtn.addEventListener('click', () => {
                         this.video.pause();
                         this.video.currentTime = 0;
@@ -1762,26 +1808,22 @@
                         StaticFX.toggle(true);
                         this.placeholder.style.display = 'block';
                     });
-
                     this.fullBtn.addEventListener('click', () => {
                         if (this.wrapper.requestFullscreen) this.wrapper.requestFullscreen();
                         else if (this.wrapper.webkitRequestFullscreen) this.wrapper.webkitRequestFullscreen();
                     });
 
+                    // Управление мышкой
                     this.wrapper.addEventListener('mousemove', () => {
                         if (document.fullscreenElement) {
                             this.wrapper.classList.add('user-active');
                             clearTimeout(this.hideControlsTimer);
-                            this.hideControlsTimer = setTimeout(() => {
-                                this.wrapper.classList.remove('user-active');
-                            }, 3000);
+                            this.hideControlsTimer = setTimeout(() => this.wrapper.classList.remove('user-active'), 3000);
                         }
                     });
 
-                    this.vol.addEventListener('input', (e) => {
-                        this.video.volume = e.target.value;
-                    });
-
+                    // Звук и Прогресс
+                    this.vol.addEventListener('input', (e) => { this.video.volume = e.target.value; });
                     this.video.addEventListener('timeupdate', () => {
                         if(!this.isDragging && this.video.duration) {
                             const pct = (this.video.currentTime / this.video.duration) * 100;
@@ -1789,52 +1831,47 @@
                             this.timeDisplay.textContent = `${this.fmt(this.video.currentTime)} / ${this.fmt(this.video.duration)}`;
                         }
                     });
-
                     this.progress.addEventListener('mousedown', () => this.isDragging = true);
                     this.progress.addEventListener('touchstart', () => this.isDragging = true);
                     this.progress.addEventListener('change', (e) => {
-                        if(this.video.duration) {
-                            const t = (e.target.value / 100) * this.video.duration;
-                            this.video.currentTime = t;
-                            this.isDragging = false;
-                        }
+                        if(this.video.duration) this.video.currentTime = (e.target.value / 100) * this.video.duration;
+                        this.isDragging = false;
                     });
-                    
-                    this.video.addEventListener('ended', () => {
-                        this.playNext();
-                    });
-                setTimeout(() => {
-                        // Ждем инициализации Firebase
-                        if(window.db) {
+                    this.video.addEventListener('ended', () => this.playNext());
+
+                    // --- СЛУШАТЕЛЬ БАЗЫ ДАННЫХ (ПРИВАТНЫЕ ВИДЕО) ---
+                    setTimeout(() => {
+                        if(window.db && window.auth.currentUser) {
                             const q = window.fbQuery(
                                 window.fbCol(window.db, "videos"), 
-                                window.fbOrder("createdAt", "desc"), // Новые сверху
-                                window.fbLimit(20) // Ограничим последними 20 видео
+                                window.fbWhere("author", "==", window.auth.currentUser.uid), // <-- ТОЛЬКО ТВОИ ВИДЕО
+                                window.fbOrder("createdAt", "desc"),
+                                window.fbLimit(20)
                             );
 
                             window.fbSnap(q, (snapshot) => {
-                                // Мы не очищаем плейлист полностью, чтобы не сбить локальные файлы (если ты их перетащил)
-                                // Но для простоты сейчас будем добавлять только новые
                                 snapshot.docChanges().forEach((change) => {
                                     if (change.type === "added") {
                                         const data = change.doc.data();
-                                        // Проверяем, нет ли уже такого видео (чтобы не дублировать)
-                                        const exists = this.playlist.some(v => v.url === data.url);
+                                        const exists = this.playlist.some(v => v.id === change.doc.id);
                                         if(!exists) {
                                             this.playlist.push({
+                                                id: change.doc.id, 
                                                 name: data.name,
                                                 url: data.url,
-                                                isCloud: true // Метка, что это из облака
+                                                isCloud: true
                                             });
                                             this.renderPlaylist();
-                                            voxNotify(`CLOUD VIDEO SYNCED: ${data.name.substring(0,10)}...`, 'info');
                                         }
                                     }
-                                    // Можно добавить логику для "removed", если ты удалишь видео из базы
+                                    if (change.type === "removed") {
+                                        this.playlist = this.playlist.filter(v => v.id !== change.doc.id);
+                                        this.renderPlaylist();
+                                    }
                                 });
                             });
                         }
-                    }, 2000); // Небольшая задержка для старта
+                    }, 2000);
                 },
 
                 handleFiles(files) {
@@ -1842,28 +1879,13 @@
                         Array.from(files).forEach(file => {
                             if (file.type.startsWith('video/')) {
                                 const localUrl = URL.createObjectURL(file);
-                                this.playlist.push({
-                                    name: file.name,
-                                    url: localUrl
-                                });
+                                this.playlist.push({ name: file.name, url: localUrl, isCloud: false });
                                 voxNotify(`LOCAL SIGNAL READY: ${file.name.substring(0, 20)}...`, 'success');
-                            } else {
-                                voxNotify('INVALID FORMAT: VIDEO ONLY', 'error');
-                            }
+                            } else voxNotify('INVALID FORMAT: VIDEO ONLY', 'error');
                         });
                         this.renderPlaylist();
-                        if (this.currentIndex === -1 && this.playlist.length > 0) {
-                            this.currentIndex = 0;
-                            this.playCurrent();
-                        }
+                        if (this.currentIndex === -1) { this.currentIndex = 0; this.playCurrent(); }
                     }
-                },
-
-                loadFromUrl(url) {
-                    const name = decodeURIComponent(url.split('/').pop().split('?')[0].split('_').pop());
-                    this.playlist.push({ name: name, url: url });
-                    this.renderPlaylist();
-                    voxNotify(`CLOUD VIDEO LINKED: ${name}`, 'success');
                 },
 
                 renderPlaylist() {
@@ -1887,15 +1909,26 @@
 
                 removeTrack(idx, e) {
                     e.stopPropagation();
+                    const track = this.playlist[idx];
+
+                    // --- УДАЛЕНИЕ ИЗ БАЗЫ (ПО КРЕСТИКУ) ---
+                    if (track.isCloud && track.id) {
+                        if(confirm("PERMANENTLY DELETE FROM CLOUD SERVER?")) {
+                            window.fbDelete(window.fbDoc(window.db, "videos", track.id))
+                                .then(() => voxNotify("DATA PURGED", "success"))
+                                .catch(err => voxNotify("ERROR: " + err.message, "error"));
+                        }
+                        return;
+                    }
+
+                    // Локальное удаление
                     this.playlist.splice(idx, 1);
-                     if(this.currentIndex === idx) {
+                    if(this.currentIndex === idx) {
                         this.video.pause();
-                        this.currentIndex = -1; // Reset
+                        this.currentIndex = -1;
                         StaticFX.toggle(true);
                         this.placeholder.style.display = 'block';
-                    } else if (this.currentIndex > idx) {
-                        this.currentIndex--;
-                    }
+                    } else if (this.currentIndex > idx) this.currentIndex--;
                     this.renderPlaylist();
                 },
                 
@@ -2548,7 +2581,8 @@
             window.AuthSystem = {
                 currentUser: null,
                 isInitialized: false,
-                banListener: null, // Храним ссылку на слушатель бана
+                banListener: null,// Храним ссылку на слушатель бана
+                heartbeat: null, 
 
                 init() {
                     if (this.isInitialized) return;
@@ -2560,14 +2594,25 @@
                                 this.currentUser = user;
                                 this.showApp();
                                 CloudSystem.registerUser(user);
-                                
-                                // ЗАПУСКАЕМ СЛЕЖКУ ЗА БАНОМ
                                 this.monitorBan(user.uid); 
-
                                 if(window.AdminSystem) AdminSystem.init(user);
+
+                                // --- 2. REAL PRESENCE (HEARTBEAT) ---
+                                // Обновляем "lastSeen" каждую минуту, пока вкладка открыта
+                                this.heartbeat = setInterval(() => {
+                                    window.fbSet(window.fbDoc(window.db, "users", user.uid), {
+                                        lastSeen: window.fbTime(),
+                                        isOnline: true
+                                    }, { merge: true });
+                                }, 60000); // Раз в минуту
+                                
+                                // Сразу ставим онлайн при входе
+                                window.fbSet(window.fbDoc(window.db, "users", user.uid), { isOnline: true, lastSeen: window.fbTime() }, { merge: true });
+
                             } else {
                                 this.currentUser = null;
-                                if(this.banListener) this.banListener(); // Отключаем слежку при выходе
+                                if(this.banListener) this.banListener();
+                                if(this.heartbeat) clearInterval(this.heartbeat); // Останавливаем сердцебиение
                                 this.showAuth();
                             }
                         });
@@ -2614,15 +2659,27 @@
                     }
                     SoundFX.click();
                 },
-                register() {
+register() {
                     let u = document.getElementById('regUser').value.trim();
                     const p = document.getElementById('regPass').value.trim();
                     if (!u.includes('@')) u = u + '@voxtek.net';
                     if(!u || !p) return voxNotify('Credentials required.', 'error');
-                    voxNotify('CONTACTING SERVERS...', 'info');
+                    
                     window.fbRegister(window.auth, u, p)
-                        .then((cred) => voxNotify('ID CREATED. LOGGING IN...', 'success'))
-                        .catch((error) => { voxNotify('ERROR: ' + error.message, 'error'); SoundFX.error(); });
+                        .then((cred) => {
+                            // --- 3. TRUST SCORE START ---
+                            // При регистрации даем пользователю 50 очков доверия
+                            window.fbSet(window.fbDoc(window.db, "users", cred.user.uid), {
+                                trustScore: 100, // <-- НОВОЕ
+                                uid: cred.user.uid,
+                                email: u,
+                                isOnline: true,
+                                lastSeen: window.fbTime()
+                            }, { merge: true });
+
+                            voxNotify('ID CREATED. TRUST SCORE: 100.', 'success');
+                        })
+                        .catch((error) => { voxNotify('ERROR: ' + error.message, 'error'); });
                 },
                 login() {
                     let u = document.getElementById('loginUser').value.trim();
@@ -2727,6 +2784,75 @@
                             `;
                             list.appendChild(div);
                         });
+                    });
+                },
+
+                monitorCalls() {
+                    const grid = document.getElementById('spyGrid');
+                    grid.innerHTML = '<div style="color:#aaa;">SCANNING...</div>';
+                    
+                    // Ищем активные звонки (где status != ended)
+                    const q = window.fbQuery(window.fbCol(window.db, "calls"), window.fbWhere("status", "==", "connected"));
+                    
+                    window.fbSnap(q, (snapshot) => {
+                        grid.innerHTML = '';
+                        if(snapshot.empty) {
+                            grid.innerHTML = '<div style="color:#666;">NO ACTIVE SIGNALS DETECTED.</div>';
+                            return;
+                        }
+                        
+                        snapshot.forEach(doc => {
+                            const d = doc.data();
+                            const card = document.createElement('div');
+                            card.className = 'spy-card active';
+                            card.innerHTML = `
+                                <div style="color:var(--vox-cyan); font-weight:bold;">UPLINK #${doc.id.substr(0,4)}</div>
+                                <div>Caller: ${d.callerName}</div>
+                                <div>Target: ${d.calleeName || '...'}</div>
+                                <div style="color:#666;">Duration: LIVE</div>
+                                <button class="btn-tech" style="font-size:9px; border-color:red; color:red;" onclick="AdminSystem.killCall('${doc.id}')">TERMINATE</button>
+                            `;
+                            grid.appendChild(card);
+                        });
+                    });
+                },
+                
+                killCall(callId) {
+                    if(confirm("TERMINATE CONNECTION?")) {
+                        window.fbSet(window.fbDoc(window.db, "calls", callId), { status: 'ended' }, { merge: true });
+                        voxNotify("CONNECTION SEVERED.", "success");
+                    }
+                },
+
+                modTrust() {
+                    const target = document.getElementById('adminTargetId').value.trim(); // ID или Email
+                    const val = parseInt(document.getElementById('adminTrustVal').value);
+                    
+                    if(!target || isNaN(val)) return voxNotify("INVALID INPUT", "error");
+
+                    // Найти пользователя (это сложно без точного ID, так что лучше искать по точному UID, 
+                    // но для простоты предположим, что админ вводит UID, который скопировал из списка)
+                    // Для улучшения UX можно сделать поиск по Email, но это требует отдельного индекса.
+                    // ПРЕДПОЛАГАЕМ ВВОД UID:
+                    
+                    const ref = window.fbDoc(window.db, "users", target);
+                    window.fbGet(ref).then(doc => {
+                        if(doc.exists()) {
+                            const current = doc.data().trustScore || 50;
+                            let newScore = current + val;
+                            if(newScore > 100) newScore = 100;
+                            if(newScore < 0) newScore = 0;
+                            
+                            window.fbSet(ref, { trustScore: newScore }, { merge: true });
+                            voxNotify(`TRUST UPDATED: ${newScore}%`, "success");
+                            
+                            // Наказание за низкий рейтинг
+                            if(newScore < 10) {
+                                // Можно добавить метку "LOW TRUST" пользователю
+                            }
+                        } else {
+                            voxNotify("USER NOT FOUND (USE UID)", "error");
+                        }
                     });
                 },
 
@@ -2987,6 +3113,65 @@
                     // However, we can simulate sorting:
                 },
                 
+// Внутри window.CloudSystem добавь этот метод:
+                sendImage(input) {
+                    const file = input.files[0];
+                    if(!file) return;
+                    
+                    voxNotify("ENCRYPTING IMAGE DATA...", "info");
+                    const storageRef = window.fbRef(window.storage, `chat_images/${Date.now()}_${file.name}`);
+                    
+                    window.fbUpload(storageRef, file).then((snapshot) => {
+                        window.fbUrl(snapshot.ref).then((url) => {
+                            // Отправляем как сообщение, но с типом 'image'
+                            this.sendMessage(url, 'image'); // <-- Мы перегрузим sendMessage
+                            voxNotify("VISUAL DATA SENT", "success");
+                        });
+                    });
+                    input.value = ''; // Сброс
+                },
+
+                // ОБНОВИ sendMessage ЧТОБЫ ПРИНИМАЛ ТИП (по умолчанию text)
+                sendImage(input) {
+                    const file = input.files[0];
+                    if(!file) return;
+                    
+                    voxNotify("ENCRYPTING IMAGE DATA...", "info");
+                    const storageRef = window.fbRef(window.storage, `chat_images/${Date.now()}_${file.name}`);
+                    
+                    window.fbUpload(storageRef, file).then((snapshot) => {
+                        window.fbUrl(snapshot.ref).then((url) => {
+                            // Отправляем как сообщение, но с типом 'image'
+                            this.sendMessage(url, 'image'); // <-- Мы перегрузим sendMessage
+                            voxNotify("VISUAL DATA SENT", "success");
+                        });
+                    });
+                    input.value = ''; // Сброс
+                },
+
+                // ОБНОВИ sendMessage ЧТОБЫ ПРИНИМАЛ ТИП (по умолчанию text)
+                sendMessage(content, type = 'text') {
+                    const user = window.auth.currentUser;
+                    if(!user) return;
+                    
+                    let chatId = MessengerUI.currentChat;
+                    let colName = chatId === 'global' ? "messages_global" : "messages_private";
+                    
+                    const payload = {
+                        text: content, // Тут теперь может быть URL
+                        type: type,    // 'text' или 'image'
+                        uid: user.uid,
+                        name: user.displayName || user.email.split('@')[0],
+                        avatar: user.photoURL,
+                        chatId: chatId,
+                        createdAt: window.fbTime()
+                    };
+
+                    window.fbAdd(window.fbCol(window.db, colName), payload);
+                    this.setTyping(false);
+                    SoundFX.click();
+                },
+
                 updateProfile() {
                     const name = document.getElementById('pName').value.trim();
                     const avatar = document.getElementById('pAvatar').value.trim();
@@ -3003,32 +3188,6 @@
                             MessengerUI.closeProfile();
                         }).catch(err => voxNotify(err.message, 'error'));
                     }
-                },
-
-                // CHAT
-                sendMessage(text) {
-                    const user = window.auth.currentUser;
-                    if(!user) return;
-                    
-                    let chatId = MessengerUI.currentChat;
-                    // Collection based on type
-                    let colName = chatId === 'global' ? "messages_global" : "messages_private";
-                    
-                    const payload = {
-                        text: text,
-                        uid: user.uid,
-                        name: user.displayName || user.email.split('@')[0],
-                        avatar: user.photoURL,
-                        chatId: chatId, // Important for filtering private msgs
-                        createdAt: window.fbTime()
-                    };
-
-                    const msgsRef = window.fbCol(window.db, colName);
-                    window.fbAdd(msgsRef, payload);
-                    
-                    // Clear typing status immediately
-                    this.setTyping(false);
-                    SoundFX.click();
                 },
                 
                 setTyping(isTyping) {
@@ -3211,63 +3370,42 @@
                             
                             const avatarUrl = data.avatar || `https://placehold.co/40x40/000000/00f3ff/png?text=${data.name[0]}`;
                             
+let contentHtml = '';
+                            if (data.type === 'image') {
+                                contentHtml = `<img src="${data.text}" class="msg-image" onclick="window.open(this.src)">`;
+                            } else {
+                                // Обычный текст
+                                contentHtml = `<div class="msg-bubble">${data.text}</div>`; 
+                                // (Для скремблинга текст вставим позже, если это текст)
+                            }
+                            
                             div.innerHTML = `
-                            <div class="msg-avatar" onclick="MessengerUI.pingUser('${data.name}')">
-                                <img src="${avatarUrl}">
-                            </div>
-                            <div class="msg-content">
-                                <div class="msg-name" onclick="MessengerUI.pingUser('${data.name}')">${data.name}</div>
-                                <div class="msg-bubble"></div> </div>
-                        `;
-                        feed.appendChild(div);
+                                <div class="msg-avatar" onclick="MessengerUI.pingUser('${data.name}')">
+                                    <img src="${avatarUrl}">
+                                </div>
+                                <div class="msg-content">
+                                    <div class="msg-name">${data.name}</div>
+                                    ${contentHtml} 
+                                </div>
+                            `;
+                            
+                            feed.appendChild(div);
 
-                        const bubble = div.querySelector('.msg-bubble');
-                        if(isMe) {
-                            bubble.innerText = data.text;
-                        } else {
-                            const scrambler = new ScrambleText(bubble);
-                            scrambler.setText(data.text);
-                        }
+                            // Скремблинг только для текста и чужих сообщений
+                            if (!isMe && data.type !== 'image') {
+                                const bubble = div.querySelector('.msg-bubble');
+                                if(bubble) {
+                                    const scrambler = new ScrambleText(bubble);
+                                    scrambler.setText(data.text);
+                                }
+                            }
                         });
                         feed.scrollTop = feed.scrollHeight;
                     });
-                },
+                }
+            },
 
                 // FILES
-                uploadMedia(file, type) {
-                    voxNotify(`UPLOADING ${type.toUpperCase()} TO CLOUD...`, 'info');
-                    // Добавляем уникальный ID ко времени, чтобы имена точно не совпали
-                    const path = `${type}/${Date.now()}_${file.name}`;
-                    const storageRef = window.fbRef(window.storage, path);
-
-                    window.fbUpload(storageRef, file).then((snapshot) => {
-                        voxNotify('UPLOAD COMPLETE. SAVING DATA...', 'success');
-                        window.fbUrl(snapshot.ref).then((url) => {
-                            
-                            // --- ВОТ ГЛАВНОЕ ИЗМЕНЕНИЕ ---
-                            // Мы сохраняем ссылку в Базу Данных (Firestore)
-                            if(type === 'video') {
-                                window.fbAdd(window.fbCol(window.db, "videos"), {
-                                    name: file.name,
-                                    url: url,
-                                    type: 'video',
-                                    createdAt: window.fbTime(), // Чтобы сортировать по времени
-                                    author: window.auth.currentUser ? window.auth.currentUser.uid : 'anon'
-                                });
-                            }
-                            // Для аудио можно сделать так же, если захочешь (в коллекцию "music")
-                            else if(type === 'audio') {
-                                MusicSystem.loadFromUrl(url); // Пока оставляем по-старому
-                            }
-                            // -----------------------------
-                            
-                        });
-                    }).catch(err => {
-                        voxNotify('UPLOAD FAILED: ' + err.message, 'error');
-                    });
-                }
-            };
-            
             // Listen for typing input
             document.getElementById('msgInput').addEventListener('input', () => {
                  CloudSystem.setTyping(true);
