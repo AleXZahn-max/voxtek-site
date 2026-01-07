@@ -1264,6 +1264,52 @@
         <p>&copy; 2026 VOXTEK ENTERPRISES. TRUST THE SIGNAL. FAILURE IS NOT AN OPTION.</p>
     </footer>
 
+    <div id="callInterface" class="call-overlay">
+        <div class="call-video-grid">
+            <video id="remoteVideo" autoplay playsinline></video>
+            
+            <div id="remoteAvatarContainer" class="avatar-overlay">
+                <img id="remoteAvatar" src="" class="call-avatar-img">
+                <div id="remoteName" class="call-avatar-name">CONNECTING...</div>
+                <div id="remoteStatusLabel" class="call-status-label">ESTABLISHING UPLINK</div>
+            </div>
+
+            <video id="localVideo" autoplay playsinline muted></video>
+            
+            <div style="position:absolute; top:20px; left:20px; background:rgba(0,0,0,0.5); padding:5px 10px; color:var(--vox-cyan); font-weight:bold; z-index:5;">
+                SECURE LINE: <span id="callStatusText">CONNECTING...</span>
+            </div>
+        </div>
+        <div class="call-controls">
+            </div>
+    </div>
+    
+    <div id="incomingCallModal" class="modal-overlay">
+        <div id="incomingModalContent" class="vox-modal" style="text-align:center; border-color: var(--vox-cyan);">
+            <h3 style="color:var(--vox-cyan);">INCOMING TRANSMISSION</h3>
+            
+            <img id="incomingCallerAvatar" src="" class="modal-caller-avatar" onerror="this.src='https://placehold.co/80x80/000000/00f3ff/png?text=?'">
+            
+            <p id="callerNameDisplay" style="font-size:22px; color:white; font-weight:bold; margin-bottom:5px;">Unknown User</p>
+            <p style="font-size:10px; color:#666; margin-bottom:20px;">ENCRYPTED CHANNEL REQUEST</p>
+            
+            <div class="vox-modal-actions" style="justify-content:center; gap:15px; width:100%;">
+                <button class="btn-tech" style="background:var(--vox-cyan); color:black; border-color:var(--vox-cyan); flex:1;" onclick="CallSystem.answer()">ACCEPT</button>
+                <button class="btn-tech" style="border-color:var(--alert-red); color:var(--alert-red); flex:1;" onclick="CallSystem.reject()">DECLINE</button>
+            </div>
+        </div>
+
+        <div id="netStat" style="position:absolute; top:20px; right:20px; font-size:10px; color:var(--vox-cyan); font-family:var(--font-code); z-index:10;">
+            SIGNAL: <span id="pingVal">CALCULATING...</span>
+            <div style="display:flex; gap:2px; margin-top:5px;">
+                <div class="sig-bar" id="sb1" style="width:3px; height:4px; background:#333;"></div>
+                <div class="sig-bar" id="sb2" style="width:3px; height:6px; background:#333;"></div>
+                <div class="sig-bar" id="sb3" style="width:3px; height:8px; background:#333;"></div>
+                <div class="sig-bar" id="sb4" style="width:3px; height:10px; background:#333;"></div>
+            </div>
+        </div>
+    </div>
+
 <div id="adminPanel">
     <h3>/// SYSTEM OVERLORD ///</h3>
     
@@ -1315,52 +1361,6 @@
             </div>
             <div class="vox-modal-actions" id="modalActions">
                 </div>
-        </div>
-    </div>
-
-    <div id="callInterface" class="call-overlay">
-        <div class="call-video-grid">
-            <video id="remoteVideo" autoplay playsinline></video>
-            
-            <div id="remoteAvatarContainer" class="avatar-overlay">
-                <img id="remoteAvatar" src="" class="call-avatar-img">
-                <div id="remoteName" class="call-avatar-name">CONNECTING...</div>
-                <div id="remoteStatusLabel" class="call-status-label">ESTABLISHING UPLINK</div>
-            </div>
-
-            <video id="localVideo" autoplay playsinline muted></video>
-            
-            <div style="position:absolute; top:20px; left:20px; background:rgba(0,0,0,0.5); padding:5px 10px; color:var(--vox-cyan); font-weight:bold; z-index:5;">
-                SECURE LINE: <span id="callStatusText">CONNECTING...</span>
-            </div>
-        </div>
-        <div class="call-controls">
-            </div>
-    </div>
-    
-    <div id="incomingCallModal" class="modal-overlay">
-        <div id="incomingModalContent" class="vox-modal" style="text-align:center; border-color: var(--vox-cyan);">
-            <h3 style="color:var(--vox-cyan);">INCOMING TRANSMISSION</h3>
-            
-            <img id="incomingCallerAvatar" src="" class="modal-caller-avatar" onerror="this.src='https://placehold.co/80x80/000000/00f3ff/png?text=?'">
-            
-            <p id="callerNameDisplay" style="font-size:22px; color:white; font-weight:bold; margin-bottom:5px;">Unknown User</p>
-            <p style="font-size:10px; color:#666; margin-bottom:20px;">ENCRYPTED CHANNEL REQUEST</p>
-            
-            <div class="vox-modal-actions" style="justify-content:center; gap:15px; width:100%;">
-                <button class="btn-tech" style="background:var(--vox-cyan); color:black; border-color:var(--vox-cyan); flex:1;" onclick="CallSystem.answer()">ACCEPT</button>
-                <button class="btn-tech" style="border-color:var(--alert-red); color:var(--alert-red); flex:1;" onclick="CallSystem.reject()">DECLINE</button>
-            </div>
-        </div>
-
-        <div id="netStat" style="position:absolute; top:20px; right:20px; font-size:10px; color:var(--vox-cyan); font-family:var(--font-code); z-index:10;">
-            SIGNAL: <span id="pingVal">CALCULATING...</span>
-            <div style="display:flex; gap:2px; margin-top:5px;">
-                <div class="sig-bar" id="sb1" style="width:3px; height:4px; background:#333;"></div>
-                <div class="sig-bar" id="sb2" style="width:3px; height:6px; background:#333;"></div>
-                <div class="sig-bar" id="sb3" style="width:3px; height:8px; background:#333;"></div>
-                <div class="sig-bar" id="sb4" style="width:3px; height:10px; background:#333;"></div>
-            </div>
         </div>
     </div>
 
@@ -3132,24 +3132,6 @@ register() {
                 },
 
                 // ОБНОВИ sendMessage ЧТОБЫ ПРИНИМАЛ ТИП (по умолчанию text)
-                sendImage(input) {
-                    const file = input.files[0];
-                    if(!file) return;
-                    
-                    voxNotify("ENCRYPTING IMAGE DATA...", "info");
-                    const storageRef = window.fbRef(window.storage, `chat_images/${Date.now()}_${file.name}`);
-                    
-                    window.fbUpload(storageRef, file).then((snapshot) => {
-                        window.fbUrl(snapshot.ref).then((url) => {
-                            // Отправляем как сообщение, но с типом 'image'
-                            this.sendMessage(url, 'image'); // <-- Мы перегрузим sendMessage
-                            voxNotify("VISUAL DATA SENT", "success");
-                        });
-                    });
-                    input.value = ''; // Сброс
-                },
-
-                // ОБНОВИ sendMessage ЧТОБЫ ПРИНИМАЛ ТИП (по умолчанию text)
                 sendMessage(content, type = 'text') {
                     const user = window.auth.currentUser;
                     if(!user) return;
@@ -3403,7 +3385,7 @@ let contentHtml = '';
                         feed.scrollTop = feed.scrollHeight;
                     });
                 }
-            },
+            };
 
                 // FILES
             // Listen for typing input
