@@ -3197,7 +3197,9 @@
                             scrambler.setText(data.text);
                         }
                         });
-                        feed.scrollTop = feed.scrollHeight;
+                        setTimeout(() => {
+                            feed.scrollTop = feed.scrollHeight;
+                        }, 50);
                     });
                 },
 
