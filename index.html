@@ -195,7 +195,7 @@
 
         /* Hero */
         .hero { height: 90vh; min-height: 600px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; position: relative; padding: 0 20px; }
-        .hero h1 { font-size: 8vw; max-size: 100px; line-height: 0.9; text-transform: uppercase; font-weight: 900; margin-bottom: 20px; color: white; position: relative; display: inline-block; text-shadow: 4px 4px 0px rgba(0, 243, 255, 0.1); }
+        .hero h1 { font-size: 8vw; line-height: 0.9; text-transform: uppercase; font-weight: 900; margin-bottom: 20px; color: white; position: relative; display: inline-block; text-shadow: 4px 4px 0px rgba(0, 243, 255, 0.1); }
         @media (min-width: 1200px) { .hero h1 { font-size: 100px; } }
         
         .glitch-text::before, .glitch-text::after { 
@@ -544,8 +544,8 @@
         .c-btn:hover { background: var(--vox-cyan); color: black; border-color: var(--vox-cyan); }
         .c-time { font-family: var(--font-code); font-size: 11px; color: #aaa; min-width: 100px; }
         
-        .vox-range { -webkit-appearance: none; width: 100%; height: 6px; background: #222; outline: none; flex: 1; border: 1px solid #333; }
-        .vox-range::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 14px; background: var(--vox-cyan); cursor: pointer; box-shadow: 0 0 5px var(--vox-cyan); }
+        .vox-range { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; background: #222; outline: none; flex: 1; border: 1px solid #333; }
+        .vox-range::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 10px; height: 14px; background: var(--vox-cyan); cursor: pointer; box-shadow: 0 0 5px var(--vox-cyan); }
         
         /* Android Touch Targets */
         @media (max-width: 768px) {
@@ -600,8 +600,8 @@
 
         .music-controls { display: flex; flex-direction: column; gap: 10px; }
         .range-wrap { display: flex; align-items: center; gap: 10px; font-size: 10px; color: #666; }
-        input[type="range"] { -webkit-appearance: none; width: 100%; height: 4px; background: #333; outline: none; }
-        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 10px; background: var(--vox-cyan); cursor: pointer; box-shadow: 0 0 5px var(--vox-cyan); }
+        input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; background: #333; outline: none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 10px; height: 10px; background: var(--vox-cyan); cursor: pointer; box-shadow: 0 0 5px var(--vox-cyan); }
 
         #toggleMenuBtn {
             position: absolute; left: -40px; top: 0; width: 40px; height: 40px;
@@ -814,6 +814,50 @@
         .msg-tools { margin-left: auto; display: flex; gap: 5px; opacity: 0.5; font-size: 10px; }
         .msg-tools button { background: none; border: 1px solid #444; color: #666; cursor: pointer; }
         .msg-tools button:hover { color: var(--vox-cyan); border-color: var(--vox-cyan); }
+
+        /* --- ОПТИМИЗАЦИЯ И ПУЛЬСАЦИЯ --- */
+        
+        /* 1. Пульсация для входящего звонка */
+        #incomingCallModal .vox-modal {
+            animation: modalPulse 1.5s infinite alternate;
+            border-width: 2px;
+            display: flex; flex-direction: column; align-items: center;
+        }
+        @keyframes modalPulse {
+            0% { box-shadow: 0 0 20px rgba(0, 243, 255, 0.2); border-color: rgba(0, 243, 255, 0.5); }
+            100% { box-shadow: 0 0 60px rgba(0, 243, 255, 0.8); border-color: #fff; }
+        }
+
+        /* 2. Аватарка в модальном окне */
+        .modal-caller-avatar {
+            width: 80px; height: 80px; border-radius: 50%;
+            border: 2px solid var(--vox-cyan);
+            margin-bottom: 15px;
+            object-fit: cover;
+            box-shadow: 0 0 15px var(--vox-cyan);
+        }
+
+        /* 3. ОПТИМИЗАЦИЯ ДЛЯ ANDROID / МОБИЛЬНЫХ */
+        @media (max-width: 768px) {
+            /* Отключаем тяжелые эффекты */
+            .crt-overlay, .vignette, .cursor-particle { display: none !important; }
+            
+            /* Увеличиваем шрифты */
+            body { font-size: 16px; } 
+            .btn-tech { padding: 15px; min-height: 50px; font-size: 14px; }
+            .form-input { font-size: 16px; padding: 12px; }
+            
+            /* Адаптация модалок */
+            .vox-modal { width: 95%; padding: 15px; }
+            
+            /* Исправляем чат */
+            .messenger-container { height: calc(100vh - 80px); margin-top: 10px; border: none; }
+            .chat-header { padding: 10px; }
+            .msg-bubble { font-size: 15px; padding: 12px; }
+            
+            /* Скрываем глаз (он тормозит скролл на телефоне) */
+            .vox-eye-container { display: none; }
+        }
     </style>
 </head>
 <body id="top">
@@ -1243,18 +1287,33 @@
     </div>
     
     <div id="incomingCallModal" class="modal-overlay">
-        <div class="vox-modal" style="text-align:center; border-color: #0f0; box-shadow: 0 0 30px rgba(0,255,0,0.2);">
-            <h3 style="color:#0f0;">INCOMING TRANSMISSION</h3>
-            <p id="callerNameDisplay" style="font-size:20px; color:white; font-weight:bold;">Unknown User</p>
-            <div class="vox-modal-actions" style="justify-content:center; gap:20px;">
-                <button class="btn-tech" style="background:#0f0; color:black; border-color:#0f0;" onclick="CallSystem.answer()">ACCEPT</button>
-                <button class="btn-tech" style="border-color:var(--alert-red); color:var(--alert-red);" onclick="CallSystem.reject()">DECLINE</button>
+        <div id="incomingModalContent" class="vox-modal" style="text-align:center; border-color: var(--vox-cyan);">
+            <h3 style="color:var(--vox-cyan); animation: blinkRed 1s infinite;">INCOMING TRANSMISSION</h3>
+            
+            <img id="incomingCallerAvatar" src="" class="modal-caller-avatar" onerror="this.src='https://placehold.co/80x80/000000/00f3ff/png?text=?'">
+            
+            <p id="callerNameDisplay" style="font-size:22px; color:white; font-weight:bold; margin-bottom:5px;">Unknown User</p>
+            <p style="font-size:10px; color:#666; margin-bottom:20px;">ENCRYPTED CHANNEL REQUEST</p>
+            
+            <div class="vox-modal-actions" style="justify-content:center; gap:15px; width:100%;">
+                <button class="btn-tech" style="background:var(--vox-cyan); color:black; border-color:var(--vox-cyan); flex:1;" onclick="CallSystem.answer()">ACCEPT</button>
+                <button class="btn-tech" style="border-color:var(--alert-red); color:var(--alert-red); flex:1;" onclick="CallSystem.reject()">DECLINE</button>
+            </div>
+        </div>
+
+        <div id="netStat" style="position:absolute; top:20px; right:20px; font-size:10px; color:var(--vox-cyan); font-family:var(--font-code); z-index:10;">
+            SIGNAL: <span id="pingVal">CALCULATING...</span>
+            <div style="display:flex; gap:2px; margin-top:5px;">
+                <div class="sig-bar" id="sb1" style="width:3px; height:4px; background:#333;"></div>
+                <div class="sig-bar" id="sb2" style="width:3px; height:6px; background:#333;"></div>
+                <div class="sig-bar" id="sb3" style="width:3px; height:8px; background:#333;"></div>
+                <div class="sig-bar" id="sb4" style="width:3px; height:10px; background:#333;"></div>
             </div>
         </div>
     </div>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-app.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-auth.js";
   import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, setDoc, doc, where, limit, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-firestore.js";
   import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/12.7.0/firebase-storage.js";
@@ -1325,6 +1384,7 @@
                     this.resize();
                     window.addEventListener('resize', () => this.resize());
                     
+                    // На мобильных снижаем качество еще сильнее
                     if (window.innerWidth < 768) {
                         this.fps = 10;
                         this.interval = 1000 / 10;
@@ -1335,6 +1395,7 @@
                 resize() {
                     if (this.canvas && this.canvas.parentElement) {
                         const rect = this.canvas.parentElement.getBoundingClientRect();
+                        // Рендерим в 2 раза меньше пикселей для скорости
                         const scale = window.innerWidth < 768 ? 0.5 : 1; 
                         this.canvas.width = rect.width * scale;
                         this.canvas.height = rect.height * scale;
@@ -1359,10 +1420,12 @@
                         const w = this.canvas.width;
                         const h = this.canvas.height;
                         
+                        // Рисуем шум только если есть размер
                         if (w > 0 && h > 0) {
                             const idata = this.ctx.createImageData(w, h);
                             const buffer32 = new Uint32Array(idata.data.buffer);
                             
+                            // Заполняем только 10% пикселей (быстрее)
                             for(let i = 0; i < buffer32.length; i++) {
                                 if (Math.random() < 0.1) buffer32[i] = 0xffffffff;
                             }
@@ -2302,12 +2365,13 @@
             };
             terminal.init();
 
-            // --- 7. EYE TRACKING ---
+            // --- 7. EYE TRACKING (OPTIMIZED) ---
             const eyeLogic = {
                 pupil: document.getElementById('eyePupil'),
                 svg: document.querySelector('.eye-svg'),
                 rect: null,
                 init() {
+                    // Отключаем на мобильных полностью (экономит батарею)
                     if (window.matchMedia('(hover: none) and (pointer: coarse)').matches) return;
 
                     window.addEventListener('resize', throttle(() => {
@@ -2315,9 +2379,10 @@
                     }, 500));
                     this.rect = this.svg.getBoundingClientRect();
 
-                    document.addEventListener('mousemove', (e) => {
+                    // THROTTLE: Обновляем позицию не чаще чем раз в 30мс
+                    document.addEventListener('mousemove', throttle((e) => {
                         requestAnimationFrame(() => this.move(e));
-                    });
+                    }, 30));
                 },
                 move(e) {
                     if (!this.rect || !this.pupil) return;
@@ -2332,7 +2397,6 @@
                     this.pupil.style.transform = `translate(${Math.cos(angle) * r}px, ${Math.sin(angle) * r}px)`;
                 }
             };
-            eyeLogic.init();
 
              // --- 8. WEBCAM ---
             const CamSystem = {
@@ -3244,8 +3308,30 @@
                     if (this.ringtoneInterval) { clearInterval(this.ringtoneInterval); this.ringtoneInterval = null; }
                 },
 
+                monitorNetwork() {
+                    setInterval(() => {
+                        const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+                        if (conn) {
+                            const rtt = conn.rtt; // Пинг
+                            const type = conn.effectiveType; // 4g, 3g...
+            
+                            document.getElementById('pingVal').textContent = `${type.toUpperCase()} (${rtt}ms)`;
+            
+                            // Красим палочки
+                            const bars = document.querySelectorAll('.sig-bar');
+                            bars.forEach(b => b.style.background = '#333'); // Сброс
+            
+                            if(rtt < 300) document.getElementById('sb1').style.background = 'var(--vox-cyan)';
+                            if(rtt < 200) document.getElementById('sb2').style.background = 'var(--vox-cyan)';
+                            if(rtt < 100) document.getElementById('sb3').style.background = 'var(--vox-cyan)';
+                            if(rtt < 50)  document.getElementById('sb4').style.background = 'var(--vox-cyan)';
+                        }
+                    }, 2000);
+                },
+
                 // --- INIT CALL (CALLER) ---
                 async initCall(targetUid) {
+                    CallSystem.monitorNetwork()
                     this.isCaller = true;
                     this.renderControls();
                     document.getElementById('callInterface').classList.add('active');
@@ -3349,7 +3435,7 @@
                     });
                 },
 
-                // --- LISTEN GLOBAL (RECEIVER) ---
+                // Внутри window.CallSystem
                 listenGlobal() {
                     const uid = window.auth.currentUser.uid;
                     const q = window.fbQuery(
@@ -3368,14 +3454,17 @@
                                 if (!this.currentCallId && isRecent && data.status === 'ringing') {
                                     this.currentCallId = change.doc.id;
                                     
-                                    // Показываем имя звонящего
+                                    // 1. ИМЯ
                                     const cName = data.callerName || "Unknown Caller";
                                     document.getElementById('callerNameDisplay').textContent = cName;
+
+                                    // 2. АВАТАР (НОВОЕ!)
+                                    const cAvatar = data.callerAvatar || `https://placehold.co/80x80/000000/00f3ff/png?text=${cName[0]}`;
+                                    document.getElementById('incomingCallerAvatar').src = cAvatar;
                                     
                                     document.getElementById('incomingCallModal').classList.add('active');
                                     this.startRinging('incoming');
                                     
-                                    // Следим за отменой
                                     const callDoc = window.fbDoc(window.db, "calls", this.currentCallId);
                                     this.unsubscribeCall = window.fbSnap(callDoc, (snap) => {
                                         if(snap.exists() && snap.data().status === 'ended') {
