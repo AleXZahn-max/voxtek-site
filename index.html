@@ -1141,7 +1141,6 @@
                                 <span id="typingIndicator" class="typing-indicator">typing...</span>
                             </div>
                         </div>
-                        <button class="btn-tech" style="padding:5px 15px; font-size:10px; border:none;" onclick="AuthSystem.logout()">LOGOUT</button>
                     </div>
 
                     <div class="chat-messages" id="chatFeed">
@@ -1164,6 +1163,11 @@
                             <button class="btn-tech" style="flex:1;" onclick="CloudSystem.updateProfile()">SAVE</button>
                             <button class="btn-tech" style="flex:1; border-color:#555; color:#555;" onclick="MessengerUI.closeProfile()">CANCEL</button>
                         </div>
+                        <button class="btn-tech" 
+                                style="width:100%; margin-top:20px; border-color:var(--alert-red); color:var(--alert-red);" 
+                                onclick="AuthSystem.logout(); MessengerUI.closeProfile();">
+                            LOGOUT SYSTEM
+                        </button>
                     </div>
                 </div>
 
@@ -1288,7 +1292,7 @@
     
     <div id="incomingCallModal" class="modal-overlay">
         <div id="incomingModalContent" class="vox-modal" style="text-align:center; border-color: var(--vox-cyan);">
-            <h3 style="color:var(--vox-cyan); animation: blinkRed 1s infinite;">INCOMING TRANSMISSION</h3>
+            <h3 style="color:var(--vox-cyan);">INCOMING TRANSMISSION</h3>
             
             <img id="incomingCallerAvatar" src="" class="modal-caller-avatar" onerror="this.src='https://placehold.co/80x80/000000/00f3ff/png?text=?'">
             
@@ -3028,52 +3032,108 @@
                 },
                 
                 loadChat(chatId) {
-                    // --- 1. КНОПКА ЗВОНКА (ВСТРОЕНА ПРЯМО СЮДА) ---
-                    // Находим заголовок чата
-                    const header = document.querySelector('.chat-header-info');
-                    
-                    // Удаляем старую кнопку, чтобы не дублировалась
+                    // --- 1. КНОПКА ЗВОНКА (CANVAS VERSION) ---
+                    const headerMain = document.querySelector('.chat-header'); 
                     const existingBtn = document.getElementById('btnStartCall');
                     if(existingBtn) existingBtn.remove();
-                    
-                    // Если чат личный (не глобал) и хедер найден - рисуем кнопку
-                    if (chatId !== 'global' && header) {
+    
+                    if (chatId !== 'global' && headerMain) {
                         const btn = document.createElement('button');
                         btn.id = "btnStartCall";
-                        
-                        // ДИЗАЙН КАК НА КАРТИНКЕ (Круг + Текст)
+        
+        // СТИЛИ КНОПКИ (Контейнер)
                         btn.style = `
-                            margin-left: 15px; width: 45px; height: 45px; 
+                            width: 40px; height: 40px; 
                             border-radius: 50%; border: 2px solid var(--vox-cyan);
-                            background: transparent; color: var(--vox-cyan);
-                            font-family: var(--font-code); font-size: 10px; font-weight: 900;
-                            letter-spacing: 1px; display: flex; align-items: center; justify-content: center;
-                            box-shadow: 0 0 10px rgba(0, 243, 255, 0.2); transition: all 0.3s ease; cursor: pointer;
+                            background: transparent; padding: 0;
+                            display: flex; align-items: center; justify-content: center;
+                            box-shadow: 0 0 10px rgba(0, 243, 255, 0.2); 
+                            transition: all 0.3s ease; cursor: pointer; overflow: hidden;
                         `;
-                        btn.textContent = "CALL";
-                        
-                        // Эффекты при наведении
+
+                        // СОЗДАЕМ CANVAS
+                        const cvs = document.createElement('canvas');
+                        cvs.width = 40; 
+                        cvs.height = 40;
+                        const ctx = cvs.getContext('2d');
+
+        // ФУНКЦИЯ ОТРИСОВКИ (Кибер-Трубка)
+                        const drawIcon = (isActive) => {
+                            ctx.clearRect(0, 0, 40, 40); // Чистим холст
+            
+            // Настройка цвета
+                            const color = isActive ? '#000000' : '#00f3ff'; // При наведении черный (на фоне заливки), иначе циан
+            
+                            ctx.save();
+                            ctx.translate(20, 20); // Центр
+                            ctx.rotate(-45 * Math.PI / 180); // Поворот на 45 градусов (трубка лежит)
+                            ctx.translate(-20, -20); // Возвращаем координаты
+
+                            ctx.beginPath();
+                            ctx.lineWidth = 2.5;
+                            ctx.strokeStyle = color;
+                            ctx.fillStyle = color;
+            
+            // Рисуем угловатую трубку (Low Poly Style)
+            // Верхняя часть (динамик)
+                            ctx.moveTo(12, 10); 
+                            ctx.lineTo(28, 10);
+                            ctx.lineTo(28, 16);
+                            ctx.lineTo(24, 16);
+            
+            // Ручка (узкая часть)
+                            ctx.lineTo(24, 24); 
+                            ctx.lineTo(28, 24);
+            
+            // Нижняя часть (микрофон)
+                            ctx.lineTo(28, 30);
+                            ctx.lineTo(12, 30);
+                            ctx.lineTo(12, 24);
+                            ctx.lineTo(16, 24);
+            
+            // Возврат ручки
+                            ctx.lineTo(16, 16);
+                            ctx.lineTo(12, 16);
+                            ctx.closePath();
+
+                            if (isActive) {
+                                ctx.fill(); // Заливаем цветом при наведении
+                            } else {
+                                ctx.stroke(); // Только контур в обычном состоянии
+                
+                // Добавляем "техно-точки" внутри, когда не активно
+                                ctx.fillStyle = color;
+                                ctx.fillRect(18, 12, 4, 2); // Точка сверху
+                                ctx.fillRect(18, 26, 4, 2); // Точка снизу
+                            }
+            
+                            ctx.restore();
+                        };
+
+        // Рисуем исходное состояние
+                        drawIcon(false);
+                        btn.appendChild(cvs);
+
+        // Эффекты при наведении
                         btn.onmouseenter = () => { 
                             btn.style.background = "var(--vox-cyan)"; 
-                            btn.style.color = "black"; 
-                            btn.style.boxShadow = "0 0 25px var(--vox-cyan)";
+                            btn.style.boxShadow = "0 0 20px var(--vox-cyan)";
                             btn.style.transform = "scale(1.1)";
+                            drawIcon(true); // Перерисовываем (заливка)
                         };
                         btn.onmouseleave = () => { 
                             btn.style.background = "transparent"; 
-                            btn.style.color = "var(--vox-cyan)"; 
                             btn.style.boxShadow = "0 0 10px rgba(0, 243, 255, 0.2)";
                             btn.style.transform = "scale(1)";
+                            drawIcon(false); // Перерисовываем (контур)
                         };
 
-                        // Действие при клике
                         btn.onclick = () => {
                             const targetUid = chatId.replace(window.auth.currentUser.uid, '').replace('_', '');
                             CallSystem.initCall(targetUid);
                         };
-                        
-                        // Добавляем кнопку в заголовок
-                        header.appendChild(btn);
+        
+                        headerMain.appendChild(btn);
                     }
                     // --- КОНЕЦ ЛОГИКИ КНОПКИ ---
 
@@ -3357,6 +3417,7 @@
                         this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                         document.getElementById('localVideo').srcObject = this.localStream;
                         document.getElementById('localVideo').muted = true;
+                        document.getElementById('localVideo').style.display = 'block';
                     } catch(e) {
                         voxNotify("CAMERA/MIC ACCESS DENIED", "error");
                         this.endCall(false);
@@ -3495,6 +3556,7 @@
                         this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                         document.getElementById('localVideo').srcObject = this.localStream;
                         document.getElementById('localVideo').muted = true;
+                        document.getElementById('localVideo').style.display = 'block';
                     } catch(e) {
                         voxNotify("MEDIA ERROR", "error");
                         this.endCall(true);
@@ -3616,7 +3678,16 @@
                         const track = this.localStream.getVideoTracks()[0];
                         track.enabled = !track.enabled;
                         
-                        // ОБНОВЛЯЕМ БАЗУ ДАННЫХ
+                        // --- НОВАЯ ЛОГИКА: ПРЯЧЕМ/ПОКАЗЫВАЕМ ОКОШКО ---
+                        const localVidEl = document.getElementById('localVideo');
+                        if (track.enabled) {
+                            localVidEl.style.display = 'block'; // Камера ВКЛ — показываем окно
+                        } else {
+                            localVidEl.style.display = 'none';  // Камера ВЫКЛ — убираем окно полностью
+                        }
+                        // ----------------------------------------------
+
+                        // ОБНОВЛЯЕМ БАЗУ ДАННЫХ (Это у тебя уже было)
                         if(this.currentCallId) {
                             const field = this.isCaller ? 'callerMuted' : 'calleeMuted';
                             window.fbSet(window.fbDoc(window.db, "calls", this.currentCallId), { 
@@ -3624,6 +3695,7 @@
                             }, { merge: true });
                         }
 
+                        // МЕНЯЕМ ИКОНКУ КНОПКИ (Это тоже было)
                         const btn = document.getElementById('btnToggleCam');
                         if (track.enabled) {
                             btn.classList.remove('off'); btn.innerHTML = this.icons.cam;
@@ -3632,7 +3704,8 @@
                         }
                     }
                 }
-            };
+
+            }; // <-- close window.CallSystem object to prevent syntax errors
 
             // --- 14. UPDATED ADMIN: BLUE & EDIT/DELETE ---
             // Update AdminSystem init to apply blue mode
@@ -3646,7 +3719,7 @@
                     document.getElementById('adminToggleBtn').style.borderColor = "var(--vox-cyan)";
                     document.getElementById('adminToggleBtn').style.color = "var(--vox-cyan)";
                 }
-            };
+            }; 
             
             // Add Message Management to AdminSystem
             window.AdminSystem.deleteMessage = function(col, id) {
