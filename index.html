@@ -3061,9 +3061,10 @@
                     document.getElementById('modalText').textContent = msg;
                     document.getElementById('modalInput').style.display = 'none';
                     const btns = document.getElementById('modalActions');
-                    btns.innerHTML = `<button class="btn-tech" onclick="CustomDialog.close(true)">ACKNOWLEDGE</button>`;
+                    // ЯВНО УКАЗЫВАЕМ window.CustomDialog
+                    btns.innerHTML = `<button class="btn-tech" onclick="window.CustomDialog.close(true)">ACKNOWLEDGE</button>`;
                     m.classList.add('active');
-                    CustomDialog.resolver = resolve;
+                    window.CustomDialog.resolver = resolve;
                 });
             };
 
@@ -3075,11 +3076,11 @@
                     document.getElementById('modalInput').style.display = 'none';
                     const btns = document.getElementById('modalActions');
                     btns.innerHTML = `
-                        <button class="btn-tech" style="border-color:#555; color:#aaa;" onclick="CustomDialog.close(false)">CANCEL</button>
-                        <button class="btn-tech" onclick="CustomDialog.close(true)">CONFIRM</button>
+                        <button class="btn-tech" style="border-color:#555; color:#aaa;" onclick="window.CustomDialog.close(false)">CANCEL</button>
+                        <button class="btn-tech" onclick="window.CustomDialog.close(true)">CONFIRM</button>
                     `;
                     m.classList.add('active');
-                    CustomDialog.resolver = resolve;
+                    window.CustomDialog.resolver = resolve;
                 });
             };
 
@@ -3094,14 +3095,15 @@
                     inp.focus();
                     const btns = document.getElementById('modalActions');
                     btns.innerHTML = `
-                        <button class="btn-tech" style="border-color:#555; color:#aaa;" onclick="CustomDialog.close(null)">CANCEL</button>
-                        <button class="btn-tech" onclick="CustomDialog.close(document.getElementById('modalInput').value)">SUBMIT</button>
+                        <button class="btn-tech" style="border-color:#555; color:#aaa;" onclick="window.CustomDialog.close(null)">CANCEL</button>
+                        <button class="btn-tech" onclick="window.CustomDialog.close(document.getElementById('modalInput').value)">SUBMIT</button>
                     `;
                     m.classList.add('active');
-                    CustomDialog.resolver = resolve;
+                    window.CustomDialog.resolver = resolve;
                 });
             };
 
+            // ДЕЛАЕМ ОБЪЕКТ ГЛОБАЛЬНЫМ (window.)
             window.CustomDialog = {
                 resolver: null,
                 close(val) {
