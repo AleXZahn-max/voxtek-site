@@ -1803,6 +1803,38 @@
                     this.video.addEventListener('ended', () => {
                         this.playNext();
                     });
+                setTimeout(() => {
+                        // Ждем инициализации Firebase
+                        if(window.db) {
+                            const q = window.fbQuery(
+                                window.fbCol(window.db, "videos"), 
+                                window.fbOrder("createdAt", "desc"), // Новые сверху
+                                window.fbLimit(20) // Ограничим последними 20 видео
+                            );
+
+                            window.fbSnap(q, (snapshot) => {
+                                // Мы не очищаем плейлист полностью, чтобы не сбить локальные файлы (если ты их перетащил)
+                                // Но для простоты сейчас будем добавлять только новые
+                                snapshot.docChanges().forEach((change) => {
+                                    if (change.type === "added") {
+                                        const data = change.doc.data();
+                                        // Проверяем, нет ли уже такого видео (чтобы не дублировать)
+                                        const exists = this.playlist.some(v => v.url === data.url);
+                                        if(!exists) {
+                                            this.playlist.push({
+                                                name: data.name,
+                                                url: data.url,
+                                                isCloud: true // Метка, что это из облака
+                                            });
+                                            this.renderPlaylist();
+                                            voxNotify(`CLOUD VIDEO SYNCED: ${data.name.substring(0,10)}...`, 'info');
+                                        }
+                                    }
+                                    // Можно добавить логику для "removed", если ты удалишь видео из базы
+                                });
+                            });
+                        }
+                    }, 2000); // Небольшая задержка для старта
                 },
 
                 handleFiles(files) {
@@ -3197,23 +3229,38 @@
                             scrambler.setText(data.text);
                         }
                         });
-                        setTimeout(() => {
-                            feed.scrollTop = feed.scrollHeight;
-                        }, 50);
+                        feed.scrollTop = feed.scrollHeight;
                     });
                 },
 
                 // FILES
                 uploadMedia(file, type) {
                     voxNotify(`UPLOADING ${type.toUpperCase()} TO CLOUD...`, 'info');
+                    // Добавляем уникальный ID ко времени, чтобы имена точно не совпали
                     const path = `${type}/${Date.now()}_${file.name}`;
                     const storageRef = window.fbRef(window.storage, path);
 
                     window.fbUpload(storageRef, file).then((snapshot) => {
-                        voxNotify('UPLOAD COMPLETE. PROCESSING...', 'success');
+                        voxNotify('UPLOAD COMPLETE. SAVING DATA...', 'success');
                         window.fbUrl(snapshot.ref).then((url) => {
-                            if(type === 'video') VideoSystem.loadFromUrl(url);
-                            if(type === 'audio') MusicSystem.loadFromUrl(url);
+                            
+                            // --- ВОТ ГЛАВНОЕ ИЗМЕНЕНИЕ ---
+                            // Мы сохраняем ссылку в Базу Данных (Firestore)
+                            if(type === 'video') {
+                                window.fbAdd(window.fbCol(window.db, "videos"), {
+                                    name: file.name,
+                                    url: url,
+                                    type: 'video',
+                                    createdAt: window.fbTime(), // Чтобы сортировать по времени
+                                    author: window.auth.currentUser ? window.auth.currentUser.uid : 'anon'
+                                });
+                            }
+                            // Для аудио можно сделать так же, если захочешь (в коллекцию "music")
+                            else if(type === 'audio') {
+                                MusicSystem.loadFromUrl(url); // Пока оставляем по-старому
+                            }
+                            // -----------------------------
+                            
                         });
                     }).catch(err => {
                         voxNotify('UPLOAD FAILED: ' + err.message, 'error');
