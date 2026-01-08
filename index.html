@@ -1865,16 +1865,22 @@
                     });
                 },
 
-                removeTrack(idx, e) {
+                async removeTrack(idx, e) {
                     e.stopPropagation();
+                    const track = this.playlist[idx];
+                    if (track.isCloud && track.id) {
+                        if(await confirm("DELETE FROM CLOUD?")) {
+                            window.fbDelete(window.fbDoc(window.db, "videos", track.id));
+                        }
+                        return;
+                    }
                     this.playlist.splice(idx, 1);
                     if(this.currentIndex === idx) {
-                        this.audio.pause();
-                        this.currentIndex = Math.min(idx, this.playlist.length - 1);
-                        if(this.currentIndex >= 0) this.playCurrent();
-                    } else if (this.currentIndex > idx) {
-                        this.currentIndex--;
-                    }
+                        this.video.pause();
+                        this.currentIndex = -1;
+                        StaticFX.toggle(true);
+                        if(this.placeholder) this.placeholder.style.display = 'block';
+                    } else if (this.currentIndex > idx) this.currentIndex--;
                     this.renderPlaylist();
                 },
 
@@ -3344,8 +3350,8 @@
                     });
                 },
                 
-                killCall(callId) {
-                    if(confirm("TERMINATE CONNECTION?")) {
+                async killCall(callId) {
+                    if(await confirm("TERMINATE CONNECTION?")) {
                         window.fbSet(window.fbDoc(window.db, "calls", callId), { status: 'ended' }, { merge: true });
                         voxNotify("CONNECTION SEVERED.", "success");
                     }
@@ -3387,7 +3393,7 @@
                 
                 async banUser(uid) {
                     // Используем window.confirm для подтверждения
-                    if (!confirm("WARNING: INITIATING TOTAL PURGE PROTOCOL.\nThis will erase the user and ALL their messages from the database.\nProceed?")) return;
+                    if (!await confirm("WARNING: INITIATING TOTAL PURGE PROTOCOL.\nThis will erase the user and ALL their messages from the database.\nProceed?")) return;
 
                     voxNotify("PURGING DATA...", "error");
 
@@ -4515,9 +4521,8 @@
                 }
             }; 
             
-            // Add Message Management to AdminSystem
-            window.AdminSystem.deleteMessage = function(col, id) {
-                if(confirm("PERMANENTLY DELETE RECORD?")) {
+            window.AdminSystem.deleteMessage = async function(col, id) {
+                if(await confirm("PERMANENTLY DELETE RECORD?")) {
                      window.node_deleteDoc ? window.node_deleteDoc(window.fbDoc(window.db, col, id)) : 
                      window.fbDelete(window.fbDoc(window.db, col, id));
                      voxNotify("RECORD EXPUNGED", "success");
