@@ -1442,7 +1442,7 @@
                         <div class="invite-box">
                             <label class="form-label" style="color:#aaa;">INVITE NEW CITIZEN</label>
                             <div id="inviteLink" class="invite-link-display" onclick="AuthSystem.copyInvite()" title="Click to Copy">
-                                GENERATING LINK...
+                                REFERRAL LINK
                             </div>
                         </div>
 
@@ -3147,11 +3147,11 @@
                 }
             };
 
-// --- UPDATED: AUTH SYSTEM (WITH BAN MONITOR) ---
+            // --- UPDATED: AUTH SYSTEM (WITH BAN MONITOR) ---
             window.AuthSystem = {
                 currentUser: null,
                 isInitialized: false,
-                banListener: null,// Храним ссылку на слушатель бана
+                banListener: null,
                 heartbeat: null, 
 
                 init() {
@@ -3167,38 +3167,31 @@
                                 this.monitorBan(user.uid); 
                                 if(window.AdminSystem) AdminSystem.init(user);
 
-                                // --- 2. REAL PRESENCE (HEARTBEAT) ---
-                                // Обновляем "lastSeen" каждую минуту, пока вкладка открыта
+                                // Heartbeat
                                 this.heartbeat = setInterval(() => {
                                     window.fbSet(window.fbDoc(window.db, "users", user.uid), {
                                         lastSeen: window.fbTime(),
                                         isOnline: true
                                     }, { merge: true });
-                                }, 60000); // Раз в минуту
+                                }, 60000);
                                 
-                                // Сразу ставим онлайн при входе
                                 window.fbSet(window.fbDoc(window.db, "users", user.uid), { isOnline: true, lastSeen: window.fbTime() }, { merge: true });
 
                             } else {
                                 this.currentUser = null;
                                 if(this.banListener) this.banListener();
-                                if(this.heartbeat) clearInterval(this.heartbeat); // Останавливаем сердцебиение
+                                if(this.heartbeat) clearInterval(this.heartbeat);
                                 this.showAuth();
                             }
                         });
                     }
                 },
 
-                // --- ФУНКЦИЯ ПРОВЕРКИ БАНА ---
                 monitorBan(uid) {
-                    // Слушаем изменения в своем профиле в реальном времени
                     this.banListener = window.fbSnap(window.fbDoc(window.db, "users", uid), (doc) => {
                         const data = doc.data();
                         if (data && data.isBanned === true) {
-                            // ЕСЛИ ЗАБАНЕН:
-                            window.fbLogout(window.auth); // 1. Выкидываем из аккаунта
-                            
-                            // 2. Показываем красный экран смерти (VSOD)
+                            window.fbLogout(window.auth);
                             const vsod = document.getElementById('vsod-layer');
                             vsod.classList.add('active');
                             vsod.innerHTML = `
@@ -3216,7 +3209,6 @@
                     });
                 },
 
-                // (Остальные методы остаются без изменений)
                 switchTab(tab) {
                     document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
                     document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
@@ -3229,7 +3221,6 @@
                     }
                     SoundFX.click();
                 },
-                // ВНУТРИ AuthSystem:
 
                 register() {
                     let u = document.getElementById('regUser').value.trim();
@@ -3237,13 +3228,28 @@
                     if (!u.includes('@')) u = u + '@voxtek.net';
                     if(!u || !p) return voxNotify('Credentials required.', 'error');
                     
-                    // ВМЕСТО РЕГИСТРАЦИИ СРАЗУ ОТКРЫВАЕМ КОНТРАКТ
                     ContractSystem.open(u, p);
                 },
 
-                // ЭТОТ МЕТОД ВЫЗОВЕТСЯ ПОСЛЕ ПОДПИСИ
+                // 🔥 ИСПРАВЛЕНИЕ ЗДЕСЬ: Логика перенесена внутрь функции 🔥
                 finalizeRegister(u, p) {
-                    voxNotify('CONTRACT SEALED. THANK YOU FOR COOPORATING WITH VOXTEK. TRUST US WITH YOUR NETWORK.', 'info');
+                    // 1. Сначала вычисляем реферала
+                    const urlParams = new URLSearchParams(window.location.search);
+                    let referrerId = urlParams.get('ref');
+                    
+                    if (referrerId && referrerId.includes('_')) {
+                        const parts = referrerId.split('_');
+                        const ts = parseInt(parts[1]);
+                        const lifeTime = 12 * 60 * 60 * 1000;
+                                    
+                        if (!ts || (Date.now() - ts > lifeTime)) {
+                            referrerId = null; 
+                        } else {
+                            referrerId = parts[0]; 
+                        }
+                    }
+
+                    voxNotify('CONTRACT SEALED. THANK YOU FOR COOPORATING WITH VOXTEK.', 'info');
                     
                     window.fbRegister(window.auth, u, p)
                         .then((cred) => {
@@ -3254,13 +3260,14 @@
                                 isOnline: true,
                                 lastSeen: window.fbTime(),
                                 contractSigned: true,
-                                invitedBy: referrerId || null
+                                invitedBy: referrerId || null // Теперь переменная referrerId доступна
                             }, { merge: true });
 
                             voxNotify('WELCOME TO THE VOXTEK ENTERPRISES.', 'success');
                         })
                         .catch((error) => { voxNotify('ERROR: ' + error.message, 'error'); });
                 },
+
                 login() {
                     let u = document.getElementById('loginUser').value.trim();
                     const p = document.getElementById('loginPass').value.trim();
@@ -3269,23 +3276,28 @@
                     window.fbLogin(window.auth, u, p)
                         .catch((error) => { voxNotify('ACCESS DENIED. ' + error.message, 'error'); SoundFX.error(); });
                 },
+
                 logout() {
                     window.fbLogout(window.auth).then(() => voxNotify('DISCONNECTED.', 'info'));
                 },
+
                 copyInvite() {
                     const user = window.auth.currentUser;
                     if(!user) return;
                     
-                    const url = `${window.location.origin}${window.location.pathname}?ref=${user.uid}`;
+                    const timestamp = Date.now();
+                    const url = `${window.location.origin}${window.location.pathname}?ref=${user.uid}_${timestamp}`;
                     
                     navigator.clipboard.writeText(url).then(() => {
-                        voxNotify("UPLINK COPIED TO CLIPBOARD", "success");
+                        voxNotify("TEMPORARY UPLINK COPIED (12H)", "success");
                     });
                 },
+
                 showAuth() {
                     document.getElementById('msgAuth').style.display = 'flex';
                     document.getElementById('msgApp').classList.remove('active');
                 },
+
                 showApp() {
                     document.getElementById('msgAuth').style.display = 'none';
                     document.getElementById('msgApp').classList.add('active');
@@ -3294,6 +3306,7 @@
                         CloudSystem.listenToUsers();
                     }
                 },
+                
                 send() {
                     const inp = document.getElementById('msgInput');
                     const txt = inp.value.trim();
@@ -4098,6 +4111,14 @@
                 }
             });
 
+            window.CustomDialog = {
+                resolver: null,
+                close(val) {
+                    document.getElementById('customModal').classList.remove('active');
+                    if(this.resolver) this.resolver(val);
+                }
+            };
+
 // --- 12. CUSTOM ALERTS (OVERRIDE BROWSER DEFAULTS) ---
             window.alert = (msg) => {
                 return new Promise(resolve => {
@@ -4146,15 +4167,6 @@
                     m.classList.add('active');
                     window.CustomDialog.resolver = resolve;
                 });
-            };
-
-            // ДЕЛАЕМ ОБЪЕКТ ГЛОБАЛЬНЫМ (window.)
-            window.CustomDialog = {
-                resolver: null,
-                close(val) {
-                    document.getElementById('customModal').classList.remove('active');
-                    if(this.resolver) this.resolver(val);
-                }
             };
 
             // --- 13. WEBRTC CALL SYSTEM (FINAL: AVATARS & SYNC) ---
@@ -4698,6 +4710,60 @@
                          } catch (e) { 
                              console.log("Waiting for auth to stabilize..."); 
                          }
+                    }
+                    
+                    // 🔥 ПРОВЕРКА РЕФЕРАЛЬНОЙ ССЫЛКИ НА СРОК ГОДНОСТИ 🔥
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const refRaw = urlParams.get('ref');
+
+                    if (refRaw) {
+                        setTimeout(() => {
+                            // Разбираем ссылку: UID_ВРЕМЯ
+                            const parts = refRaw.split('_');
+                            const ts = parseInt(parts[1]); // Время создания ссылки
+                            const now = Date.now();
+                            const lifeTime = 12 * 60 * 60 * 1000; // 12 часов в миллисекундах
+
+                            const m = document.getElementById('customModal');
+                            const title = document.getElementById('modalTitle');
+                            const text = document.getElementById('modalText');
+                            const btns = document.getElementById('modalActions');
+                            document.getElementById('modalInput').style.display = 'none';
+
+                            // ПРОВЕРКА: Если времени нет или прошло больше 12 часов
+                            if (!ts || (now - ts > lifeTime)) {
+                                // ❌ ССЫЛКА ПРОСРОЧЕНА
+                                if(window.SoundFX) SoundFX.error();
+                                
+                                title.textContent = "/// LINK EXPIRED ///";
+                                title.style.color = "var(--alert-red)";
+                                text.innerText = "THIS INVITATION SIGNAL HAS DISSIPATED.\nTHE REFERRAL CODE IS NO LONGER VALID.\n\nACCESS VIA THIS UPLINK DENIED.";
+                                
+                                btns.innerHTML = `<button class="btn-tech" style="width:100%; border-color:var(--alert-red); color:var(--alert-red);" onclick="window.CustomDialog.close()">CLOSE TERMINAL</button>`;
+                            
+                            } else {
+                                // ✅ ВСЁ ОТЛИЧНО
+                                if(window.SoundFX) {
+                                    SoundFX.playTone(600, 'sine', 0.5);
+                                    setTimeout(() => SoundFX.playTone(800, 'sine', 0.5), 200);
+                                }
+                                
+                                title.textContent = "★ CONGRATULATIONS ★";
+                                title.style.color = "var(--vox-cyan)";
+                                text.innerText = "YOU HAVE BEEN INVITED TO VOXTEK ENTERPRISES.\nYOUR PRESENCE HAS BEEN LOGGED.\n\nPLEASE REGISTER TO CLAIM YOUR CITIZENSHIP.";
+                                
+                                btns.innerHTML = `
+                                    <button class="btn-tech" style="width:100%" onclick="
+                                        window.CustomDialog.close(); 
+                                        Router.go('messenger'); 
+                                        if(window.AuthSystem) AuthSystem.switchTab('register');
+                                    ">CLAIM CITIZENSHIP</button>
+                                `;
+                            }
+                            
+                            m.classList.add('active');
+
+                        }, 1500);
                     }
 
                     // 3. Запускаем Админские Алерты (красные окна)
