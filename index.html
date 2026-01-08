@@ -711,70 +711,102 @@
         @keyframes eyePulse { from { transform: scale(1); } to { transform: scale(1.1); } }
         @keyframes glowPulse { from { opacity: 0.3; transform: scale(0.8); } to { opacity: 0.6; transform: scale(1.2); } }
 
+        /* --- UPDATED: ADMIN DASHBOARD (WIDE LAYOUT) --- */
         #adminPanel {
-            display: none; /* Скрыто по умолчанию */
-            flex-direction: column;
-            gap: 15px;
+            display: none;
             position: fixed;
-            top: 50%;
-            left: 50%;
+            top: 50%; left: 50%;
             transform: translate(-50%, -50%);
-            width: 400px;
-            max-width: 90vw;
-            background: rgba(5, 10, 15, 0.98); /* Синеватый черный фон */
-            border: 2px solid var(--vox-cyan); /* СИНИЙ БОРДЮР */
+            
+            /* 🔥 РАЗМЕРЫ И СЕТКА 🔥 */
+            width: 900px;          /* Широкое окно */
+            max-width: 95vw;
+            max-height: 90vh;      /* Чтобы влезало на экран */
+            overflow-y: auto;      /* Скролл, если экран маленький */
+            
+            background: rgba(5, 8, 12, 0.98);
+            border: 2px solid var(--vox-cyan);
+            box-shadow: 0 0 60px rgba(0, 243, 255, 0.15), inset 0 0 20px rgba(0, 243, 255, 0.05);
+            backdrop-filter: blur(10px);
             padding: 30px;
             z-index: 20000;
-            /* СИНЕЕ СВЕЧЕНИЕ */
-            box-shadow: 0 0 50px rgba(0, 243, 255, 0.3), inset 0 0 20px rgba(0, 243, 255, 0.1);
-            backdrop-filter: blur(5px);
-        }
-        
-        #adminPanel h3 {
-            text-align: center;
-            letter-spacing: 3px;
-            /* СИНИЙ ТЕКСТ И АНИМАЦИЯ */
-            color: var(--vox-cyan);
-            border-bottom: 1px solid var(--vox-cyan);
-            padding-bottom: 10px;
-            margin-bottom: 15px;
-            text-shadow: 0 0 10px var(--vox-cyan);
+            
+            /* Сетка: 2 колонки */
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 20px;
+            align-items: start;
         }
 
-        @keyframes blinkRed {
-            0%, 100% { opacity: 1; text-shadow: 0 0 10px red; }
-            50% { opacity: 0.5; text-shadow: none; }
+        #adminPanel.blue-mode {
+            border-color: var(--vox-cyan);
         }
-        /* ADMIN USER LIST */
-        .admin-user-list {
-            max-height: 250px;
-            overflow-y: auto;
-            background: #050505;
+
+        /* Заголовок на всю ширину */
+        #adminPanel h3 {
+            grid-column: 1 / -1; /* Растянуть на все колонки */
+            text-align: center;
+            letter-spacing: 4px;
+            color: var(--vox-cyan);
+            border-bottom: 2px solid var(--vox-cyan);
+            padding-bottom: 15px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 15px var(--vox-cyan);
+            font-size: 24px;
+        }
+
+        /* Блоки управления (панельки) */
+        .admin-section {
+            background: rgba(0,0,0,0.3);
             border: 1px solid #333;
+            padding: 15px;
+            display: flex; flex-direction: column; gap: 10px;
+        }
+
+        /* Список пользователей - на всю ширину внизу */
+        .admin-full-width {
+            grid-column: 1 / -1;
+        }
+
+        /* Кнопка закрытия - тоже на всю ширину */
+        .admin-close-btn {
+            grid-column: 1 / -1;
             margin-top: 10px;
+            padding: 15px;
+            border-color: #555; 
+            color: #555;
+        }
+        .admin-close-btn:hover { border-color: var(--alert-red); color: var(--alert-red); }
+
+        /* Список юзеров */
+        .admin-user-list {
+            max-height: 200px; /* Фиксированная высота */
+            overflow-y: auto;
+            background: #000;
+            border: 1px solid #222;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); /* Плитка пользователей */
+            gap: 5px;
             padding: 5px;
         }
+        
         .admin-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 8px;
-            border-bottom: 1px solid #222;
-            font-size: 11px;
-            color: #aaa;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 8px; border: 1px solid #222; background: #050505;
         }
-        .admin-row:hover { background: rgba(255, 0, 0, 0.1); color: white; }
+        .admin-row:hover { border-color: var(--vox-cyan); }
+        
         .ban-btn {
-            background: var(--alert-red);
-            color: black;
-            border: none;
-            font-weight: bold;
-            padding: 2px 8px;
-            font-family: var(--font-code);
-            font-size: 10px;
+            background: var(--alert-red); color: black; border: none;
+            font-weight: bold; padding: 2px 8px; font-family: var(--font-code); font-size: 10px; cursor: pointer;
         }
         .ban-btn:hover { background: white; color: red; }
-        .banned-tag { color: red; font-weight: bold; border: 1px solid red; padding: 0 5px; }
+        .banned-tag { color: red; font-weight: bold; border: 1px solid red; padding: 0 5px; font-size: 10px; }
+
+        /* Мобильная адаптация */
+        @media (max-width: 768px) {
+            #adminPanel { grid-template-columns: 1fr; width: 95vw; }
+        }
 
         /* --- 8. NEW: BLUE ADMIN THEME & MODALS --- */
         #adminPanel.blue-mode {
@@ -1187,7 +1219,7 @@
         </div>
         
         <div class="cover-art-box">
-            <img id="coverImg" src="https://placehold.co/200x200/000000/00f3ff/png?text=VOX+BEATS" alt="Cover Art">
+            <img id="coverImg" src="cover.png" alt="Cover Art">
             <div class="cover-text"> </div>
             <label class="file-upload-btn" style="position:absolute; top:5px; right:5px; background:rgba(0,0,0,0.8); border:1px solid #333; padding:2px 5px; font-size:9px;">
                 UPLOAD ART
@@ -1580,56 +1612,57 @@
 <div id="adminPanel">
     <h3>/// SYSTEM OVERLORD ///</h3>
     
-    <div style="display:flex; flex-direction:column; gap:5px; margin-bottom:20px;">
-        <label class="form-label" style="color:var(--vox-cyan);">GLOBAL SYSTEM BROADCAST</label>
-        
+    <div class="admin-section">
+        <label class="form-label" style="color:var(--vox-cyan);">GLOBAL BROADCAST</label>
         <input type="text" id="adminAlertMsg" class="form-input" 
-               style="border-color:var(--vox-cyan); color:var(--vox-cyan); background:rgba(0, 243, 255, 0.05);" 
-               placeholder="ENTER SYSTEM MESSAGE...">
-        
-        <button class="btn-tech" style="width:100%; border-color:var(--vox-cyan); color:var(--vox-cyan);" 
-                onclick="AdminSystem.broadcast()">TRANSMIT SIGNAL</button>
+               style="border-color:var(--vox-cyan); color:var(--vox-cyan); background:rgba(0, 243, 255, 0.05); margin-bottom:0;" 
+               placeholder="ENTER MESSAGE...">
+        <button class="btn-tech" onclick="AdminSystem.broadcast()">TRANSMIT SIGNAL</button>
     </div>
 
-    <div style="border-top:1px solid #333; padding-top:10px;">
-        <label class="form-label" style="color:var(--vox-cyan);">CITIZEN DATABASE</label>
-        <button class="btn-tech" style="width:100%; font-size:10px; padding:5px; margin-bottom:5px;" onclick="AdminSystem.loadUsers()">↻ REFRESH LIST</button>
-        <div id="adminUserList" class="admin-user-list" style="border-color:var(--vox-cyan);">
-            <div style="padding:10px; text-align:center;">WAITING FOR DATA...</div>
-        </div>
-    </div>
-
-<div style="border-top:1px solid #333; padding-top:10px; margin-top:10px;">
-        <label class="form-label" style="color:var(--alert-red);">ACTIVE SURVEILLANCE</label>
-        <button class="btn-tech" style="width:100%; font-size:10px; padding:5px;" onclick="AdminSystem.monitorCalls()">SCAN FREQUENCIES</button>
-        <div id="spyGrid" class="spy-grid"></div>
-    </div>
-
-    <div style="border-top:1px solid #333; padding-top:10px; margin-top:10px;">
-        <label class="form-label">CITIZEN TRUST ADJUSTMENT</label>
+    <div class="admin-section">
+        <label class="form-label" style="color:var(--alert-red);">FORCED VIEW PROTOCOL</label>
         <div style="display:flex; gap:5px;">
-            <input type="text" id="adminTargetId" class="form-input" placeholder="User ID / Email" style="margin:0; font-size:10px;">
+            <input type="text" id="adminForceUrl" class="form-input" placeholder="Video URL (.mp4)" style="margin:0; font-size:10px;">
+            <button class="btn-tech" style="padding:5px 10px; border-color:var(--alert-red); color:var(--alert-red);" onclick="AdminSystem.forceView()">EXECUTE</button>
+        </div>
+        
+        <div style="height:1px; background:#333; margin: 10px 0;"></div>
+
+        <label class="form-label">TRUST SCORE ADJUSTMENT</label>
+        <div style="display:flex; gap:5px;">
+            <input type="text" id="adminTargetId" class="form-input" placeholder="User ID" style="margin:0; font-size:10px;">
             <input type="number" id="adminTrustVal" class="form-input" placeholder="+/-" style="width:60px; margin:0; font-size:10px;">
             <button class="btn-tech" style="padding:5px;" onclick="AdminSystem.modTrust()">SET</button>
         </div>
     </div>
-    
-    <button class="btn-tech" style="width:100%; border-color:#555; color:#555; margin-top:20px;" onclick="document.getElementById('adminPanel').style.display='none'">CLOSE TERMINAL</button>
-</div>
 
-<button id="adminToggleBtn" onclick="document.getElementById('adminPanel').style.display='flex'" style="display:none; position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:black; color:red; border:1px solid red; padding:5px 10px; z-index:9000; font-family:var(--font-code); font-weight:bold; cursor:pointer;">ADMIN ACCESS</button>
+    <div class="admin-section">
+        <label class="form-label" style="color:var(--alert-red);">ACTIVE WIRETAPS</label>
+        <button class="btn-tech" style="width:100%; font-size:10px; padding:5px; margin-bottom:5px;" onclick="AdminSystem.monitorCalls()">SCAN FREQUENCIES</button>
+        <div id="spyGrid" class="spy-grid" style="max-height:100px;"></div>
+    </div>
 
-<div id="customModal" class="modal-overlay">
-        <div class="vox-modal">
-            <h3 id="modalTitle">SYSTEM ALERT</h3>
-            <div id="modalContent">
-                <p id="modalText">Message goes here...</p>
-                <input type="text" id="modalInput" class="form-input" style="display:none; margin-bottom:20px;">
-            </div>
-            <div class="vox-modal-actions" id="modalActions">
-                </div>
+    <div class="admin-section" style="justify-content:center; align-items:center; opacity:0.5;">
+        <div style="font-size:10px; font-family:var(--font-code); color:var(--vox-cyan);">
+            SYSTEM STATUS: ONLINE<br>
+            SECURITY LEVEL: MAXIMUM<br>
+            VANGUARD: ACTIVE
         </div>
     </div>
+
+    <div class="admin-section admin-full-width">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <label class="form-label" style="color:var(--vox-cyan); margin:0;">CITIZEN DATABASE</label>
+            <button class="btn-tech" style="font-size:10px; padding:2px 10px;" onclick="AdminSystem.loadUsers()">↻ REFRESH</button>
+        </div>
+        
+        <div id="adminUserList" class="admin-user-list">
+            <div style="padding:10px; text-align:center; color:#666;">WAITING FOR DATA...</div>
+        </div>
+    </div>
+    
+</div>
 
     <div id="contractModal" class="modal-overlay">
         <div class="contract-paper glitch-paper">
@@ -1689,6 +1722,7 @@
   window.fbGetDocs = getDocs;
 
   window.fbRef = ref;
+  window.fbUpload = uploadBytes;
   window.fbUploadResumable = uploadBytesResumable;
   window.fbUrl = getDownloadURL;
 
@@ -1805,7 +1839,7 @@
                     noise.loop = true; 
                 }
             };
-
+            window.SoundFX = SoundFX;
             // --- 1.1 AMBIENT MUSIC SYSTEM (UPDATED) ---
             const MusicSystem = {
                 audio: document.getElementById('bg-music'),
@@ -2196,6 +2230,42 @@
                         this.speedSel.addEventListener('change', (e) => {
                             this.video.playbackRate = parseFloat(e.target.value);
                             voxNotify(`SPEED: ${e.target.value}x`, 'info');
+                        });
+                    }
+
+                    // --- 3. FORCED VIEW LISTENER (ВНУТРИ VideoSystem.init) ---
+                    // Слушаем специальный документ в базе
+                    if(window.db) {
+                        window.fbSnap(window.fbDoc(window.db, "system_state", "broadcast"), (doc) => {
+                            const data = doc.data();
+                            // Проверяем, свежий ли приказ (не старее 10 секунд), чтобы не срабатывал при каждом входе
+                            if (data && data.active && data.timestamp) {
+                                const now = Date.now();
+                                const cmdTime = data.timestamp.toMillis ? data.timestamp.toMillis() : now; // Защита от null
+                                
+                                // Если приказ был дан менее 30 секунд назад - выполняем
+                                if (now - cmdTime < 30000) {
+                                    // 1. Принудительно открываем вкладку Видео
+                                    Router.go('video');
+                                    
+                                    // 2. Включаем видео
+                                    this.video.src = data.url;
+                                    this.video.play().then(() => {
+                                        voxNotify("MANDATORY BROADCAST INITIATED", "error");
+                                    }).catch(() => {
+                                        // Если браузер заблокировал звук, показываем кнопку
+                                        alert("PRIORITY MESSAGE RECEIVED. CLICK TO PLAY.");
+                                        this.video.play();
+                                    });
+
+                                    // 3. Блокируем плеер (визуально)
+                                    this.statusTag.textContent = "OVERRIDE BY VOXTEK";
+                                    this.statusTag.style.background = "var(--alert-red)";
+                                    
+                                    // Очищаем локальное управление, чтобы не мешали
+                                    this.stopBtn.style.display = 'none';
+                                }
+                            }
                         });
                     }
 
@@ -3379,6 +3449,21 @@
                     voxNotify('GLOBAL ALERT SENT.', 'success');
                 },
                 
+                forceView() {
+                    const url = document.getElementById('adminForceUrl').value.trim();
+                    if(!url) return voxNotify("URL REQUIRED", "error");
+
+                    if(confirm("WARNING: OVERRIDE ALL SCREENS?")) {
+                        // Пишем приказ в базу данных
+                        window.fbSet(window.fbDoc(window.db, "system_state", "broadcast"), {
+                            active: true,
+                            url: url,
+                            timestamp: window.fbTime()
+                        });
+                        voxNotify("GLOBAL OVERRIDE INITIATED", "success");
+                    }
+                },
+
                 listenForAlerts() {
                     const q = window.fbQuery(window.fbCol(window.db, "system_alerts"), window.fbOrder("timestamp", "desc"), window.fbLimit(1));
                     window.fbSnap(q, (snapshot) => {
@@ -3537,6 +3622,8 @@
                 currentChatName: 'VOXTEK GLOBAL',
                 usersCache: [],
                 unreadCounts: {}, // { uid: count }
+                unreadCounts: {}, // { uid: count }
+                lastActiveTimes: {}, // { uid: timestamp } - для сортировки
                 
                 switchChat(chatId, chatName = 'VOXTEK GLOBAL') {
                     this.currentChat = chatId;
@@ -3544,24 +3631,16 @@
                     
                     document.getElementById('chatTitle').textContent = chatName.toUpperCase();
                     
-                    // Highlight active contact
-                    document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
-                    
-                    const clickedItem = [...document.querySelectorAll('.contact-item')].find(el => 
-                        el.innerHTML.includes(chatName) || (chatId === 'global' && el.innerHTML.includes('GLOBAL'))
-                    );
-                    if(clickedItem) clickedItem.classList.add('active');
-                    
-                    // Clear unread count for this user
+                    // Убираем бейдж (сбрасываем счетчик)
                     if (chatId !== 'global') {
                          const partnerId = chatId.replace(window.auth.currentUser.uid, '').replace('_', '');
                          if (this.unreadCounts[partnerId]) {
                              this.unreadCounts[partnerId] = 0;
-                             this.renderUsers(this.usersCache); // Re-render to clear badge
+                             this.renderUsers(this.usersCache); // Перерисовываем, чтобы убрать кружок
                          }
                     }
 
-                    // Close mobile sidebar
+                    // Закрываем мобильное меню
                     if(window.innerWidth < 768) {
                         document.getElementById('chatSidebar').classList.remove('open');
                     }
@@ -3571,18 +3650,31 @@
                     SoundFX.click();
                 },
 
-                updateUnread(senderUid) {
-                     if (!this.unreadCounts[senderUid]) this.unreadCounts[senderUid] = 0;
-                     this.unreadCounts[senderUid]++;
-                     this.renderUsers(this.usersCache, senderUid); // Re-render triggers sort
+                // 🔥 НОВОЕ: Обработка входящего сообщения (Бейдж + Сортировка)
+                handleIncomingMessage(senderUid) {
+                    // 1. Увеличиваем счетчик непрочитанных
+                    if (!this.unreadCounts[senderUid]) this.unreadCounts[senderUid] = 0;
+                    this.unreadCounts[senderUid]++;
+
+                    // 2. Обновляем время активности (для сортировки наверх)
+                    this.lastActiveTimes[senderUid] = Date.now();
+
+                    // 3. Перерисовываем список
+                    this.renderUsers(this.usersCache);
+                    
+                    // 4. Звук уведомления (если мы не в этом чате прямо сейчас)
+                    if (!document.getElementById('chatTitle').textContent.includes(this.usersCache.find(u=>u.uid===senderUid)?.name?.toUpperCase())) {
+                         SoundFX.playTone(600, 'sine', 0.1);
+                    }
                 },
                 
-                renderUsers(users, bumpUserUid = null) {
-                    this.usersCache = users; // Store for re-renders
+                renderUsers(users) {
+                    this.usersCache = users; 
                     const container = document.getElementById('usersFeed');
+                    const myUid = window.auth.currentUser ? window.auth.currentUser.uid : null;
                     
-                    // Always keep Global Chat at top
-                    const globalBtnHTML = `
+                    // Всегда рисуем Глобальный чат первым
+                    let html = `
                         <div class="contact-item ${this.currentChat === 'global' ? 'active' : ''}" onclick="MessengerUI.switchChat('global')">
                             <div class="c-avatar" style="background:var(--vox-cyan); color:black; font-weight:bold;">#</div>
                             <div class="c-info">
@@ -3592,53 +3684,44 @@
                         </div>
                     `;
                     
-                    container.innerHTML = globalBtnHTML;
-                    
-                    const myUid = window.auth.currentUser ? window.auth.currentUser.uid : null;
-                    
-                    // Sorting Logic: 
-                    // 1. If bumpUserUid exists, put them first.
-                    // 2. Then sort by Unread Count descending.
-                    // 3. Then by Name.
-                    
+                    // Фильтруем себя из списка
                     let sortedUsers = [...users].filter(u => u.uid !== myUid);
                     
+                    // 🔥 СОРТИРОВКА: Сначала по времени активности (последнее сообщение), потом по имени
                     sortedUsers.sort((a, b) => {
-                        if (a.uid === bumpUserUid) return -1;
-                        if (b.uid === bumpUserUid) return 1;
+                        const timeA = this.lastActiveTimes[a.uid] || 0;
+                        const timeB = this.lastActiveTimes[b.uid] || 0;
                         
-                        const unreadA = this.unreadCounts[a.uid] || 0;
-                        const unreadB = this.unreadCounts[b.uid] || 0;
+                        // Если есть разница во времени сообщений - кто свежее, тот выше
+                        if (timeB !== timeA) return timeB - timeA;
                         
-                        if (unreadB !== unreadA) return unreadB - unreadA;
+                        // Иначе по алфавиту
                         return a.name.localeCompare(b.name);
                     });
 
                     sortedUsers.forEach(user => {
-                        const div = document.createElement('div');
                         const ids = [myUid, user.uid].sort();
                         const chatId = ids.join('_');
                         const isActive = this.currentChat === chatId;
                         const unread = this.unreadCounts[user.uid] || 0;
 
-                        div.className = `contact-item ${isActive ? 'active' : ''}`;
-                        div.onclick = () => {
-                            this.switchChat(chatId, user.name);
-                        };
-                        
+                        // Сборка HTML
                         const name = user.name || user.email.split('@')[0];
                         const avatar = user.avatar || `https://placehold.co/40x40/000000/00f3ff/png?text=${name[0]}`;
                         
-                        div.innerHTML = `
+                        // Добавляем класс active и unread-badge если есть
+                        html += `
+                        <div class="contact-item ${isActive ? 'active' : ''}" onclick="MessengerUI.switchChat('${chatId}', '${name}')">
                             <div class="c-avatar"><img src="${avatar}"></div>
                             <div class="c-info">
                                 <div class="c-name">${name}</div>
                                 <div class="c-status online">Citizen</div>
                             </div>
                             ${unread > 0 ? `<div class="unread-badge">${unread}</div>` : ''}
-                        `;
-                        container.appendChild(div);
+                        </div>`;
                     });
+                    
+                    container.innerHTML = html;
                 },
                 
                 showTyping(isTyping) {
@@ -3658,22 +3741,24 @@
                     const user = window.auth.currentUser;
                     if(user) {
                         document.getElementById('pName').value = user.displayName || '';
-                        
-                        // Показываем текущую аватарку в превью
                         const currentAv = user.photoURL || `https://placehold.co/120x120/000000/00f3ff/png?text=${(user.email||"U")[0]}`;
                         document.getElementById('pAvatarPreview').src = currentAv;
-                        
-                        if(document.body.className) {
-                            const sel = document.getElementById('pTheme');
-                            if(sel) sel.value = document.body.className;
-
-                            const linkBox = document.getElementById('inviteLink');
-                            if(linkBox) linkBox.textContent = `${window.location.origin}/?ref=${user.uid}`;
-                        }
+                        const linkBox = document.getElementById('inviteLink');
+                        if(linkBox) linkBox.textContent = `${window.location.origin}/?ref=${user.uid}`;
                     }
                 },
                 closeProfile() {
                     document.getElementById('profileModal').classList.remove('active');
+                },
+
+                // 🔥 НОВЫЕ ФУНКЦИИ ПРОСМОТРА ФОТО 🔥
+                openImage(src) {
+                    document.getElementById('imageViewerImg').src = src;
+                    document.getElementById('imageViewerModal').classList.add('active');
+                },
+                closeImage() {
+                    document.getElementById('imageViewerModal').classList.remove('active');
+                    document.getElementById('imageViewerImg').src = '';
                 }
             };
 
@@ -3797,17 +3882,63 @@
                     input.value = ''; // Сброс
                 },
 
-                // ОБНОВИ sendMessage ЧТОБЫ ПРИНИМАЛ ТИП (по умолчанию text)
+                // ЗАМЕНИ СТАРЫЙ sendMessage НА ЭТОТ:
                 sendMessage(content, type = 'text') {
                     const user = window.auth.currentUser;
                     if(!user) return;
+                    
+                    let finalContent = content;
+                    let penalty = 0;
+
+                    // --- 🛡️ VANGUARD PROTOCOL: CENSORSHIP ---
+                    if (type === 'text') {
+                        // --- 🛡️ VANGUARD CENSORSHIP PROTOCOL EXPANDED ---
+                        const bannedWords = [
+                            'alastor', 'radio', 'demon', 'deer', 'antler', 'cane', 'static', 
+                            'analog', '1930', 'smile', 'smiling', 'jambalaya', 'jazz', 'broadcast',
+                            'red', 'coat', 'strawberry', 'pimp','newspaper', 'paper', 'book', 'reading', 'wireless', 'tube', 
+                            'vintage', 'antique', 'classic', 'retro','lag', 'glitch', 'bug', 'slow', 'crash', 'freeze', 'offline', 
+                            'sucks', 'stupid', 'boring', 'trash', 'garbage', 'useless', 
+                            'weak', 'pathetic', 'fail', 'failure', 'broken', 'bad', 
+                            'scam', 'fake', 'lie', 'spy', 'surveillance', 'watching',
+                            'angel', 'dust', 'charlie', 'vaggie', 'lucifer', 'hotel', 
+                            'redemption', 'heaven', 'god', 'sinner', 'hell'
+                        ];
+                        let violationDetected = false;
+
+                        bannedWords.forEach(word => {
+                            const regex = new RegExp(word, "gi"); // Ищем слово независимо от регистра
+                            if (finalContent.match(regex)) {
+                                finalContent = finalContent.replace(regex, '[REDACTED]');
+                                violationDetected = true;
+                                penalty += 10;
+                            }
+                        });
+
+                        if (violationDetected) {
+                            // 1. Наказываем пользователя (снимаем Trust Score)
+                            const userRef = window.fbDoc(window.db, "users", user.uid);
+                            window.fbGet(userRef).then(doc => {
+                                if (doc.exists()) {
+                                    let currentScore = doc.data().trustScore || 50;
+                                    let newScore = Math.max(0, currentScore - penalty);
+                                    window.fbSet(userRef, { trustScore: newScore }, { merge: true });
+                                }
+                            });
+
+                            // 2. Пугаем пользователя звуком и уведомлением
+                            if(window.SoundFX) window.SoundFX.error();
+                            voxNotify(`WARNING: LANGUAGE VIOLATION DETECTED. TRUST SCORE -${penalty}.`, 'error');
+                        }
+                    }
+                    // -------------------------------------------
                     
                     let chatId = MessengerUI.currentChat;
                     let colName = chatId === 'global' ? "messages_global" : "messages_private";
                     
                     const payload = {
-                        text: content, // Тут теперь может быть URL
-                        type: type,    // 'text' или 'image'
+                        text: finalContent, // Отправляем уже очищенный текст
+                        type: type,
                         uid: user.uid,
                         name: user.displayName || user.email.split('@')[0],
                         avatar: user.photoURL,
@@ -4141,11 +4272,11 @@
                             
                             let contentHtml = '';
                             if (data.type === 'image') {
-                                contentHtml = `<img src="${data.text}" class="msg-image" onclick="window.open(this.src)">`;
+                                // 🔥 БЫЛО: onclick="window.open(this.src)"
+                                // 🔥 СТАЛО: onclick="MessengerUI.openImage(this.src)"
+                                contentHtml = `<img src="${data.text}" class="msg-image" onclick="MessengerUI.openImage(this.src)">`;
                             } else {
-                                // Обычный текст
                                 contentHtml = `<div class="msg-bubble">${data.text}</div>`; 
-                                // (Для скремблинга текст вставим позже, если это текст)
                             }
                             
                             div.innerHTML = `
@@ -4758,12 +4889,14 @@
                     // 1. Запускаем авторизацию (проверку входа)
                     if(window.AuthSystem) AuthSystem.init();
                     
-                    // 2. Запускаем глобальный слушатель сообщений (для бейджиков "unread")
+                    // 2. Запускаем глобальный слушатель сообщений (для бейджиков и сортировки)
                     if(window.auth.currentUser) {
                          try {
+                             // Слушаем сообщения, где chatId >= моего UID (это трюк, чтобы поймать часть чатов)
+                             // В идеале нужен сложный индекс, но пока оставим так для простоты
                              const qAll = window.fbQuery(
                                  window.fbCol(window.db, "messages_private"),
-                                 window.fbWhere("chatId", ">=", window.auth.currentUser.uid),
+                                 window.fbWhere("chatId", ">=", window.auth.currentUser.uid), 
                                  window.fbOrder("chatId"),
                                  window.fbOrder("createdAt", "desc"),
                                  window.fbLimit(20)
@@ -4773,11 +4906,12 @@
                                 snapshot.docChanges().forEach((change) => {
                                     if (change.type === "added") {
                                         const data = change.doc.data();
-                                        // Если сообщение мне (часть chatId) и НЕ от меня
+                                        // Если сообщение адресовано мне (я участник, но не автор)
                                         if (data.chatId.includes(window.auth.currentUser.uid) && data.uid !== window.auth.currentUser.uid) {
-                                            // Если мы сейчас не в этом чате, ставим бейдж
+                                            
+                                            // Если мы сейчас НЕ в этом чате — обновляем бейдж и поднимаем чат
                                             if (MessengerUI.currentChat !== data.chatId) {
-                                                MessengerUI.updateUnread(data.uid);
+                                                MessengerUI.handleIncomingMessage(data.uid);
                                             }
                                         }
                                     }
@@ -4858,5 +4992,18 @@
             initVoxSystem();
         })();
     </script>
+
+    <button id="adminToggleBtn" class="btn-tech" 
+        style="position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:20001; display:none; background:black; color:var(--alert-red); border-color:var(--alert-red); font-size:10px; padding:5px 15px; box-shadow: 0 0 20px rgba(255,0,0,0.2);" 
+        onclick="const p=document.getElementById('adminPanel'); p.style.display = (p.style.display === 'grid') ? 'none' : 'grid'; window.SoundFX.click();">
+        /// SYSTEM OVERLORD ///
+    </button>
+
+    <div id="imageViewerModal" class="modal-overlay" onclick="MessengerUI.closeImage()">
+        <div style="position:relative; max-width:90%; max-height:90%;">
+            <img id="imageViewerImg" src="" style="width:100%; height:100%; object-fit:contain; border:2px solid var(--vox-cyan); box-shadow:0 0 50px rgba(0,243,255,0.2); background:black;">
+            <button class="btn-tech" style="position:absolute; top:-40px; right:0; padding:5px 10px;" onclick="MessengerUI.closeImage()">CLOSE X</button>
+        </div>
+    </div>
 </body>
 </html>
