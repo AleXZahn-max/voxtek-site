@@ -1123,7 +1123,7 @@
     <div class="vignette" aria-hidden="true"></div>
     <div id="notification-area" aria-live="polite"></div>
 
-    <audio id="bg-music" src="embient.mp3" loop crossorigin="anonymous"></audio>
+    <audio id="bg-music" src="embient.mp3" loop crossorigin="anonymous" preload="auto"></audio>
 
     <div id="vsod-layer">
         <div class="glitch-bar"></div>
@@ -1473,7 +1473,7 @@
                 <div class="video-overlay-crt"></div>
                 <canvas id="staticCanvas"></canvas>
                 
-                <video id="customVideoPlayer" playsinline style="width:100%; height:100%; object-fit:contain;"></video>
+                <video id="customVideoPlayer" playsinline preload="metadata" style="width:100%; height:100%; object-fit:contain;"></video>
                 
                 <div class="custom-video-controls">
                     <input type="range" class="vox-range" id="vProgress" value="0" min="0" max="100" step="0.1" style="width:100%; height:4px; margin-bottom:10px; cursor:pointer; display:block;">
@@ -1651,7 +1651,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
   import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, setDoc, doc, where, limit, getDoc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-  import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+  import { getStorage, ref, uploadBytes, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyDaYxxhxjrvjVgqYcvPH53989Wr5dMgqHI",
@@ -1689,7 +1689,7 @@
   window.fbGetDocs = getDocs;
 
   window.fbRef = ref;
-  window.fbUpload = uploadBytes;
+  window.fbUploadResumable = uploadBytesResumable;
   window.fbUrl = getDownloadURL;
 
   console.log("VOXTEK CLOUD SYSTEM: ONLINE");
@@ -1806,7 +1806,7 @@
                 }
             };
 
-            // --- 1.1 AMBIENT MUSIC ---
+            // --- 1.1 AMBIENT MUSIC SYSTEM (UPDATED) ---
             const MusicSystem = {
                 audio: document.getElementById('bg-music'),
                 menu: document.getElementById('slide-music-menu'),
@@ -1828,11 +1828,13 @@
                 isDragging: false,
 
                 init() {
+                    // Базовые настройки
                     this.audio.volume = 0.2; 
                     this.playlist.push({ name: 'Brighter', url: 'embient.mp3' });
                     this.currentIndex = 0;
                     this.renderPlaylist();
 
+                    // --- СЛУШАТЕЛИ СОБЫТИЙ ---
                     this.toggleBtn.addEventListener('click', () => {
                         this.menu.classList.toggle('open');
                         SoundFX.click();
@@ -1881,15 +1883,54 @@
                         }
                     });
 
+                    // Загрузка локальных файлов (и отправка в облако)
                     this.localInput.addEventListener('change', (e) => {
                          const files = Array.from(e.target.files);
                          if (files.length > 0) {
                              files.forEach(file => {
-                                 CloudSystem.uploadMedia(file, 'audio');
+                                 // Вызываем CloudSystem для загрузки в базу (тип 'audio')
+                                 if(window.CloudSystem) window.CloudSystem.uploadMedia(file, 'audio');
                              });
                              voxNotify(`INITIATING CLOUD UPLOAD (${files.length} FILES)...`, 'info');
                          }
                     });
+
+                    // 🔥 ЗАГРУЗКА СОХРАНЕННЫХ ТРЕКОВ ИЗ БАЗЫ 🔥
+                    setTimeout(() => {
+                        if(window.db && window.auth.currentUser) {
+                            const q = window.fbQuery(
+                                window.fbCol(window.db, "audios"), 
+                                window.fbWhere("author", "==", window.auth.currentUser.uid), 
+                                window.fbOrder("createdAt", "desc"),
+                                window.fbLimit(50)
+                            );
+                            
+                            // Слушаем изменения в базе (реальное время)
+                            window.fbSnap(q, (snapshot) => {
+                                snapshot.docChanges().forEach((change) => {
+                                    // Если добавлен новый трек
+                                    if (change.type === "added") {
+                                        const data = change.doc.data();
+                                        // Проверяем на дубликаты
+                                        if(!this.playlist.some(t => t.url === data.url)) {
+                                            this.playlist.push({ 
+                                                id: change.doc.id, 
+                                                name: data.name, 
+                                                url: data.url, 
+                                                isCloud: true 
+                                            });
+                                            this.renderPlaylist();
+                                        }
+                                    }
+                                    // Если удален трек
+                                    if (change.type === "removed") {
+                                        this.playlist = this.playlist.filter(t => t.id !== change.doc.id);
+                                        this.renderPlaylist();
+                                    }
+                                });
+                            });
+                        }
+                    }, 2500); // Даем время на логин
                 },
 
                 renderPlaylist() {
@@ -1914,18 +1955,22 @@
                 async removeTrack(idx, e) {
                     e.stopPropagation();
                     const track = this.playlist[idx];
+                    
+                    // УДАЛЕНИЕ ИЗ ОБЛАКА
                     if (track.isCloud && track.id) {
-                        if(await confirm("DELETE FROM CLOUD?")) {
-                            window.fbDelete(window.fbDoc(window.db, "videos", track.id));
+                        if(await confirm("DELETE AUDIO FROM CLOUD?")) {
+                            window.fbDelete(window.fbDoc(window.db, "audios", track.id));
+                            voxNotify("AUDIO REMOVED FROM CLOUD", "success");
                         }
-                        return;
+                        return; // Список обновится сам через fbSnap
                     }
+                    
+                    // УДАЛЕНИЕ ЛОКАЛЬНОГО
                     this.playlist.splice(idx, 1);
                     if(this.currentIndex === idx) {
-                        this.video.pause();
+                        this.audio.pause();
                         this.currentIndex = -1;
-                        StaticFX.toggle(true);
-                        if(this.placeholder) this.placeholder.style.display = 'block';
+                        this.playBtn.textContent = "PLAY STREAM";
                     } else if (this.currentIndex > idx) this.currentIndex--;
                     this.renderPlaylist();
                 },
@@ -1957,14 +2002,8 @@
                     this.audio.crossOrigin = "anonymous";
                     this.audio.src = finalUrl;
                     this.useSimulation = false;
-                    document.querySelector('.cover-text').textContent = track.name.substring(0, 20);
-                },
-
-                loadFromUrl(url) {
-                    // Extract simplified name
-                    const name = decodeURIComponent(url.split('/').pop().split('?')[0].split('_').pop());
-                    this.playlist.push({ name: name, url: url });
-                    this.renderPlaylist();
+                    const coverText = document.querySelector('.cover-text');
+                    if(coverText) coverText.textContent = track.name.substring(0, 20);
                 },
 
                 fmtTime(s) {
@@ -3786,26 +3825,63 @@
                     const user = window.auth.currentUser;
                     if(!user || !file) return;
 
-                    voxNotify(`UPLOADING ${type.toUpperCase()}...`, "info");
+                    // 1. Настройки метаданных (КЭШИРОВАНИЕ - ГЛАВНЫЙ УСКОРИТЕЛЬ)
+                    const metadata = {
+                        contentType: file.type,
+                        // Заставляем браузер хранить файл 1 год. Повторный запуск будет мгновенным.
+                        cacheControl: 'public, max-age=31536000' 
+                    };
+
+                    const fileName = `${type}s/${user.uid}_${Date.now()}_${file.name}`;
+                    const storageRef = window.fbRef(window.storage, fileName);
                     
-                    // 1. Загружаем файл в Firebase Storage
-                    const storageRef = window.fbRef(window.storage, `${type}s/${user.uid}_${Date.now()}_${file.name}`);
-                    
-                    window.fbUpload(storageRef, file).then((snapshot) => {
-                        window.fbUrl(snapshot.ref).then((url) => {
-                            // 2. После загрузки сохраняем запись в Базу Данных
-                            if(type === 'video') {
-                                window.fbAdd(window.fbCol(window.db, "videos"), {
+                    // 2. ИСПОЛЬЗУЕМ RESUMABLE UPLOAD (Для стабильности и скорости)
+                    const uploadTask = window.fbUploadResumable(storageRef, file, metadata);
+
+                    voxNotify(`INITIATING UPLINK: 0%`, "info");
+
+                    // 3. СЛУШАЕМ ПРОГРЕСС
+                    uploadTask.on('state_changed', 
+                        (snapshot) => {
+                            // Вычисляем процент
+                            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                            // Показываем уведомление каждые 25%, чтобы не спамить
+                            if(progress % 25 < 1 || progress === 100) {
+                                voxNotify(`UPLOADING ${type.toUpperCase()}: ${Math.floor(progress)}%`, "info");
+                            }
+                        }, 
+                        (error) => {
+                            voxNotify("UPLOAD FAILURE: " + error.message, "error");
+                        }, 
+                        () => {
+                            // 4. ЗАГРУЗКА ЗАВЕРШЕНА
+                            window.fbUrl(uploadTask.snapshot.ref).then((url) => {
+                                // Сохраняем в базу данных
+                                const collectionName = type === 'video' ? "videos" : "audios";
+                                const docData = {
                                     author: user.uid,
                                     name: file.name,
                                     url: url,
                                     createdAt: window.fbTime(),
-                                    isCloud: true
-                                });
-                            }
-                            voxNotify("UPLOAD SUCCESSFUL", "success");
-                        });
-                    }).catch(err => voxNotify("UPLOAD ERROR: " + err.message, "error"));
+                                    isCloud: true,
+                                    size: file.size, // Полезно знать размер
+                                    mime: file.type
+                                };
+
+                                window.fbAdd(window.fbCol(window.db, collectionName), docData);
+
+                                // Если это аудио - добавляем в плейлист сразу
+                                if(type === 'audio' && window.MusicSystem) {
+                                    window.MusicSystem.playlist.push({ 
+                                        name: file.name, url: url, isCloud: true 
+                                    });
+                                    window.MusicSystem.renderPlaylist();
+                                }
+                                
+                                voxNotify("DATA SECURED IN ARCHIVE.", "success");
+                            });
+                        }
+                    );
                 },
 
                 async updateProfile() {
