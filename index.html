@@ -403,11 +403,24 @@
         .c-status.online { color: var(--vox-cyan); }
 
         .unread-badge {
-            background: var(--alert-red); color: white; font-size: 9px; 
-            font-weight: bold; border-radius: 50%; width: 18px; height: 18px; 
+            background: var(--alert-red); 
+            color: black; /* Черный текст на красном лучше читается */
+            font-size: 10px; 
+            font-weight: 900; 
+            border-radius: 50%; 
+            width: 20px; height: 20px; 
             display: flex; justify-content: center; align-items: center;
             position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
-            box-shadow: 0 0 5px red;
+            box-shadow: 0 0 10px var(--alert-red);
+            border: 1px solid white;
+            animation: pulseBadge 1s infinite; /* Пульсация */
+            z-index: 10;
+        }
+
+        @keyframes pulseBadge {
+            0% { transform: translateY(-50%) scale(1); }
+            50% { transform: translateY(-50%) scale(1.2); }
+            100% { transform: translateY(-50%) scale(1); }
         }
 
         /* MAIN CHAT AREA */
@@ -4951,36 +4964,53 @@
                     // 1. Запускаем авторизацию (проверку входа)
                     if(window.AuthSystem) AuthSystem.init();
                     
-                    // 2. Запускаем глобальный слушатель сообщений (для бейджиков и сортировки)
+                    // 2. Запускаем глобальный слушатель сообщений (ИСПРАВЛЕННЫЙ)
                     if(window.auth.currentUser) {
                          try {
-                             // Слушаем сообщения, где chatId >= моего UID (это трюк, чтобы поймать часть чатов)
-                             // В идеале нужен сложный индекс, но пока оставим так для простоты
+                             // 🔥 ИЗМЕНЕНИЕ: Убираем фильтр по chatId, слушаем просто последние сообщения
+                             // Это гарантирует, что мы поймаем ВСЕ входящие, независимо от ID
                              const qAll = window.fbQuery(
                                  window.fbCol(window.db, "messages_private"),
-                                 window.fbWhere("chatId", ">=", window.auth.currentUser.uid), 
-                                 window.fbOrder("chatId"),
                                  window.fbOrder("createdAt", "desc"),
-                                 window.fbLimit(20)
+                                 window.fbLimit(50) // Слушаем последние 50 сообщений во всей системе
                              );
                              
                              window.fbSnap(qAll, (snapshot) => {
                                 snapshot.docChanges().forEach((change) => {
                                     if (change.type === "added") {
                                         const data = change.doc.data();
-                                        // Если сообщение адресовано мне (я участник, но не автор)
-                                        if (data.chatId.includes(window.auth.currentUser.uid) && data.uid !== window.auth.currentUser.uid) {
+                                        const myUid = window.auth.currentUser.uid;
+
+                                        // 🛑 ФИЛЬТР: Проверяем, относится ли сообщение ко мне
+                                        // (Либо я отправил, либо мне отправили)
+                                        if (data.chatId && data.chatId.includes(myUid)) {
                                             
-                                            // Если мы сейчас НЕ в этом чате — обновляем бейдж и поднимаем чат
-                                            if (MessengerUI.currentChat !== data.chatId) {
-                                                MessengerUI.handleIncomingMessage(data.uid);
+                                            // Определяем ID собеседника
+                                            let partnerId = data.uid; // По умолчанию отправитель
+                                            if (data.uid === myUid) {
+                                                // Если отправил я, то партнер — это другая часть chatId
+                                                partnerId = data.chatId.replace(myUid, '').replace('_', '');
+                                            }
+
+                                            // 1. Обновляем время активности для сортировки (чтобы чат прыгнул вверх)
+                                            // Используем setTimeout, чтобы MessengerUI успел загрузиться
+                                            if(window.MessengerUI) {
+                                                MessengerUI.lastActiveTimes[partnerId] = data.createdAt ? data.createdAt.toMillis() : Date.now();
+                                                
+                                                // 2. Если сообщение ВХОДЯЩЕЕ и мы не в этом чате -> Ставим красную цифру
+                                                if (data.uid !== myUid && MessengerUI.currentChat !== data.chatId) {
+                                                    MessengerUI.handleIncomingMessage(data.uid);
+                                                } else {
+                                                    // Просто перерисовываем список (для сортировки), даже если без цифры
+                                                    MessengerUI.renderUsers(MessengerUI.usersCache);
+                                                }
                                             }
                                         }
                                     }
                                 });
                              });
                          } catch (e) { 
-                             console.log("Waiting for auth to stabilize..."); 
+                             console.log("Global listener error:", e); 
                          }
                     }
                     
