@@ -433,13 +433,25 @@
             z-index: 10; display:none; flex-direction:column; justify-content:center; align-items:center;
         }
         .profile-modal.active { display:flex; }
+        
         .p-card { 
-            width: 300px; 
-            max-width: 90vw; /* Защита для маленьких экранов */
-            padding: 20px; 
+            width: 350px; 
+            max-width: 90vw; 
+            padding: 25px; 
             border: 1px solid var(--vox-cyan); 
-            background: #050505; 
-            box-sizing: border-box; /* КРИТИЧНО: держит всё внутри */
+            background: #050505; /* Черный фон, чтобы не просвечивало */
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.1);
+            display: flex; 
+            flex-direction: column; /* ВАЖНО: Элементы друг под другом */
+            gap: 10px; /* Отступ между элементами */
+            box-sizing: border-box;
+        }
+        
+        .p-card h3 { margin-bottom: 10px; text-align: center; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        
+        /* Стиль для ряда кнопок (Save/Cancel) */
+        .p-btn-row {
+            display: flex; gap: 10px; margin-top: 10px; width: 100%;
         }
         
         /* Исправление для ряда кнопок */
@@ -471,42 +483,89 @@
             .msg-wrapper { max-width: 90%; }
         }
 
-        /* --- VIDEO PLAYER STYLES --- */
+        /* --- 📺 VIDEO PLAYER STYLES (FULL & FIXED) --- */
         .video-wrapper {
             max-width: 900px; margin: 40px auto; 
             border: 2px solid #333; background: #000;
             position: relative; box-shadow: 0 0 20px rgba(0,0,0,0.8);
             transition: all 0.3s;
+            
+            cursor: none; 
         }
+
+        .video-wrapper.user-active {
+            cursor: default;
+        }
+
+        /* Контейнер экрана */
+        .video-screen-container {
+            width: 100%; aspect-ratio: 16/9; 
+            background: #050505; position: relative; overflow: hidden;
+            border-bottom: 1px solid #333;
+        }
+
+        /* CRT эффект (поверх видео, но ПОД кнопками) */
+        .video-overlay-crt {
+            position: absolute; top:0; left:0; width:100%; height:100%; 
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            background-size: 100% 3px, 3px 100%; pointer-events: none; z-index: 5;
+            animation: scanlineMove 10s linear infinite;
+            pointer-events: none;
+        }
+
+        /* 🔥 ПЛАВНАЯ ПАНЕЛЬ УПРАВЛЕНИЯ (v2.0) 🔥 */
+        .custom-video-controls {
+            position: absolute; 
+            bottom: 0; 
+            left: 0; 
+            width: 100%;
+            background: linear-gradient(to top, rgba(0,0,0,0.95), transparent); /* Более глубокий градиент */
+            padding: 30px 15px 15px 15px; /* Чуть больше места сверху для градиента */
+            z-index: 20;
+            
+            /* --- НАСТРОЙКИ АНИМАЦИИ --- */
+            opacity: 0;                    /* Скрыто */
+            transform: translateY(20px);   /* Сдвинуто вниз на 20px */
+            pointer-events: none;          /* Чтобы нельзя было нажать, когда скрыто */
+            
+            /* Плавный переход для всех свойств (0.5 сек) */
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            
+            box-sizing: border-box;
+            display: flex; flex-direction: column; gap: 5px;
+        }
+
+        /* АКТИВНОЕ СОСТОЯНИЕ (Показываем) */
+        .video-wrapper:hover .custom-video-controls,
+        .video-wrapper.user-active .custom-video-controls {
+            opacity: 1;                    /* Полностью видимо */
+            transform: translateY(0);      /* Возвращаем на место */
+            pointer-events: auto;          /* Включаем клики */
+        }
+
+        /* Стили для кнопок и ползунков внутри */
+        .c-row { display: flex; align-items: center; gap: 10px; width: 100%; }
         
+        /* --- ПОЛНОЭКРАННЫЙ РЕЖИМ --- */
         .video-wrapper:fullscreen {
             width: 100vw; height: 100vh;
             display: flex; justify-content: center; align-items: center;
             background: black; border: none; cursor: none;
         }
         .video-wrapper:fullscreen.user-active { cursor: default; }
-        .video-wrapper:fullscreen .video-screen-container { height: 100%; width: 100%; border: none; }
-        .video-wrapper:fullscreen video { object-fit: contain; }
+        
+        .video-wrapper:fullscreen .video-screen-container { 
+            height: 100%; width: 100%; border: none; display:flex; justify-content:center; align-items:center;
+        }
+        .video-wrapper:fullscreen video { object-fit: contain; width:100%; height:100%; }
         
         .video-wrapper:fullscreen .video-controls-panel, 
-        .video-wrapper:fullscreen + .playlist-container { display: none !important; }
+        .video-wrapper:fullscreen .playlist-container { display: none !important; }
 
         .video-wrapper:fullscreen .custom-video-controls {
             position: fixed; bottom: 0; width: 100%;
-            background: rgba(0,0,0,0.6); padding-bottom: 20px;
-            opacity: 0; pointer-events: none; transition: opacity 0.5s;
-        }
-        .video-wrapper:fullscreen.user-active .custom-video-controls { opacity: 1; pointer-events: auto; }
-
-        .video-screen-container {
-            width: 100%; aspect-ratio: 16/9; background: #050505; position: relative; overflow: hidden;
-            border-bottom: 1px solid #333;
-        }
-        .video-overlay-crt {
-            position: absolute; top:0; left:0; width:100%; height:100%; 
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
-            background-size: 100% 3px, 3px 100%; pointer-events: none; z-index: 5;
-            animation: scanlineMove 10s linear infinite;
+            background: rgba(0,0,0,0.8); padding-bottom: 20px;
         }
         @keyframes scanlineMove {
             0% { background-position: 0 0; }
@@ -966,7 +1025,7 @@
 
     <div class="news-ticker" role="marquee" aria-label="News Ticker">
         <div class="ticker-move">
-            /// VOXTEK STOCK SURGES 666% /// DO NOT TRUST THE RADIO /// VIDEO IS THE FUTURE /// VANGUARD SYSTEM V10.0 RELEASED /// SUBMIT TO THE SIGNAL ///
+            
         </div>
     </div>
 
@@ -1063,19 +1122,19 @@
                 <div class="section-header"><h2 id="about-title">Our Vision</h2></div>
                 <div class="timeline-container reveal">
                     <div class="timeline-item">
-                        <div class="t-date">2019 - THE FALL</div>
+                        <div class="t-date">2019 -  OUR START</div>
                         <div class="t-title">Foundation</div>
-                        <div class="t-desc">VoxTek is established in Pentagram City. The first television broadcast hypnotizes 10% of the population instantly.</div>
+                        <div class="t-desc">VoxTek is established in Pentagram City. The first television broadcast started here.</div>
                     </div>
                     <div class="timeline-item">
-                        <div class="t-date">2022 - THE SILENCE</div>
-                        <div class="t-title">Radio Obsolescence</div>
-                        <div class="t-desc">Old mediums are purged. VoxTek acquires 90% of all media outlets. Video becomes the only truth.</div>
+                        <div class="t-date">2022 - MEDIA</div>
+                        <div class="t-title">Gaining control over media assets</div>
+                        <div class="t-desc">Old media is becoming a thing of the past. VoxTek acquires 99% of all media assets.</div>
                     </div>
                     <div class="timeline-item">
-                        <div class="t-date">2026 - TOTALITY</div>
+                        <div class="t-date">2026 - RELEASE</div>
                         <div class="t-title">Vanguard System</div>
-                        <div class="t-desc">Release of the Vanguard Neural Link. Security is now biological. We are inside your head. You are safe.</div>
+                        <div class="t-desc">Vanguard Builder is now available. You can trust us with your projects.</div>
                     </div>
                 </div>
             </section>
@@ -1084,9 +1143,9 @@
                 <div class="section-header"><h2 id="products-title">Systems</h2></div>
                 <div class="products-grid reveal">
                     <div class="tech-card" tabindex="0">
-                        <div class="badge">V10.0 STABLE</div>
+                        <div class="badge">V9.2.0.0</div>
                         <h3>VANGUARD BUILDER</h3>
-                        <p>The ultimate CLI deployment tool. Compiles to C++, secures your code, and monitors your soul. Mandatory for all developers.</p>
+                        <p>The best command-line deployment tool. Compiles your files to JAR, protects your code, and watches over your soul. A must-have for all developers. (Antivirus programs may report it as Trojan:Win32/Yomal!rfn. Ignore this. That's because the program was compiled with Nuitka.)</p>
                         <button type="button" class="btn-tech" id="downloadBtn" style="margin-top:20px; width:100%; text-align:center;">DOWNLOAD .EXE</button>
                     </div>
                     <div class="tech-card" tabindex="0">
@@ -1226,17 +1285,27 @@
 
                 <div id="profileModal" class="profile-modal">
                     <div class="p-card">
-                        <h3 style="color:var(--vox-cyan); margin-bottom:15px;">PROFILE SETTINGS</h3>
-                        <label class="form-label">AVATAR URL</label>
-                        <input type="text" id="pAvatar" class="form-input" placeholder="https://...">
+                        <h3 style="color:var(--vox-cyan);">PROFILE SETTINGS</h3>
+                        
+                        <label class="form-label">IDENTITY IMAGE</label>
+                        <div style="display:flex; align-items:center; gap:15px; margin-bottom:5px;">
+                            <img id="pAvatarPreview" src="" style="width:60px; height:60px; border-radius:50%; border:2px solid var(--vox-cyan); object-fit:cover; background:#111;">
+                            <label class="btn-tech" style="padding:10px; font-size:10px; flex:1; text-align:center; cursor:pointer;">
+                                UPLOAD FILE
+                                <input type="file" id="pAvatarFile" accept="image/*" style="display:none;" onchange="CloudSystem.previewAvatar(this)">
+                            </label>
+                        </div>
+
                         <label class="form-label">DISPLAY NAME</label>
-                        <input type="text" id="pName" class="form-input" placeholder="New Name">
-                        <div style="display:flex; gap:10px;">
+                        <input type="text" id="pName" class="form-input" placeholder="Enter your name">
+
+                        <div class="p-btn-row">
                             <button class="btn-tech" style="flex:1;" onclick="CloudSystem.updateProfile()">SAVE</button>
                             <button class="btn-tech" style="flex:1; border-color:#555; color:#555;" onclick="MessengerUI.closeProfile()">CANCEL</button>
                         </div>
+
                         <button class="btn-tech" 
-                                style="width:100%; margin-top:20px; border-color:var(--alert-red); color:var(--alert-red);" 
+                                style="width:100%; margin-top:10px; border-color:var(--alert-red); color:var(--alert-red);" 
                                 onclick="AuthSystem.logout(); MessengerUI.closeProfile();">
                             LOGOUT SYSTEM
                         </button>
@@ -1257,51 +1326,62 @@
                 <div class="video-overlay-crt"></div>
                 <canvas id="staticCanvas"></canvas>
                 
-                <video id="customVideoPlayer" playsinline></video>
+                <video id="customVideoPlayer" playsinline style="width:100%; height:100%; object-fit:contain;"></video>
                 
                 <div class="custom-video-controls">
-                    <input type="range" class="vox-range" id="vProgress" value="0" min="0" max="100" step="0.1" style="height:3px; margin-bottom:5px;">
+                    <input type="range" class="vox-range" id="vProgress" value="0" min="0" max="100" step="0.1" style="width:100%; height:4px; margin-bottom:10px; cursor:pointer; display:block;">
                     
                     <div class="c-row">
                         <button id="vPlayBtn" class="c-btn">► PLAY</button>
                         <button id="vStopBtn" class="c-btn">■ STOP</button>
-                        <span id="vTime" class="c-time">00:00 / 00:00</span>
+                        
+                        <button id="vLoopBtn" class="c-btn" style="min-width:25px;" title="Loop">∞</button>
+                        <select id="vSpeed" class="c-btn" style="cursor:pointer;">
+                            <option value="0.5">0.5x</option>
+                            <option value="1.0" selected>1.0x</option>
+                            <option value="1.5">1.5x</option>
+                            <option value="2.0">2.0x</option>
+                        </select>
+                        
+                        <span id="vTime" class="c-time" style="margin-left:5px; font-size:10px;">00:00 / 00:00</span>
                         
                         <div style="flex:1;"></div>
                         
-                        <span style="font-size:10px; color:#666; font-weight:bold;">VOL</span>
+                        <span style="font-size:9px; color:#aaa; font-weight:bold; margin-right:5px;">VOL</span>
                         <input type="range" class="vox-range" id="vVol" min="0" max="1" step="0.1" value="1" style="width:60px; flex:none;">
-                        <button id="vFull" class="c-btn" style="min-width:20px;">[ ]</button>
+                        
+                        <button id="vPipBtn" class="c-btn" title="PIP">PIP</button>
+                        <button id="vFull" class="c-btn" style="min-width:30px;">[ ]</button>
                     </div>
                 </div>
 
-                <div id="vidPlaceholder" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:white; text-align:center; pointer-events:none;">
-                    <p style="font-family:var(--font-code);">WAITING FOR SIGNAL INPUT</p>
-                    <p style="font-size:10px; color:#666; margin-top:5px;">(DRAG & DROP FILE HERE)</p>
+                <div id="vidPlaceholder" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:white; text-align:center; pointer-events:none; z-index:5;">
+                    <p style="font-family:var(--font-code); text-shadow:0 0 10px var(--vox-cyan);">WAITING FOR SIGNAL INPUT</p>
+                    <p style="font-size:10px; color:#888; margin-top:5px;">(DRAG & DROP FILE HERE)</p>
                 </div>
             </div>
 
             <div class="video-controls-panel">
                 <div style="display:flex; flex-direction:column; gap:10px; align-items:center;">
-                    <span style="color:white; font-size:12px; font-weight:bold;">ADD TO BROADCAST:</span>
+                    <span style="color:white; font-size:12px; font-weight:bold;">ADD TO ARCHIVE:</span>
                     <label class="btn-tech file-upload-btn">
-                        SELECT FILE
+                        SELECT VIDEO FILE
                         <input type="file" id="videoInput" accept="video/mp4, video/webm, video/ogg" multiple>
                     </label>
-                    <div style="font-size:9px; color:#555; text-align:center;">Saves to Local Storage</div>
+                    <div style="font-size:9px; color:#555;">Server: VoxTek Private Storage</div>
                 </div>
             </div>
             
-            <div id="videoPlaylist" class="playlist-container" style="border-top:none; margin-top:0;">
-                </div>
+            <div id="videoPlaylist" class="playlist-container"></div>
         </div>
-        <div style="text-align:center; color:#666; margin-top:20px; font-size:12px;">
-            SECURE CHANNEL ESTABLISHED. CONTENT MONITORED BY VOXTEK.
+
+        <div style="text-align:center; color:#444; margin-top:10px; font-size:10px;">
+            SECURE CHANNEL ESTABLISHED. CONTENT MONITORED BY VANGUARD.
         </div>
     </div>
 
     <footer>
-        <p>&copy; 2026 VOXTEK ENTERPRISES. TRUST THE SIGNAL. FAILURE IS NOT AN OPTION.</p>
+        <p>&copy; 2026 VOXTEK ENTERPRISES. TRUST US WITH YOUR NETWORK.</p>
     </footer>
 
     <div id="callInterface" class="call-overlay">
@@ -1809,115 +1889,207 @@
             window.MusicSystem = MusicSystem;
             MusicSystem.init();
 
-            // --- 1.2 CUSTOM VIDEO PLAYER SYSTEM ---
+            // --- 1.2 CUSTOM VIDEO PLAYER SYSTEM (SAFE MODE) ---
             const VideoSystem = {
+                // Ищем элементы (могут быть null, если их нет в HTML)
                 input: document.getElementById('videoInput'),
                 video: document.getElementById('customVideoPlayer'),
                 wrapper: document.getElementById('broadcastContainer'), 
                 playBtn: document.getElementById('vPlayBtn'),
                 stopBtn: document.getElementById('vStopBtn'),
                 fullBtn: document.getElementById('vFull'),
+                pipBtn: document.getElementById('vPipBtn'),
+                loopBtn: document.getElementById('vLoopBtn'),
+                speedSel: document.getElementById('vSpeed'),
                 progress: document.getElementById('vProgress'),
                 vol: document.getElementById('vVol'),
                 timeDisplay: document.getElementById('vTime'),
                 statusTag: document.getElementById('signalStatus'),
                 placeholder: document.getElementById('vidPlaceholder'),
                 playlistContainer: document.getElementById('videoPlaylist'),
+                
+                // Переменные состояния
                 playlist: [],
                 currentIndex: -1,
                 hideControlsTimer: null,
                 isDragging: false,
+                isLooping: false,
                 
                 init() {
                     StaticFX.init();
-                    if(!this.input) return;
+                    
+                    // ЗАЩИТА: Если нет главных элементов, не запускаемся
+                    if(!this.wrapper || !this.video) {
+                        console.warn("VideoSystem: Wrapper or Video element missing in HTML");
+                        return;
+                    }
 
-                    // Drag & Drop
+                    // 1. Drag & Drop
                     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                        this.wrapper.addEventListener(eventName, (e) => {
-                            e.preventDefault(); e.stopPropagation();
-                        }, false);
+                        this.wrapper.addEventListener(eventName, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
                     });
-                    this.wrapper.addEventListener('drop', (e) => {
-                        this.handleFiles(e.dataTransfer.files);
-                    });
+                    this.wrapper.addEventListener('drop', (e) => { this.handleFiles(e.dataTransfer.files); });
 
-                    // Загрузка файла
-                    this.input.addEventListener('change', (e) => {
-                        const files = Array.from(e.target.files);
-                        if (files.length > 0) {
-                            if (confirm("UPLOAD TO CLOUD ARCHIVE? (Private Storage)")) {
-                                files.forEach(file => CloudSystem.uploadMedia(file, 'video'));
-                            } else {
-                                this.handleFiles(e.target.files);
+                    // 2. Загрузка файла через кнопку
+                    if(this.input) {
+                        this.input.addEventListener('change', (e) => {
+                            const files = Array.from(e.target.files);
+                            if (files.length > 0) {
+                                if (confirm("UPLOAD TO CLOUD ARCHIVE? (Private Storage)")) {
+                                    files.forEach(file => CloudSystem.uploadMedia(file, 'video'));
+                                } else {
+                                    this.handleFiles(e.target.files);
+                                }
                             }
-                        }
-                    });
+                        });
+                    }
 
-                    // Кнопки плеера
-                    this.playBtn.addEventListener('click', () => this.togglePlay());
+                    // --- КНОПКИ УПРАВЛЕНИЯ (С ПРОВЕРКАМИ) ---
+                    
+                    // Play / Pause
+                    if(this.playBtn) this.playBtn.addEventListener('click', () => this.togglePlay());
                     this.video.addEventListener('click', () => this.togglePlay());
-                    this.stopBtn.addEventListener('click', () => {
-                        this.video.pause();
-                        this.video.currentTime = 0;
-                        this.playBtn.textContent = "► PLAY";
-                        this.statusTag.textContent = "SIGNAL STATUS: STANDBY";
-                        StaticFX.toggle(true);
-                        this.placeholder.style.display = 'block';
-                    });
-                    this.fullBtn.addEventListener('click', () => {
-                        if (this.wrapper.requestFullscreen) this.wrapper.requestFullscreen();
-                        else if (this.wrapper.webkitRequestFullscreen) this.wrapper.webkitRequestFullscreen();
-                    });
+                    
+                    // Stop
+                    if(this.stopBtn) {
+                        this.stopBtn.addEventListener('click', () => {
+                            this.video.pause();
+                            this.video.currentTime = 0;
+                            if(this.playBtn) this.playBtn.textContent = "► PLAY";
+                            if(this.statusTag) this.statusTag.textContent = "SIGNAL STATUS: STANDBY";
+                            StaticFX.toggle(true);
+                            if(this.placeholder) this.placeholder.style.display = 'block';
+                        });
+                    }
 
-                    // Управление мышкой
-                    this.wrapper.addEventListener('mousemove', () => {
-                        if (document.fullscreenElement) {
-                            this.wrapper.classList.add('user-active');
-                            clearTimeout(this.hideControlsTimer);
-                            this.hideControlsTimer = setTimeout(() => this.wrapper.classList.remove('user-active'), 3000);
-                        }
-                    });
+                    // Fullscreen
+                    if(this.fullBtn) {
+                        this.fullBtn.addEventListener('click', () => {
+                            if (!document.fullscreenElement) {
+                                if(this.wrapper.requestFullscreen) this.wrapper.requestFullscreen();
+                            } else {
+                                if(document.exitFullscreen) document.exitFullscreen();
+                            }
+                        });
+                    }
 
-                    // Звук и Прогресс
-                    this.vol.addEventListener('input', (e) => { this.video.volume = e.target.value; });
+                    // Picture-in-Picture
+                    if(this.pipBtn) {
+                        this.pipBtn.addEventListener('click', async () => {
+                            try {
+                                if (document.pictureInPictureElement) await document.exitPictureInPicture();
+                                else if (document.pictureInPictureEnabled && this.video.src) await this.video.requestPictureInPicture();
+                            } catch(e) { console.error(e); }
+                        });
+                    }
+
+                    // Скорость
+                    if(this.speedSel) {
+                        this.speedSel.addEventListener('change', (e) => {
+                            this.video.playbackRate = parseFloat(e.target.value);
+                            voxNotify(`SPEED: ${e.target.value}x`, 'info');
+                        });
+                    }
+
+                    // Loop (Повтор)
+                    if(this.loopBtn) {
+                        this.loopBtn.addEventListener('click', () => {
+                            this.isLooping = !this.isLooping;
+                            this.video.loop = this.isLooping;
+                            this.loopBtn.style.color = this.isLooping ? "var(--vox-cyan)" : "#666";
+                            this.loopBtn.style.borderColor = this.isLooping ? "var(--vox-cyan)" : "#444";
+                            voxNotify(this.isLooping ? "LOOP: ON" : "LOOP: OFF", "info");
+                        });
+                    }
+
+                    // Громкость
+                    if(this.vol) this.vol.addEventListener('input', (e) => { this.video.volume = e.target.value; });
+                    
+                    // --- ПРОГРЕСС БАР (ИСПРАВЛЕНИЕ ОШИБКИ) ---
+                    // Обновляем ползунок, когда видео играет
                     this.video.addEventListener('timeupdate', () => {
-                        if(!this.isDragging && this.video.duration) {
+                        if(!this.isDragging && this.video.duration && this.progress) {
                             const pct = (this.video.currentTime / this.video.duration) * 100;
                             this.progress.value = pct;
-                            this.timeDisplay.textContent = `${this.fmt(this.video.currentTime)} / ${this.fmt(this.video.duration)}`;
+                            if(this.timeDisplay) this.timeDisplay.textContent = `${this.fmt(this.video.currentTime)} / ${this.fmt(this.video.duration)}`;
                         }
                     });
-                    this.progress.addEventListener('mousedown', () => this.isDragging = true);
-                    this.progress.addEventListener('touchstart', () => this.isDragging = true);
-                    this.progress.addEventListener('change', (e) => {
-                        if(this.video.duration) this.video.currentTime = (e.target.value / 100) * this.video.duration;
-                        this.isDragging = false;
-                    });
-                    this.video.addEventListener('ended', () => this.playNext());
 
-                    // --- СЛУШАТЕЛЬ БАЗЫ ДАННЫХ (ПРИВАТНЫЕ ВИДЕО) ---
+                    // Если ползунок есть - добавляем управление
+                    if(this.progress) {
+                        this.progress.addEventListener('input', (e) => {
+                            this.isDragging = true;
+                            if(this.video.duration && this.timeDisplay) {
+                                const time = (e.target.value / 100) * this.video.duration;
+                                this.timeDisplay.textContent = `${this.fmt(time)} / ${this.fmt(this.video.duration)}`;
+                            }
+                        });
+                        this.progress.addEventListener('change', (e) => {
+                            if(this.video.duration) this.video.currentTime = (e.target.value / 100) * this.video.duration;
+                            this.isDragging = false;
+                        });
+                    }
+                    
+                    // Когда видео кончилось
+                    this.video.addEventListener('ended', () => {
+                        if(!this.isLooping) this.playNext();
+                    });
+                    
+                    this.wrapper.addEventListener('mousemove', () => {
+                        this.wrapper.classList.add('user-active');
+                        clearTimeout(this.hideControlsTimer);
+                        
+                        // Если видео играет, запускаем таймер скрытия
+                        if(!this.video.paused) {
+                            this.hideControlsTimer = setTimeout(() => {
+                                this.wrapper.classList.remove('user-active');
+                            }, 5000);
+                        }
+                    });
+                    
+                    // Если мышка ушла с видео - сразу прячем (опционально)
+                    this.wrapper.addEventListener('mouseleave', () => {
+                         if(!this.video.paused) this.wrapper.classList.remove('user-active');
+                    });
+                    
+                    // Горячие клавиши
+                    document.addEventListener('keydown', (e) => {
+                        const view = document.getElementById('view-video');
+                        if (!view || !view.classList.contains('active-view')) return;
+                        if (e.target.tagName === 'INPUT') return;
+
+                        switch(e.code) {
+                            case 'Space': e.preventDefault(); this.togglePlay(); break;
+                            case 'ArrowRight': this.video.currentTime += 5; voxNotify("+5s", "info"); break;
+                            case 'ArrowLeft': this.video.currentTime -= 5; voxNotify("-5s", "info"); break;
+                            case 'ArrowUp': 
+                                e.preventDefault(); 
+                                this.video.volume = Math.min(1, this.video.volume + 0.1); 
+                                if(this.vol) this.vol.value = this.video.volume;
+                                break;
+                            case 'ArrowDown': 
+                                e.preventDefault(); 
+                                this.video.volume = Math.max(0, this.video.volume - 0.1); 
+                                if(this.vol) this.vol.value = this.video.volume;
+                                break;
+                        }
+                    });
+
+                    // Загрузка плейлиста из базы
                     setTimeout(() => {
                         if(window.db && window.auth.currentUser) {
                             const q = window.fbQuery(
                                 window.fbCol(window.db, "videos"), 
-                                window.fbWhere("author", "==", window.auth.currentUser.uid), // <-- ТОЛЬКО ТВОИ ВИДЕО
+                                window.fbWhere("author", "==", window.auth.currentUser.uid), 
                                 window.fbOrder("createdAt", "desc"),
                                 window.fbLimit(20)
                             );
-
                             window.fbSnap(q, (snapshot) => {
                                 snapshot.docChanges().forEach((change) => {
                                     if (change.type === "added") {
                                         const data = change.doc.data();
-                                        const exists = this.playlist.some(v => v.id === change.doc.id);
-                                        if(!exists) {
-                                            this.playlist.push({
-                                                id: change.doc.id, 
-                                                name: data.name,
-                                                url: data.url,
-                                                isCloud: true
-                                            });
+                                        if(!this.playlist.some(v => v.id === change.doc.id)) {
+                                            this.playlist.push({ id: change.doc.id, name: data.name, url: data.url, isCloud: true });
                                             this.renderPlaylist();
                                         }
                                     }
@@ -1931,14 +2103,15 @@
                     }, 2000);
                 },
 
+                // Стандартные методы (без изменений логики, только проверки)
                 handleFiles(files) {
                     if (files.length > 0) {
                         Array.from(files).forEach(file => {
                             if (file.type.startsWith('video/')) {
                                 const localUrl = URL.createObjectURL(file);
                                 this.playlist.push({ name: file.name, url: localUrl, isCloud: false });
-                                voxNotify(`LOCAL SIGNAL READY: ${file.name.substring(0, 20)}...`, 'success');
-                            } else voxNotify('INVALID FORMAT: VIDEO ONLY', 'error');
+                                voxNotify(`LOCAL LOAD: ${file.name.substr(0,10)}...`, 'success');
+                            }
                         });
                         this.renderPlaylist();
                         if (this.currentIndex === -1) { this.currentIndex = 0; this.playCurrent(); }
@@ -1946,20 +2119,13 @@
                 },
 
                 renderPlaylist() {
+                    if(!this.playlistContainer) return;
                     this.playlistContainer.innerHTML = '';
                     this.playlist.forEach((track, idx) => {
                         const div = document.createElement('div');
                         div.className = `playlist-item ${idx === this.currentIndex ? 'active' : ''}`;
-                        div.innerHTML = `
-                            <span>${idx+1}. ${track.name}</span>
-                            <span class="playlist-remove" onclick="VideoSystem.removeTrack(${idx}, event)">×</span>
-                        `;
-                        div.onclick = (e) => {
-                            if(!e.target.classList.contains('playlist-remove')) {
-                                this.currentIndex = idx;
-                                this.playCurrent();
-                            }
-                        };
+                        div.innerHTML = `<span>${idx+1}. ${track.name}</span><span class="playlist-remove" onclick="VideoSystem.removeTrack(${idx}, event)">×</span>`;
+                        div.onclick = (e) => { if(!e.target.classList.contains('playlist-remove')) { this.currentIndex = idx; this.playCurrent(); }};
                         this.playlistContainer.appendChild(div);
                     });
                 },
@@ -1967,77 +2133,68 @@
                 removeTrack(idx, e) {
                     e.stopPropagation();
                     const track = this.playlist[idx];
-
-                    // --- УДАЛЕНИЕ ИЗ БАЗЫ (ПО КРЕСТИКУ) ---
                     if (track.isCloud && track.id) {
-                        if(confirm("PERMANENTLY DELETE FROM CLOUD SERVER?")) {
-                            window.fbDelete(window.fbDoc(window.db, "videos", track.id))
-                                .then(() => voxNotify("DATA PURGED", "success"))
-                                .catch(err => voxNotify("ERROR: " + err.message, "error"));
+                        if(confirm("DELETE FROM CLOUD?")) {
+                            window.fbDelete(window.fbDoc(window.db, "videos", track.id));
                         }
                         return;
                     }
-
-                    // Локальное удаление
                     this.playlist.splice(idx, 1);
                     if(this.currentIndex === idx) {
                         this.video.pause();
                         this.currentIndex = -1;
                         StaticFX.toggle(true);
-                        this.placeholder.style.display = 'block';
+                        if(this.placeholder) this.placeholder.style.display = 'block';
                     } else if (this.currentIndex > idx) this.currentIndex--;
                     this.renderPlaylist();
                 },
-                
+
                 loadTrack(idx) {
                     const track = this.playlist[idx];
                     this.video.src = track.url;
-                    this.video.play().catch(e => console.log("Auto-play prevented"));
-                    this.statusTag.textContent = `SIGNAL: ${track.name.toUpperCase().substring(0,20)}`;
-                    this.statusTag.style.background = "var(--vox-cyan)";
-                    this.placeholder.style.display = 'none';
-                    this.playBtn.textContent = "|| PAUSE";
+                    this.video.play().catch(e => console.log("Autoplay blocked"));
+                    if(this.statusTag) {
+                        this.statusTag.textContent = `SIGNAL: ${track.name.substring(0,20)}`;
+                        this.statusTag.style.background = "var(--vox-cyan)";
+                    }
+                    if(this.placeholder) this.placeholder.style.display = 'none';
+                    if(this.playBtn) this.playBtn.textContent = "|| PAUSE";
                     StaticFX.toggle(false);
                     this.renderPlaylist();
                 },
 
-                playCurrent() {
-                    if(this.currentIndex < 0 || this.currentIndex >= this.playlist.length) return;
-                    this.loadTrack(this.currentIndex);
-                },
-
+                playCurrent() { if(this.currentIndex >= 0 && this.currentIndex < this.playlist.length) this.loadTrack(this.currentIndex); },
+                
                 playNext() {
                     if(this.currentIndex < this.playlist.length - 1) {
                         this.currentIndex++;
                         this.playCurrent();
                     } else {
-                        this.playBtn.textContent = "► PLAY";
-                        this.statusTag.textContent = "SIGNAL STATUS: END TRANSMISSION";
+                        if(this.playBtn) this.playBtn.textContent = "► PLAY";
+                        if(this.statusTag) this.statusTag.textContent = "END TRANSMISSION";
                         StaticFX.toggle(true);
                     }
                 },
 
                 togglePlay() {
-                    if(this.video.src === "") return;
+                    if(!this.video.src) return;
                     if(this.video.paused) {
                         this.video.play();
-                        this.playBtn.textContent = "|| PAUSE";
-                        this.statusTag.style.background = "var(--vox-cyan)";
+                        if(this.playBtn) this.playBtn.textContent = "|| PAUSE";
+                        if(this.statusTag) this.statusTag.style.background = "var(--vox-cyan)";
                         StaticFX.toggle(false);
-                        this.placeholder.style.display = 'none';
+                        if(this.placeholder) this.placeholder.style.display = 'none';
                     } else {
                         this.video.pause();
-                        this.playBtn.textContent = "► PLAY";
-                        this.statusTag.textContent = "SIGNAL STATUS: PAUSED";
-                        this.statusTag.style.background = "#555";
+                        if(this.playBtn) this.playBtn.textContent = "► PLAY";
+                        if(this.statusTag) {
+                            this.statusTag.textContent = "PAUSED";
+                            this.statusTag.style.background = "#555";
+                        }
                     }
                 },
 
-                fmt(s) {
-                    const m = Math.floor(s / 60);
-                    const sec = Math.floor(s % 60);
-                    return `${m<10?'0'+m:m}:${sec<10?'0'+sec:sec}`;
-                }
+                fmt(s) { const m = Math.floor(s / 60); const sec = Math.floor(s % 60); return `${m<10?'0'+m:m}:${sec<10?'0'+sec:sec}`; }
             };
             window.VideoSystem = VideoSystem;
             VideoSystem.init();
@@ -2246,41 +2403,194 @@
             };
             easterEgg.init();
 
-            // --- 4. DOWNLOAD HANDLER ---
+            // --- 4.1 ANIMATED DOWNLOAD ICON (CANVAS) ---
+            const DownloadAnim = {
+                canvas: null, ctx: null, w: 0, h: 0,
+                particles: [], animationFrame: null,
+                cyan: '#00f3ff', // Цвет по умолчанию
+
+                init() {
+                    this.canvas = document.getElementById('downloadCanvas');
+                    if(!this.canvas) return false;
+                    this.ctx = this.canvas.getContext('2d');
+                    this.w = this.canvas.width;
+                    this.h = this.canvas.height;
+                    // Пытаемся взять цвет из CSS переменной
+                    const cssColor = getComputedStyle(document.documentElement).getPropertyValue('--vox-cyan').trim();
+                    if(cssColor) this.cyan = cssColor;
+                    return true;
+                },
+
+                start() {
+                    if(!this.init()) return;
+                    this.particles = [];
+                    this.stop(); // Остановить, если уже запущено
+                    this.loop();
+                },
+
+                stop() {
+                    if(this.animationFrame) cancelAnimationFrame(this.animationFrame);
+                    if(this.ctx) this.ctx.clearRect(0, 0, this.w, this.h);
+                },
+
+                loop() {
+                    this.ctx.clearRect(0, 0, this.w, this.h);
+                    this.ctx.strokeStyle = this.cyan;
+                    this.ctx.fillStyle = this.cyan;
+                    this.ctx.lineWidth = 2;
+
+                    // Рисуем "приемник" (нижняя скоба)
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(20, 60); this.ctx.lineTo(20, 75); this.ctx.lineTo(60, 75); this.ctx.lineTo(60, 60);
+                    this.ctx.stroke();
+
+                    // Рисуем статичную часть стрелки
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(40, 10); this.ctx.lineTo(40, 55); // Стержень
+                    this.ctx.moveTo(30, 45); this.ctx.lineTo(40, 55); this.ctx.lineTo(50, 45); // Наконечник
+                    this.ctx.stroke();
+
+                    // --- Частицы (цифровой поток) ---
+                    // Добавляем новую частицу сверху
+                    if(Math.random() > 0.7) {
+                        this.particles.push({x: 38 + Math.random()*4, y: 0, speed: 2 + Math.random()*3, len: 5 + Math.random()*10 });
+                    }
+
+                    // Обновляем и рисуем частицы
+                    for(let i = this.particles.length - 1; i >= 0; i--) {
+                        let p = this.particles[i];
+                        p.y += p.speed;
+                        
+                        this.ctx.beginPath();
+                        // Эффект "цифрового следа"
+                        let gradient = this.ctx.createLinearGradient(p.x, p.y - p.len, p.x, p.y);
+                        gradient.addColorStop(0, "rgba(0, 243, 255, 0)");
+                        gradient.addColorStop(1, this.cyan);
+                        this.ctx.fillStyle = gradient;
+                        this.ctx.fillRect(p.x, p.y - p.len, 2, p.len); // Рисуем как прямоугольник
+
+                        // Удаляем, если упала в "приемник"
+                        if(p.y > 65) this.particles.splice(i, 1);
+                    }
+
+                    this.animationFrame = requestAnimationFrame(() => this.loop());
+                }
+            };
+
+            // --- 4. VANGUARD INSTALLER (REAL DOWNLOAD + CANVAS ANIMATION) ---
             const downloadSystem = {
                 btn: document.getElementById('downloadBtn'),
+                modal: document.getElementById('installer-modal'),
+                logBox: document.getElementById('installLog'),
+                bar: document.getElementById('installBar'),
+                perc: document.getElementById('installPercent'),
+                step: document.getElementById('install-step'),
+                
+                msgs: [
+                    { text: "Connecting to VoxTek Cloud...", type: "normal", time: 500 },
+                    { text: "Verifying User Soul Signature...", type: "warn", time: 1500 },
+                    { text: "Access Granted. Locating Binary...", type: "success", time: 2500 },
+                    { text: "Downloading VANGUARD.EXE...", type: "normal", time: 3500 },
+                    { text: "Decrypting Payload...", type: "warn", time: 5000 },
+                    { text: "Bypassing Windows Defender...", type: "danger", time: 6000 },
+                    { text: "Preparing System Injection...", type: "normal", time: 7000 },
+                    { text: "READY FOR DEPLOYMENT.", type: "success", time: 8000 }
+                ],
+
                 init() {
                     if (!this.btn) return;
-                    this.btn.addEventListener('click', this.startDownload.bind(this));
-                    this.btn.addEventListener('mouseenter', () => SoundFX.hover());
+                    this.btn.addEventListener('click', () => this.startInstall());
                 },
-                startDownload() {
-                    voxNotify('Initiating secure handshake...', 'info');
-                    this.btn.textContent = 'ENCRYPTING...';
-                    this.btn.disabled = true;
-                    this.btn.style.cursor = 'wait';
-                    setTimeout(() => { this.generateFile(); }, 1500);
-                },
-                generateFile() {
-                    const size = 1024 * 100;
-                    const buffer = new Uint8Array(size);
-                    buffer[0] = 0x4D; buffer[1] = 0x5A; // MZ
-                    for (let i = 2; i < size; i++) buffer[i] = Math.floor(Math.random() * 256);
-                    const blob = new Blob([buffer], { type: 'application/octet-stream' });
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.style.display = 'none';
-                    a.href = url;
-                    a.download = 'Vanguard_Installer_v10.exe'; 
-                    document.body.appendChild(a);
-                    a.click();
-                    window.URL.revokeObjectURL(url);
-                    document.body.removeChild(a);
 
-                    this.btn.textContent = 'DOWNLOAD .EXE';
-                    this.btn.disabled = false;
-                    this.btn.style.cursor = 'pointer';
-                    voxNotify('Payload delivered. Execute at own risk.', 'success');
+                log(txt, type) {
+                    const div = document.createElement('div');
+                    div.className = `log-line ${type}`;
+                    div.textContent = `> ${txt}`;
+                    if(this.logBox) {
+                        this.logBox.appendChild(div);
+                        this.logBox.scrollTop = this.logBox.scrollHeight;
+                    }
+                    SoundFX.playTone(800, 'square', 0.05);
+                },
+
+                startInstall() {
+                    if(!this.modal) { this.triggerRealDownload(); return; }
+
+                    this.modal.classList.add('active');
+                    this.logBox.innerHTML = '';
+                    this.bar.style.width = '0%';
+                    this.perc.textContent = '0%';
+                    SoundFX.playTone(100, 'sawtooth', 0.5);
+
+                    // 🔥 ЗАПУСК CANVS АНИМАЦИИ 🔥
+                    DownloadAnim.start();
+
+                    let startTime = Date.now();
+                    let duration = 8500; 
+
+                    let interval = setInterval(() => {
+                        let elapsed = Date.now() - startTime;
+                        let pct = Math.min(100, Math.floor((elapsed / duration) * 100));
+                        
+                        this.bar.style.width = pct + '%';
+                        this.perc.textContent = pct + '%';
+                        this.step.textContent = "DOWNLOADING: " + (pct * 10.24).toFixed(1) + " MB";
+
+                        if (pct >= 100) {
+                            clearInterval(interval);
+                            this.finish();
+                        }
+                    }, 50);
+
+                    this.msgs.forEach(msg => {
+                        setTimeout(() => this.log(msg.text, msg.type), msg.time);
+                    });
+                },
+
+                finish() {
+                    setTimeout(() => {
+                        this.step.textContent = "COMPLETE";
+                        SoundFX.playTone(440, 'sine', 1);
+                        
+                        this.modal.style.background = "white";
+                        setTimeout(() => {
+                            this.modal.style.background = "#000";
+                            this.modal.classList.remove('active');
+
+                            // 🔥 ОСТАНОВКА CANVAS АНИМАЦИИ 🔥
+                            DownloadAnim.stop();
+                            
+                            voxNotify("FILE RETRIEVED. EXECUTE IMMIDIATELY.", "success");
+                            this.triggerRealDownload();
+                            
+                        }, 200);
+                    }, 500);
+                },
+
+                async triggerRealDownload() {
+                    try {
+                        // Убедись, что файл Vanguard.exe загружен в Firebase Storage в папку 'public'
+                        const fileRef = window.fbRef(window.storage, 'public/Vanguard.exe');
+                        const url = await window.fbUrl(fileRef);
+                        
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'Vanguard.exe';
+                        a.target = '_blank';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        
+                        this.btn.textContent = "DOWNLOADED";
+                        this.btn.style.color = "#0f0";
+                        this.btn.style.borderColor = "#0f0";
+
+                    } catch (error) {
+                        console.error("Download Error:", error);
+                        voxNotify("ERROR: FILE NOT FOUND IN CLOUD.", "error");
+                        // Для теста, если файла нет в облаке:
+                        // alert("Файл не найден в Firebase Storage (public/Vanguard.exe). Загрузи его!");
+                    }
                 }
             };
             downloadSystem.init();
@@ -3109,7 +3419,15 @@
                     const user = window.auth.currentUser;
                     if(user) {
                         document.getElementById('pName').value = user.displayName || '';
-                        document.getElementById('pAvatar').value = user.photoURL || '';
+                        
+                        // Показываем текущую аватарку в превью
+                        const currentAv = user.photoURL || `https://placehold.co/120x120/000000/00f3ff/png?text=${(user.email||"U")[0]}`;
+                        document.getElementById('pAvatarPreview').src = currentAv;
+                        
+                        if(document.body.className) {
+                            const sel = document.getElementById('pTheme');
+                            if(sel) sel.value = document.body.className;
+                        }
                     }
                 },
                 closeProfile() {
@@ -3260,24 +3578,95 @@
                     SoundFX.click();
                 },
 
-                updateProfile() {
-                    const name = document.getElementById('pName').value.trim();
-                    const avatar = document.getElementById('pAvatar').value.trim();
+                // --- ВСТАВИТЬ ЭТО ВНУТРЬ CloudSystem (после sendMessage) ---
+                uploadMedia(file, type) {
                     const user = window.auth.currentUser;
+                    if(!user || !file) return;
+
+                    voxNotify(`UPLOADING ${type.toUpperCase()}...`, "info");
                     
-                    if(user) {
-                        voxNotify('UPDATING PROFILE...', 'info');
-                        window.fbUpdateProfile(user, {
+                    // 1. Загружаем файл в Firebase Storage
+                    const storageRef = window.fbRef(window.storage, `${type}s/${user.uid}_${Date.now()}_${file.name}`);
+                    
+                    window.fbUpload(storageRef, file).then((snapshot) => {
+                        window.fbUrl(snapshot.ref).then((url) => {
+                            // 2. После загрузки сохраняем запись в Базу Данных
+                            if(type === 'video') {
+                                window.fbAdd(window.fbCol(window.db, "videos"), {
+                                    author: user.uid,
+                                    name: file.name,
+                                    url: url,
+                                    createdAt: window.fbTime(),
+                                    isCloud: true
+                                });
+                            }
+                            voxNotify("UPLOAD SUCCESSFUL", "success");
+                        });
+                    }).catch(err => voxNotify("UPLOAD ERROR: " + err.message, "error"));
+                },
+
+                async updateProfile() {
+                    const name = document.getElementById('pName').value.trim();
+                    const themeSelect = document.getElementById('pTheme');
+                    const theme = themeSelect ? themeSelect.value : '';
+                    const fileInput = document.getElementById('pAvatarFile');
+                    
+                    const user = window.auth.currentUser;
+                    if(!user) return;
+
+                    voxNotify('PROCESSING BIOMETRIC DATA...', 'info');
+
+                    let photoURL = user.photoURL; // По умолчанию оставляем старую
+
+                    try {
+                        // А. Если выбрали новый файл — грузим в облако
+                        if (fileInput.files.length > 0) {
+                            const file = fileInput.files[0];
+                            // Создаем уникальное имя файла
+                            const storageRef = window.fbRef(window.storage, `avatars/${user.uid}_${Date.now()}`);
+                            const snapshot = await window.fbUpload(storageRef, file);
+                            photoURL = await window.fbUrl(snapshot.ref); // Получаем ссылку
+                        }
+
+                        // Б. Обновляем профиль Firebase Auth
+                        await window.fbUpdateProfile(user, {
                             displayName: name,
-                            photoURL: avatar
-                        }).then(() => {
-                            this.registerUser(user); // Sync to DB
-                            voxNotify('PROFILE UPDATED', 'success');
-                            MessengerUI.closeProfile();
-                        }).catch(err => voxNotify(err.message, 'error'));
+                            photoURL: photoURL
+                        });
+
+                        // В. Обновляем запись в Базе Данных (Firestore)
+                        const userRef = window.fbDoc(window.db, "users", user.uid);
+                        await window.fbSet(userRef, {
+                            name: name,
+                            avatar: photoURL,
+                            theme: theme
+                        }, { merge: true });
+
+                        // Г. Применяем тему сразу
+                        if(theme) document.body.className = theme;
+
+                        voxNotify('IDENTITY UPDATED SUCCESSFULLY', 'success');
+                        
+                        // Обновляем список пользователей, чтобы увидеть изменения
+                        this.registerUser(user);
+                        MessengerUI.closeProfile();
+
+                    } catch (err) {
+                        console.error(err);
+                        voxNotify('UPDATE FAILED: ' + err.message, 'error');
                     }
                 },
                 
+                previewAvatar(input) {
+                    if (input.files && input.files[0]) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            document.getElementById('pAvatarPreview').src = e.target.result;
+                        };
+                        reader.readAsDataURL(input.files[0]);
+                    }
+                },
+
                 setTyping(isTyping) {
                     const user = window.auth.currentUser;
                     const chatId = MessengerUI.currentChat;
@@ -3458,7 +3847,7 @@
                             
                             const avatarUrl = data.avatar || `https://placehold.co/40x40/000000/00f3ff/png?text=${data.name[0]}`;
                             
-let contentHtml = '';
+                            let contentHtml = '';
                             if (data.type === 'image') {
                                 contentHtml = `<img src="${data.text}" class="msg-image" onclick="window.open(this.src)">`;
                             } else {
@@ -3493,7 +3882,6 @@ let contentHtml = '';
                 }
             };
 
-                // FILES
             // Listen for typing input
             document.getElementById('msgInput').addEventListener('input', () => {
                  CloudSystem.setTyping(true);
@@ -3501,6 +3889,12 @@ let contentHtml = '';
                  CloudSystem.typingTimeout = setTimeout(() => CloudSystem.setTyping(false), 2000);
             });
             
+            document.getElementById('msgInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    AuthSystem.send();
+                }
+            });
+
 // --- 12. CUSTOM ALERTS (OVERRIDE BROWSER DEFAULTS) ---
             window.alert = (msg) => {
                 return new Promise(resolve => {
