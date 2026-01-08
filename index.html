@@ -1168,6 +1168,37 @@
             text-align: center; cursor: pointer; word-break: break-all;
         }
         .invite-link-display:hover { background: #222; border-color: var(--vox-cyan); }
+
+        /* --- ☢️ DEFCON THEMES --- */
+        
+        /* LEVEL 2: CAUTION (Желтый) */
+        body.defcon-caution {
+            --vox-cyan: #ffbb00; /* Желто-оранжевый */
+            --vox-cyan-dim: rgba(255, 187, 0, 0.15);
+            --scan-line-color: rgba(255, 187, 0, 0.05);
+        }
+        body.defcon-caution .news-ticker { background: #ffbb00; color: black; }
+        
+        /* LEVEL 3: CRITICAL (Красный + Пульсация) */
+        body.defcon-critical {
+            --vox-cyan: #ff0000; /* Чистый красный */
+            --vox-cyan-dim: rgba(255, 0, 0, 0.2);
+            --scan-line-color: rgba(255, 0, 0, 0.1);
+            animation: redAlert 1s infinite alternate;
+        }
+        @keyframes redAlert {
+            0% { box-shadow: inset 0 0 0 black; }
+            100% { box-shadow: inset 0 0 50px red; }
+        }
+        
+        /* LEVEL 4: LOCKDOWN (Темнота) */
+        body.defcon-lockdown {
+            --vox-cyan: #444; /* Серый */
+            filter: grayscale(100%) contrast(1.2);
+            pointer-events: none; /* Блокируем клики */
+        }
+        /* Разрешаем кликать админу, чтобы он мог выключить этот режим */
+        body.defcon-lockdown #adminPanel { pointer-events: auto; filter: none; }
     </style>
 </head>
 <body id="top">
@@ -1295,6 +1326,7 @@
                 <li><a href="#terminal" onclick="Router.go('home')">Terminal</a></li>
                 <li><a href="#" onclick="Router.go('video')" style="color:white;">BROADCAST</a></li>
                 <li><a href="#" onclick="Router.go('messenger')" style="color:var(--vox-cyan);">MESSENGER</a></li>
+                <li><a href="#" onclick="Router.go('storage')" style="color:#aaa;">ARCHIVE</a></li>
                 </ul>
         </nav>
     </header>
@@ -1580,6 +1612,35 @@
         </div>
     </div>
 
+    <div id="view-storage" class="view-section">
+        <div class="section-header"><h2>DATA VAULT</h2></div>
+        
+        <div class="messenger-container" style="height: auto; min-height: 600px; padding: 30px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #333; padding-bottom:20px; margin-bottom:20px;">
+                <div>
+                    <h3 style="color:var(--vox-cyan);">PERSONAL CLOUD SECTOR</h3>
+                    <div style="font-size:10px; color:#666;">SECURE STORAGE PROTOCOL V.4.0</div>
+                </div>
+                
+                <label class="btn-tech" style="font-size:12px; padding:10px 20px;">
+                    UPLOAD DATA
+                    <input type="file" id="vaultUpload" style="display:none;" onchange="VaultSystem.upload(this)">
+                </label>
+            </div>
+
+            <div id="vaultGrid" class="spy-grid" style="max-height:none; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));">
+                <div style="color:#666; grid-column:1/-1; text-align:center; padding:50px;">
+                    CONNECTING TO ARCHIVE SERVERS...
+                </div>
+            </div>
+            
+            <div style="margin-top:20px; font-size:10px; color:#444; font-family:var(--font-code); border-top:1px solid #111; padding-top:10px;">
+                NOTICE: ALL DATA IS SUBJECT TO AUTOMATED SCANNING BY VANGUARD AI.<br>
+                SEDITIOUS MATERIAL WILL BE QUARANTINED.
+            </div>
+        </div>
+    </div>
+
     <footer>
         <p>&copy; 2026 VOXTEK ENTERPRISES. TRUST US WITH YOUR NETWORK.</p>
     </footer>
@@ -1676,12 +1737,26 @@
         <div id="spyGrid" class="spy-grid" style="max-height:100px;"></div>
     </div>
 
-    <div class="admin-section" style="justify-content:center; align-items:center; opacity:0.5;">
-        <div style="font-size:10px; font-family:var(--font-code); color:var(--vox-cyan);">
-            SYSTEM STATUS: ONLINE<br>
-            SECURITY LEVEL: MAXIMUM<br>
-            VANGUARD: ACTIVE
+    <div class="admin-section" id="matrixContainer" style="padding:0; overflow:hidden; position:relative; height:100px; background:#000; border:1px solid var(--vox-cyan); box-shadow: inset 0 0 20px rgba(0, 243, 255, 0.2);">
+        <canvas id="miniMatrixCanvas" style="width:100%; height:100%; display:block; opacity:0.8;"></canvas>
+        
+        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); 
+                    color:var(--vox-cyan); background:rgba(0,0,0,0.85); padding:4px 10px; 
+                    font-size:10px; border:1px solid var(--vox-cyan); letter-spacing:2px;
+                    box-shadow: 0 0 10px var(--vox-cyan);">
+            SYSTEM ONLINE
         </div>
+    </div>
+
+    <div class="admin-section">
+        <label class="form-label" style="color:var(--vox-cyan); border-bottom:1px solid #333; padding-bottom:5px;">GLOBAL THREAT LEVEL</label>
+        <div style="display:flex; gap:5px; margin-top:10px;">
+            <button class="btn-tech" style="flex:1; border-color:#00f3ff; color:#00f3ff;" onclick="DefconSystem.set(1)">SAFE</button>
+            <button class="btn-tech" style="flex:1; border-color:#ffbb00; color:#ffbb00;" onclick="DefconSystem.set(2)">WARN</button>
+            <button class="btn-tech" style="flex:1; border-color:#ff0000; color:#ff0000;" onclick="DefconSystem.set(3)">CRIT</button>
+            <button class="btn-tech" style="flex:1; border-color:#555; color:#aaa; background:#111;" onclick="DefconSystem.set(4)">LOCK</button>
+        </div>
+        <div id="currentDefconDisplay" style="text-align:center; font-size:10px; margin-top:5px; color:#666;">STATUS: NORMAL</div>
     </div>
 
     <div class="admin-section admin-full-width">
@@ -3260,6 +3335,11 @@
                     if (page === 'home') document.getElementById('view-home').classList.add('active-view');
                     else if (page === 'messenger') document.getElementById('view-messenger').classList.add('active-view');
                     else if (page === 'video') document.getElementById('view-video').classList.add('active-view');
+                    else if (page === 'storage') {
+                        document.getElementById('view-storage').classList.add('active-view');
+                        if(window.VaultSystem) VaultSystem.init();
+                        if(window.DefconSystem) DefconSystem.init();
+                    }
                 }
             };
 
@@ -3529,9 +3609,10 @@
                             const div = document.createElement('div');
                             div.className = 'admin-row';
                             
-                            // Если пользователь забанен, показываем красную метку
+                            // Если забанен — показываем кнопку АМНИСТИИ (Зеленая/Голубая)
+                            // Если нет — кнопку БАНА (Красная)
                             const banStatus = u.isBanned 
-                                ? `<span class="banned-tag">TERMINATED</span>` 
+                                ? `<button class="ban-btn" style="background:var(--vox-cyan); color:black;" onclick="AdminSystem.unbanUser('${u.uid}')">AMNESTY</button>` 
                                 : `<button class="ban-btn" onclick="AdminSystem.banUser('${u.uid}')">BAN</button>`;
                             
                             div.innerHTML = `
@@ -3618,33 +3699,61 @@
                 // ВНУТРИ AdminSystem:
                 
                 async banUser(uid) {
-                    // Используем window.confirm для подтверждения
-                    if (!await confirm("WARNING: INITIATING TOTAL PURGE PROTOCOL.\nThis will erase the user and ALL their messages from the database.\nProceed?")) return;
+                    // Предупреждение
+                    if (!await confirm("WARNING: INITIATING BAN PROTOCOL.\nThis will block access and delete messages.\nProceed?")) return;
 
-                    voxNotify("PURGING DATA...", "error");
+                    voxNotify("EXECUTING JUDGMENT...", "error");
 
                     try {
-                        // 1. УДАЛЯЕМ ГЛОБАЛЬНЫЕ СООБЩЕНИЯ ЭТОГО ЮЗЕРА
+                        // 1. ЧИСТИМ СООБЩЕНИЯ (Оставляем как было - это круто)
                         const qGlobal = window.fbQuery(window.fbCol(window.db, "messages_global"), window.fbWhere("uid", "==", uid));
                         const snapGlobal = await window.fbGetDocs(qGlobal);
                         snapGlobal.forEach(doc => window.fbDelete(doc.ref));
 
-                        // 2. УДАЛЯЕМ ПРИВАТНЫЕ СООБЩЕНИЯ ЭТОГО ЮЗЕРА
                         const qPrivate = window.fbQuery(window.fbCol(window.db, "messages_private"), window.fbWhere("uid", "==", uid));
                         const snapPrivate = await window.fbGetDocs(qPrivate);
                         snapPrivate.forEach(doc => window.fbDelete(doc.ref));
                         
-                        // 3. УДАЛЯЕМ САМОГО ПОЛЬЗОВАТЕЛЯ ИЗ БАЗЫ
-                        await window.fbDelete(window.fbDoc(window.db, "users", uid));
+                        // 3. 🔥 ИСПРАВЛЕНИЕ ЗДЕСЬ 🔥
+                        // ВМЕСТО deleteDoc МЫ ДЕЛАЕМ setDoc С ФЛАГОМ isBanned
+                        const userRef = window.fbDoc(window.db, "users", uid);
+                        await window.fbSet(userRef, { 
+                            isBanned: true, 
+                            banReason: "VIOLATION OF VOXTEK PROTOCOLS", // Причина бана
+                            trustScore: 0 
+                        }, { merge: true }); // merge: true ОЧЕНЬ ВАЖЕН, чтобы не стереть остальное случайно
 
-                        voxNotify(`TARGET ${uid.substr(0,5)} HAS BEEN ERASED FROM EXISTENCE.`, 'success');
+                        voxNotify(`TARGET ${uid.substr(0,5)} TERMINATED.`, 'success');
                         
-                        // Обновляем список, чтобы пропал из админки
+                        // Обновляем список админки
                         this.loadUsers();
 
                     } catch (e) {
-                        voxNotify("PURGE FAILED: " + e.message, "error");
+                        voxNotify("BAN FAILED: " + e.message, "error");
                         console.error(e);
+                    }
+                },
+
+                async unbanUser(uid) {
+                    if (!await confirm("GRANT MERCY TO THIS SOUL?\nAccess will be restored immediately.")) return;
+
+                    try {
+                        const userRef = window.fbDoc(window.db, "users", uid);
+                        
+                        // Снимаем бан, убираем причину и даем минимальный рейтинг (пусть заслуживает доверие заново)
+                        await window.fbSet(userRef, { 
+                            isBanned: false, 
+                            banReason: null, 
+                            trustScore: 10 // Начинает с низов, как и положено грешнику
+                        }, { merge: true });
+
+                        voxNotify(`CITIZEN ${uid.substr(0,5)} RESTORED.`, 'success');
+                        
+                        // Обновляем список
+                        this.loadUsers();
+
+                    } catch (e) {
+                        voxNotify("ERROR: " + e.message, "error");
                     }
                 },
 
@@ -3872,6 +3981,155 @@
                 }
             }
             
+            // --- 💾 VAULT SYSTEM (STORAGE + DB) ---
+            window.VaultSystem = {
+                init() {
+                    // Слушаем изменения в коллекции файлов текущего юзера
+                    if(window.auth.currentUser && window.db) {
+                        const uid = window.auth.currentUser.uid;
+                        const q = window.fbQuery(
+                            window.fbCol(window.db, "user_archives"), 
+                            window.fbWhere("owner", "==", uid),
+                            window.fbOrder("createdAt", "desc")
+                        );
+                        
+                        window.fbSnap(q, (snapshot) => {
+                            const grid = document.getElementById('vaultGrid');
+                            grid.innerHTML = '';
+                            
+                            if(snapshot.empty) {
+                                grid.innerHTML = `<div style="color:#666; grid-column:1/-1; text-align:center; padding:50px;">SECTOR EMPTY. UPLOAD DATA.</div>`;
+                                return;
+                            }
+
+                            snapshot.forEach(doc => {
+                                const f = doc.data();
+                                this.renderCard(f, doc.id, grid);
+                            });
+                        });
+                    }
+                },
+
+                renderCard(f, id, container) {
+                    // Определяем стиль в зависимости от статуса
+                    let statusColor = "#666";
+                    let statusText = "PENDING SCAN...";
+                    let isLocked = false;
+
+                    if(f.status === 'safe') {
+                        statusColor = "var(--vox-cyan)";
+                        statusText = "VERIFIED SAFE";
+                    } else if (f.status === 'threat') {
+                        statusColor = "var(--alert-red)";
+                        statusText = "QUARANTINED";
+                        isLocked = true;
+                    }
+
+                    const ext = f.name.split('.').pop().toUpperCase();
+                    
+                    const div = document.createElement('div');
+                    div.className = 'tech-card'; // Используем твой готовый стиль
+                    div.style = `padding:15px; width:auto; border-color:${statusColor}; position:relative; min-height:180px; display:flex; flex-direction:column; justify-content:space-between;`;
+                    
+                    div.innerHTML = `
+                        <div>
+                            <div style="font-size:30px; color:${statusColor}; margin-bottom:10px;">${isLocked ? '🔒' : '📄'}</div>
+                            <div style="font-size:12px; font-weight:bold; color:white; word-break:break-all;">${f.name}</div>
+                            <div style="font-size:9px; color:#888; margin-top:5px;">${ext} FILE • ${(f.size/1024).toFixed(1)} KB</div>
+                        </div>
+                        
+                        <div style="margin-top:15px; border-top:1px solid #333; padding-top:10px;">
+                            <div style="font-size:9px; color:${statusColor}; font-family:var(--font-code); margin-bottom:5px;">STATUS: ${statusText}</div>
+                            ${isLocked 
+                                ? `<button class="btn-tech" style="width:100%; font-size:10px; border-color:red; color:red; cursor:not-allowed; opacity:0.5;">ACCESS DENIED</button>`
+                                : `<a href="${f.url}" target="_blank" class="btn-tech" style="width:100%; font-size:10px; display:block; text-align:center; padding:5px;">RETRIEVE</a>`
+                            }
+                            <button class="btn-tech" style="width:100%; font-size:9px; margin-top:5px; border-color:#444; color:#666;" onclick="VaultSystem.deleteFile('${id}', '${f.refPath}')">PURGE</button>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                },
+
+                upload(input) {
+                    const file = input.files[0];
+                    if(!file || !window.auth.currentUser) return;
+                    
+                    voxNotify("UPLOADING TO SECURE VAULT...", "info");
+
+                    const uid = window.auth.currentUser.uid;
+                    const path = `archives/${uid}/${Date.now()}_${file.name}`;
+                    const storageRef = window.fbRef(window.storage, path);
+                    
+                    // 1. Загрузка в Storage
+                    window.fbUpload(storageRef, file).then((snap) => {
+                        window.fbUrl(snap.ref).then((url) => {
+                            // 2. Запись в БД (Статус по умолчанию 'scanning')
+                            window.fbAdd(window.fbCol(window.db, "user_archives"), {
+                                owner: uid,
+                                name: file.name,
+                                size: file.size,
+                                url: url,
+                                refPath: path, // Чтобы потом удалить
+                                createdAt: window.fbTime(),
+                                status: 'scanning' // Начальный статус
+                            });
+
+                            voxNotify("UPLOAD COMPLETE. SCANNING INITIATED.", "success");
+                            
+                            // 3. ФЕЙКОВОЕ СКАНИРОВАНИЕ (Симуляция работы Vanguard AI)
+                            // Через 3 секунды меняем статус на SAFE (или случайно на THREAT)
+                            setTimeout(() => {
+                                this.simulateScan(file.name);
+                            }, 3000);
+                        });
+                    });
+                    input.value = '';
+                },
+
+                async simulateScan(fileName) {
+                    // Ищем этот файл в базе (по имени и владельцу, свежий)
+                    // (Для упрощения найдем последний добавленный)
+                    const uid = window.auth.currentUser.uid;
+                    const q = window.fbQuery(
+                        window.fbCol(window.db, "user_archives"), 
+                        window.fbWhere("owner", "==", uid),
+                        window.fbWhere("name", "==", fileName),
+                        window.fbLimit(1)
+                    );
+                    
+                    const snap = await window.fbGetDocs(q);
+                    if(!snap.empty) {
+                        const doc = snap.docs[0];
+                        // 10% шанс, что файл признают "Угрозой" (для атмосферы)
+                        const isThreat = Math.random() < 0.1; 
+                        
+                        window.fbSet(doc.ref, { 
+                            status: isThreat ? 'threat' : 'safe' 
+                        }, { merge: true });
+
+                        if(isThreat) {
+                            voxNotify("ALERT: CONTRABAND DETECTED IN ARCHIVE!", "error");
+                            window.SoundFX.error();
+                        } else {
+                            // voxNotify("SCAN COMPLETE: FILE CLEAN.", "success");
+                        }
+                    }
+                },
+
+                deleteFile(id, refPath) {
+                    if(!confirm("PERMANENTLY PURGE DATA?")) return;
+                    
+                    // Удаляем из БД
+                    window.fbDelete(window.fbDoc(window.db, "user_archives", id));
+                    
+                    // Удаляем из Storage (если нужно, но можно оставить для истории)
+                    // const sRef = window.fbRef(window.storage, refPath);
+                    // deleteObject(sRef)... (требует импорта deleteObject, пока пропустим для простоты)
+                    
+                    voxNotify("DATA EXPUNGED.", "info");
+                }
+            };
+
             // --- NEW: CLOUD SYNC (Chat & Files) ---
             window.CloudSystem = {
                 chatListener: null,
@@ -4952,6 +5210,96 @@
 // --- SAFE INITIALIZATION (ANTI-SPAM & RACE CONDITION FIX) ---
             let systemLoaded = false; // Глобальный флаг защиты от повторного запуска
 
+            // --- ☢️ DEFCON SYSTEM (GLOBAL CONTROL) ---
+            window.DefconSystem = {
+                currentLevel: 1,
+                
+                init() {
+                    // Слушаем изменения в базе (system_state/defcon)
+                    if(window.db) {
+                        const ref = window.fbDoc(window.db, "system_state", "defcon");
+                        window.fbSnap(ref, (doc) => {
+                            if(doc.exists()) {
+                                const data = doc.data();
+                                this.applyLevel(data.level || 1);
+                            }
+                        });
+                    }
+                },
+
+                // Функция для АДМИНА (Смена уровня)
+                async set(lvl) {
+                    if(!confirm(`INITIATE DEFCON ${lvl}? THIS AFFECTS ALL USERS.`)) return;
+                    
+                    try {
+                        await window.fbSet(window.fbDoc(window.db, "system_state", "defcon"), {
+                            level: lvl,
+                            timestamp: window.fbTime(),
+                            setBy: window.auth.currentUser.email
+                        });
+                        voxNotify(`DEFCON LEVEL SET TO ${lvl}`, "success");
+                    } catch(e) {
+                        voxNotify("ERROR: " + e.message, "error");
+                    }
+                },
+
+                // Функция для ВСЕХ (Применение эффектов)
+                applyLevel(lvl) {
+                    this.currentLevel = lvl;
+                    const body = document.body;
+                    
+                    // Сброс классов
+                    body.classList.remove('defcon-caution', 'defcon-critical', 'defcon-lockdown');
+                    
+                    const display = document.getElementById('currentDefconDisplay');
+                    const ticker = document.querySelector('.ticker-move');
+
+                    switch(lvl) {
+                        case 1: // SAFE
+                            if(display) display.textContent = "STATUS: NORMAL OPERATION";
+                            if(ticker) ticker.style.animationDuration = "30s"; // Нормальная скорость
+                            break;
+                            
+                        case 2: // CAUTION (Yellow)
+                            body.classList.add('defcon-caution');
+                            if(display) display.textContent = "STATUS: ELEVATED THREAT";
+                            if(ticker) ticker.style.animationDuration = "15s"; // Быстрее
+                            voxNotify("ALERT: THREAT LEVEL INCREASED TO YELLOW.", "info");
+                            break;
+                            
+                        case 3: // CRITICAL (Red)
+                            body.classList.add('defcon-critical');
+                            if(display) display.textContent = "STATUS: CRITICAL FAILURE";
+                            if(ticker) ticker.style.animationDuration = "5s"; // Паническая скорость
+                            
+                            // Сирена (один раз)
+                            if(window.SoundFX) {
+                                window.SoundFX.playTone(400, 'sawtooth', 0.5);
+                                setTimeout(() => window.SoundFX.playTone(300, 'sawtooth', 0.5), 600);
+                            }
+                            voxNotify("WARNING: IMMINENT DANGER.", "error");
+                            break;
+                            
+                        case 4: // LOCKDOWN (Black)
+                            body.classList.add('defcon-lockdown');
+                            if(display) display.textContent = "STATUS: MANDATORY LOCKDOWN";
+                            
+                            // Блокируем чат
+                            const inp = document.getElementById('msgInput');
+                            if(inp) { inp.disabled = true; inp.placeholder = "TERMINAL LOCKED BY ADMINISTRATOR"; }
+                            
+                            voxNotify("LOCKDOWN INITIATED. REMAIN CALM.", "error");
+                            break;
+                    }
+                    
+                    // Если вышли из локдауна — разблокируем чат
+                    if (lvl !== 4) {
+                        const inp = document.getElementById('msgInput');
+                        if(inp) { inp.disabled = false; inp.placeholder = "Type encrypted message..."; }
+                    }
+                }
+            };
+
             const initVoxSystem = () => {
                 // Если система уже загружена, выходим, чтобы не дублировать уведомления
                 if (systemLoaded) return;
@@ -5082,6 +5430,60 @@
             // Запускаем процесс
             initVoxSystem();
         })();
+
+        // --- 🖥️ MINI MATRIX EFFECT (ADMIN PANEL) ---
+            const initMiniMatrix = () => {
+                const container = document.getElementById('matrixContainer');
+                const cvs = document.getElementById('miniMatrixCanvas');
+                if(!container || !cvs) return;
+
+                const ctx = cvs.getContext('2d');
+                let columns = [];
+                const fontSize = 10;
+                
+                // Функция сброса размеров (нужна при открытии панели)
+                const resize = () => {
+                    const rect = container.getBoundingClientRect();
+                    if(rect.width > 0 && rect.height > 0) {
+                        cvs.width = rect.width;
+                        cvs.height = rect.height;
+                        const cols = Math.floor(cvs.width / fontSize);
+                        columns = Array(cols).fill(1);
+                    }
+                };
+
+                // Рисование
+                const draw = () => {
+                    // Полупрозрачный черный фон для эффекта "шлейфа"
+                    ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
+                    ctx.fillRect(0, 0, cvs.width, cvs.height);
+
+                    ctx.fillStyle = "#00f3ff"; // Твой любимый VOX CYAN
+                    ctx.font = "bold " + fontSize + "px monospace";
+
+                    for(let i = 0; i < columns.length; i++) {
+                        // Случайный символ: 0 или 1
+                        const text = Math.random() > 0.5 ? "1" : "0";
+                        ctx.fillText(text, i * fontSize, columns[i] * fontSize);
+
+                        // Случайный сброс капли наверх
+                        if(columns[i] * fontSize > cvs.height && Math.random() > 0.95) {
+                            columns[i] = 0;
+                        }
+                        columns[i]++;
+                    }
+                    requestAnimationFrame(draw);
+                };
+
+                // 🔥 ВАЖНО: Следим за появлением панели, чтобы запустить эффект вовремя
+                const observer = new ResizeObserver(() => resize());
+                observer.observe(container);
+
+                draw();
+            };
+
+            // Запускаем
+            setTimeout(initMiniMatrix, 500);
     </script>
 
     <button id="adminToggleBtn" class="btn-tech" 
