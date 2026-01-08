@@ -1046,6 +1046,37 @@
         @media (max-width: 768px) {
              .ticker-side-icon { width: 36px; height: 36px; }
         }
+        /* --- 🔥 FIX: Z-INDEX HIERARCHY (ЧИНИМ СЛОИ) 🔥 --- */
+        
+        /* 1. Модальные окна (Confirm, Alert, Incoming Call) - САМЫЙ ВЕРХ */
+        .modal-overlay, #customModal, #incomingCallModal, #contractModal {
+            z-index: 2147483647 !important; /* Максимально возможное число в CSS */
+        }
+
+        /* 2. Делаем фон модального окна непрозрачным, чтобы видео не просвечивало */
+        .vox-modal {
+            background: #000 !important; 
+            border: 1px solid var(--vox-cyan);
+            box-shadow: 0 0 50px rgba(0,0,0,0.9);
+        }
+
+        /* 3. Немного опускаем уровень видео-контролов (чтобы они были ПОД модалкой) */
+        .custom-video-controls {
+            z-index: 10000 !important; /* Было слишком много, уменьшаем */
+        }
+        
+        /* 4. Исправляем кнопки внутри модального окна (чтобы не слипались) */
+        .vox-modal-actions {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+        }
+        
+        .vox-modal-actions button {
+            flex: 1; /* Кнопки растянутся ровно */
+            margin: 0;
+        }
     </style>
 </head>
 <body id="top">
