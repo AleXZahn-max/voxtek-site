@@ -830,10 +830,19 @@
         
         .vox-modal {
             background: #050505; border: 1px solid var(--vox-cyan);
-            width: 400px; max-width: 90%; padding: 20px;
+            width: 500px !important; max-width: 96vw; padding: 20px;  /* Было 400, стало 500 =) */
             box-shadow: 0 0 30px rgba(0, 243, 255, 0.1);
             position: relative;
         }
+
+        /* 2. Сжимаем кнопки внутри модального окна */
+        .vox-modal-actions .btn-tech {
+            padding: 10px 5px !important; /* Убираем гигантские отступы по бокам */
+            font-size: 11px !important;   /* Текст чуть компактнее */
+            min-width: auto !important;   /* Разрешаем кнопке сжиматься */
+            height: auto !important;      /* Авто-высота */
+        }
+
         .vox-modal h3 { color: var(--vox-cyan); margin-bottom: 15px; font-size: 18px; text-transform: uppercase; }
         .vox-modal p { font-size: 14px; color: #ccc; margin-bottom: 25px; line-height: 1.5; }
         .vox-modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
@@ -1580,6 +1589,18 @@
         </div>
         <div class="call-controls">
             </div>
+    </div>
+    
+    <div id="customModal" class="modal-overlay">
+        <div class="vox-modal">
+            <h3 id="modalTitle" style="color:var(--vox-cyan);">SYSTEM ALERT</h3>
+            <p id="modalText" style="color:white;">MESSAGE CONTENT</p>
+            
+            <input type="text" id="modalInput" class="form-input" style="display:none; margin-bottom:20px;" placeholder="ENTER DATA">
+            
+            <div id="modalActions" class="vox-modal-actions">
+                </div>
+        </div>
     </div>
     
     <div id="incomingCallModal" class="modal-overlay">
@@ -3613,6 +3634,28 @@
                         console.error(e);
                     }
                 },
+
+                // 🔥 НОВОЕ: КРАСИВЫЙ ВЫБОР ДЕЙСТВИЯ (ВМЕСТО ЦИФР) 🔥
+                askMessageAction(msgId) {
+                    return new Promise(resolve => {
+                        const m = document.getElementById('customModal');
+                        document.getElementById('modalTitle').textContent = "ADMIN PROTOCOL";
+                        document.getElementById('modalText').textContent = `TARGET ID: ${msgId.substr(0,8)}... SELECT ACTION:`;
+                        document.getElementById('modalInput').style.display = 'none'; // Прячем поле ввода
+
+                        const btns = document.getElementById('modalActions');
+                        // Рисуем 3 кнопки: Удалить (Красная), Редактировать (Синяя), Отмена (Серая)
+                        btns.innerHTML = `
+                            <button class="btn-tech" style="border-color:var(--alert-red); color:var(--alert-red); flex:1;" onclick="window.CustomDialog.close('delete')">DELETE</button>
+                            <button class="btn-tech" style="border-color:var(--vox-cyan); color:var(--vox-cyan); flex:1;" onclick="window.CustomDialog.close('edit')">EDIT</button>
+                            <button class="btn-tech" style="border-color:#555; color:#aaa; flex:1;" onclick="window.CustomDialog.close(null)">CANCEL</button>
+                        `;
+
+                        m.classList.add('active');
+                        // Связываем нажатие кнопок с ответом (Promise)
+                        window.CustomDialog.resolver = resolve;
+                    });
+                },
             };
 
             // --- NEW: MESSENGER UI LOGIC ---
@@ -4481,6 +4524,12 @@
 
                 // --- INIT CALL (CALLER) ---
                 async initCall(targetUid) {
+
+                    // 🔥 LOCKDOWN: БЛОКИРУЕМ СКРОЛЛ И ПРЯЧЕМ КНОПКУ АДМИНА
+                    document.body.style.overflow = 'hidden'; 
+                    const admBtn = document.getElementById('adminToggleBtn');
+                    if(admBtn) admBtn.style.display = 'none';
+
                     CallSystem.monitorNetwork()
                     this.isCaller = true;
                     this.renderControls();
@@ -4630,6 +4679,12 @@
 
                 // --- ANSWER (RECEIVER) ---
                 async answer() {
+
+                    // 🔥 LOCKDOWN: БЛОКИРУЕМ СКРОЛЛ И ПРЯЧЕМ КНОПКУ АДМИНА
+                    document.body.style.overflow = 'hidden';
+                    const admBtn = document.getElementById('adminToggleBtn');
+                    if(admBtn) admBtn.style.display = 'none';
+
                     this.isCaller = false;
                     this.stopRinging();
                     document.getElementById('incomingCallModal').classList.remove('active');
@@ -4730,6 +4785,16 @@
                 },
 
                 cleanup() {
+
+                    // 🔥 UNLOCK: ВОЗВРАЩАЕМ СКРОЛЛ
+                    document.body.style.overflow = 'auto';
+
+                    // 🔥 ВОЗВРАЩАЕМ КНОПКУ (ТОЛЬКО ЕСЛИ ТЫ АДМИН)
+                    if(window.auth.currentUser && window.auth.currentUser.email === 'voxtek@voxtek.net') {
+                        const admBtn = document.getElementById('adminToggleBtn');
+                        if(admBtn) admBtn.style.display = 'block';
+                    }
+
                     this.stopRinging();
                     if (this.localStream) {
                         this.localStream.getTracks().forEach(track => track.stop());
@@ -4832,34 +4897,32 @@
             // Note: Since we can't easily inject into the middle of your existing listener without re-writing it entirely,
             // We will use a MutationObserver to watch the chat feed and add buttons if Admin.
             
+            // Hook into CloudSystem to Render Admin Tools for Messages
             const chatObserver = new MutationObserver((mutations) => {
                 if(window.auth.currentUser && window.auth.currentUser.email === 'voxtek@voxtek.net') {
                     mutations.forEach(mut => {
                         mut.addedNodes.forEach(node => {
                             if(node.classList && node.classList.contains('msg-wrapper')) {
-                                // It's a message, add tools
-                                // We need to fetch the ID. The original code didn't save ID in DOM.
-                                // Quick fix: The listener needs to put ID in dataset.
-                                // Since we can't change the listener easily above without copy-paste, 
-                                // let's assume we click the message to moderate as Admin.
-                                
+                                // Добавляем слушатель правого клика
                                 node.addEventListener('contextmenu', async (e) => {
                                     e.preventDefault();
-                                    const msgId = node.dataset.id; // Берем ID, который мы добавили
+                                    const msgId = node.dataset.id;
                                     if (!msgId) return voxNotify("ERROR: NO ID FOUND", "error");
 
-                                    const action = await prompt("ADMIN ACTION (ID: " + msgId.substr(0,4) + "):\n1. Delete\n2. Edit\nType 1 or 2");
+                                    // 🔥 ТЕПЕРЬ ВЫЗЫВАЕМ НАШЕ КРАСИВОЕ МЕНЮ С КНОПКАМИ 🔥
+                                    const action = await AdminSystem.askMessageAction(msgId);
                                     
                                     // Определяем коллекцию (Глобальный чат или Личный)
                                     const col = MessengerUI.currentChat === 'global' ? 'messages_global' : 'messages_private';
 
-                                    if (action === '1') {
+                                    if (action === 'delete') {
                                         AdminSystem.deleteMessage(col, msgId);
-                                    } else if (action === '2') {
-                                        // Берем старый текст из пузыря сообщения
-                                        const oldText = node.querySelector('.msg-bubble').innerText;
+                                    } else if (action === 'edit') {
+                                        // Берем старый текст для удобства
+                                        const oldText = node.querySelector('.msg-bubble') ? node.querySelector('.msg-bubble').innerText : "";
                                         AdminSystem.editMessage(col, msgId, oldText);
                                     }
+                                    // Если нажали Cancel (null), ничего не делаем
                                 });
                             }
                         });
