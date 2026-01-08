@@ -888,6 +888,45 @@
         }
         .spy-card.active { border-color: var(--alert-red); animation: pulseRed 2s infinite; }
         @keyframes pulseRed { 0% { box-shadow: 0 0 5px #500; } 50% { box-shadow: 0 0 15px #f00; } 100% { box-shadow: 0 0 5px #500; } }
+
+        /* --- CONTRACT MODAL --- */
+        #contractModal { z-index: 30000; }
+        
+        .contract-paper {
+            background: #f0f0f0; color: black; font-family: 'Courier New', monospace;
+            padding: 40px; width: 500px; max-width: 90%;
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            position: relative; transform: rotate(-1deg);
+            border: 1px solid #ccc;
+        }
+
+        .contract-title {
+            text-align: center; font-size: 24px; font-weight: bold; margin-bottom: 20px;
+            text-decoration: underline; text-transform: uppercase;
+        }
+
+        .contract-text { font-size: 12px; line-height: 1.6; margin-bottom: 30px; }
+        
+        .signature-box {
+            border-bottom: 2px solid black; margin-top: 40px; 
+            font-family: 'Segoe Script', cursive; font-size: 24px; color: #8a0000;
+            min-height: 40px; cursor: pointer; position: relative;
+        }
+        
+        .signature-box:hover { background: rgba(0,0,0,0.05); }
+        .signature-box::after { content: 'X _________________________ (CLICK TO SIGN)'; font-size: 10px; color: #555; font-family: sans-serif; position: absolute; bottom: -20px; left: 0; }
+
+        /* МИНИ-ГЛЮКИ НА БУМАГЕ */
+        .glitch-paper { animation: paperTwitch 3s infinite; }
+        
+        @keyframes paperTwitch {
+            0% { transform: rotate(-1deg) translate(0,0); filter: none; }
+            95% { transform: rotate(-1deg) translate(0,0); filter: none; }
+            96% { transform: rotate(1deg) translate(2px,-2px); filter: invert(0.2); }
+            97% { transform: rotate(-2deg) translate(-2px,2px); }
+            98% { transform: rotate(0deg) translate(0,0); filter: none; }
+            100% { transform: rotate(-1deg) translate(0,0); }
+        }
     </style>
 </head>
 <body id="top">
@@ -1365,10 +1404,26 @@
         </div>
     </div>
 
+    <div id="contractModal" class="modal-overlay">
+        <div class="contract-paper glitch-paper">
+            <div class="contract-title">SOUL BINDING AGREEMENT</div>
+            <div class="contract-text">
+                I, the undersigned, hereby pledge my eternal allegiance to VoxTek Enterprises.<br><br>
+                By creating this ID, I voluntarily surrender my privacy, my data, and my consciousness to the Vanguard Neural Link. 
+                I understand that "Submission is Safety" and that any resistance will result in immediate termination.<br><br>
+                VoxTek is not responsible for loss of free will, hallucinations, or biological corruption.
+            </div>
+            
+            <div id="contractSignArea" class="signature-box" onclick="ContractSystem.sign()"></div>
+            
+            <button class="btn-tech" style="margin-top:40px; width:100%; border-color:black; color:black;" onclick="document.getElementById('contractModal').classList.remove('active')">REFUSE (EXIT)</button>
+        </div>
+    </div>
+
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-  import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, setDoc, doc, where, limit, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, setDoc, doc, where, limit, getDoc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
   import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
   const firebaseConfig = {
@@ -1404,6 +1459,7 @@
   window.fbLimit = limit;
   window.fbGet = getDoc;
   window.fbDelete = deleteDoc;
+  window.fbGetDocs = getDocs;
 
   window.fbRef = ref;
   window.fbUpload = uploadBytes;
@@ -2578,6 +2634,32 @@
                 }
             };
 
+            // --- NEW: CONTRACT SYSTEM ---
+            window.ContractSystem = {
+                pendingUser: null,
+                pendingPass: null,
+                
+                open(user, pass) {
+                    this.pendingUser = user;
+                    this.pendingPass = pass;
+                    document.getElementById('contractModal').classList.add('active');
+                    document.getElementById('contractSignArea').textContent = "";
+                },
+
+                sign() {
+                    const area = document.getElementById('contractSignArea');
+                    // Эффект появления подписи кровью
+                    area.innerHTML = `<span style="color:#8a0000;">${this.pendingUser.split('@')[0]}</span>`;
+                    SoundFX.playTone(100, 'sawtooth', 0.1); // Звук "скрипа"
+                    
+                    setTimeout(() => {
+                        document.getElementById('contractModal').classList.remove('active');
+                        // Возвращаемся к регистрации
+                        AuthSystem.finalizeRegister(this.pendingUser, this.pendingPass);
+                    }, 800);
+                }
+            };
+
 // --- UPDATED: AUTH SYSTEM (WITH BAN MONITOR) ---
             window.AuthSystem = {
                 currentUser: null,
@@ -2660,25 +2742,34 @@
                     }
                     SoundFX.click();
                 },
-register() {
+                // ВНУТРИ AuthSystem:
+
+                register() {
                     let u = document.getElementById('regUser').value.trim();
                     const p = document.getElementById('regPass').value.trim();
                     if (!u.includes('@')) u = u + '@voxtek.net';
                     if(!u || !p) return voxNotify('Credentials required.', 'error');
                     
+                    // ВМЕСТО РЕГИСТРАЦИИ СРАЗУ ОТКРЫВАЕМ КОНТРАКТ
+                    ContractSystem.open(u, p);
+                },
+
+                // ЭТОТ МЕТОД ВЫЗОВЕТСЯ ПОСЛЕ ПОДПИСИ
+                finalizeRegister(u, p) {
+                    voxNotify('CONTRACT SEALED. THANK YOU FOR COOPORATING WITH VOXTEK. TRUST US WITH YOUR NETWORK.', 'info');
+                    
                     window.fbRegister(window.auth, u, p)
                         .then((cred) => {
-                            // --- 3. TRUST SCORE START ---
-                            // При регистрации даем пользователю 50 очков доверия
                             window.fbSet(window.fbDoc(window.db, "users", cred.user.uid), {
-                                trustScore: 100, // <-- НОВОЕ
+                                trustScore: 100,
                                 uid: cred.user.uid,
                                 email: u,
                                 isOnline: true,
-                                lastSeen: window.fbTime()
+                                lastSeen: window.fbTime(),
+                                contractSigned: true // Метка о продаже души
                             }, { merge: true });
 
-                            voxNotify('ID CREATED. TRUST SCORE: 100.', 'success');
+                            voxNotify('WELCOME TO THE VOXTEK ENTERPRISES.', 'success');
                         })
                         .catch((error) => { voxNotify('ERROR: ' + error.message, 'error'); });
                 },
@@ -2857,24 +2948,38 @@ register() {
                     });
                 },
 
-                banUser(uid) {
-                    const reason = prompt("ENTER MANDATORY REASON FOR TERMINATION:");
-                    if (!reason || reason.trim() === "") {
-                        alert("ERROR: REASON REQUIRED TO TERMINATE CITIZEN.");
-                        return;
-                    }
+                // ВНУТРИ AdminSystem:
+                
+                async banUser(uid) {
+                    // Используем window.confirm для подтверждения
+                    if (!confirm("WARNING: INITIATING TOTAL PURGE PROTOCOL.\nThis will erase the user and ALL their messages from the database.\nProceed?")) return;
 
-                    if (confirm("CONFIRM TERMINATION? THIS CANNOT BE UNDONE.")) {
-                        // Обновляем документ пользователя: ставим флаг бана и причину
-                        window.fbSet(window.fbDoc(window.db, "users", uid), {
-                            isBanned: true,
-                            banReason: reason,
-                            bannedAt: window.fbTime()
-                        }, { merge: true });
+                    voxNotify("PURGING DATA...", "error");
+
+                    try {
+                        // 1. УДАЛЯЕМ ГЛОБАЛЬНЫЕ СООБЩЕНИЯ ЭТОГО ЮЗЕРА
+                        const qGlobal = window.fbQuery(window.fbCol(window.db, "messages_global"), window.fbWhere("uid", "==", uid));
+                        const snapGlobal = await window.fbGetDocs(qGlobal);
+                        snapGlobal.forEach(doc => window.fbDelete(doc.ref));
+
+                        // 2. УДАЛЯЕМ ПРИВАТНЫЕ СООБЩЕНИЯ ЭТОГО ЮЗЕРА
+                        const qPrivate = window.fbQuery(window.fbCol(window.db, "messages_private"), window.fbWhere("uid", "==", uid));
+                        const snapPrivate = await window.fbGetDocs(qPrivate);
+                        snapPrivate.forEach(doc => window.fbDelete(doc.ref));
                         
-                        voxNotify(`CITIZEN ${uid.slice(0,5)} TERMINATED.`, 'success');
+                        // 3. УДАЛЯЕМ САМОГО ПОЛЬЗОВАТЕЛЯ ИЗ БАЗЫ
+                        await window.fbDelete(window.fbDoc(window.db, "users", uid));
+
+                        voxNotify(`TARGET ${uid.substr(0,5)} HAS BEEN ERASED FROM EXISTENCE.`, 'success');
+                        
+                        // Обновляем список, чтобы пропал из админки
+                        this.loadUsers();
+
+                    } catch (e) {
+                        voxNotify("PURGE FAILED: " + e.message, "error");
+                        console.error(e);
                     }
-                }
+                },
             };
 
             // --- NEW: MESSENGER UI LOGIC ---
