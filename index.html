@@ -1077,6 +1077,44 @@
             flex: 1; /* Кнопки растянутся ровно */
             margin: 0;
         }
+        /* --- 🔥 НОВЫЕ СТИЛИ (ПУСТОЙ ЧАТ + МЕНЮ + РЕФЕРАЛКА) 🔥 --- */
+
+        /* 1. ПУСТОЙ ЧАТ (Empty State) */
+        .empty-chat-state {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            height: 100%; opacity: 0; animation: fadeIn 1s forwards; text-align: center;
+        }
+        .empty-icon-box {
+            width: 80px; height: 80px; background: rgba(0, 243, 255, 0.05);
+            border: 1px solid var(--vox-cyan); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 20px; box-shadow: 0 0 20px rgba(0, 243, 255, 0.1);
+        }
+        .empty-icon { font-size: 30px; animation: pulseOp 2s infinite; }
+        .empty-title { color: white; font-weight: bold; margin-bottom: 5px; letter-spacing: 1px; }
+        .empty-sub { color: #666; font-size: 12px; max-width: 200px; }
+        
+        @keyframes pulseOp { 0% { opacity: 0.5; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0.5; transform: scale(0.9); } }
+
+        .sidebar-close-btn {
+            display: none;
+            background: none; border: 1px solid #333; color: var(--alert-red);
+            font-weight: bold; width: 30px; height: 30px; border-radius: 5px;
+            align-items: center; justify-content: center; cursor: pointer;
+        }
+        @media (max-width: 768px) {
+            .sidebar-close-btn { display: flex; }
+        }
+        .invite-box {
+            margin-top: 15px; border-top: 1px solid #333; padding-top: 15px;
+            display: flex; flex-direction: column; gap: 5px;
+        }
+        .invite-link-display {
+            background: #111; border: 1px solid #333; color: var(--vox-cyan);
+            padding: 8px; font-size: 10px; font-family: var(--font-code);
+            text-align: center; cursor: pointer; word-break: break-all;
+        }
+        .invite-link-display:hover { background: #222; border-color: var(--vox-cyan); }
     </style>
 </head>
 <body id="top">
@@ -1345,8 +1383,9 @@
 
             <div id="msgApp" class="chat-ui">
                 <div id="chatSidebar" class="chat-sidebar">
-                    <div style="padding:15px; border-bottom:1px solid #333; color:white; font-weight:bold; display:flex; justify-content:space-between; align-items:center;">
-                        <span>CONTACTS</span>
+                    <div style="padding:15px; border-bottom:1px solid #333; color:white; font-weight:bold; display:flex; align-items:center; gap: 10px;">
+                        <button class="sidebar-close-btn" onclick="document.getElementById('chatSidebar').classList.remove('open')">#</button>
+                        <span style="flex:1;">CONTACTS</span>
                         <button class="btn-tech" style="padding:2px 5px; font-size:10px;" onclick="MessengerUI.openProfile()">MY PROFILE</button>
                     </div>
                     
@@ -1399,6 +1438,13 @@
 
                         <label class="form-label">DISPLAY NAME</label>
                         <input type="text" id="pName" class="form-input" placeholder="Enter your name">
+
+                        <div class="invite-box">
+                            <label class="form-label" style="color:#aaa;">INVITE NEW CITIZEN</label>
+                            <div id="inviteLink" class="invite-link-display" onclick="AuthSystem.copyInvite()" title="Click to Copy">
+                                GENERATING LINK...
+                            </div>
+                        </div>
 
                         <div class="p-btn-row">
                             <button class="btn-tech" style="flex:1;" onclick="CloudSystem.updateProfile()">SAVE</button>
@@ -3207,7 +3253,8 @@
                                 email: u,
                                 isOnline: true,
                                 lastSeen: window.fbTime(),
-                                contractSigned: true // Метка о продаже души
+                                contractSigned: true,
+                                invitedBy: referrerId || null
                             }, { merge: true });
 
                             voxNotify('WELCOME TO THE VOXTEK ENTERPRISES.', 'success');
@@ -3224,6 +3271,16 @@
                 },
                 logout() {
                     window.fbLogout(window.auth).then(() => voxNotify('DISCONNECTED.', 'info'));
+                },
+                copyInvite() {
+                    const user = window.auth.currentUser;
+                    if(!user) return;
+                    
+                    const url = `${window.location.origin}${window.location.pathname}?ref=${user.uid}`;
+                    
+                    navigator.clipboard.writeText(url).then(() => {
+                        voxNotify("UPLINK COPIED TO CLIPBOARD", "success");
+                    });
                 },
                 showAuth() {
                     document.getElementById('msgAuth').style.display = 'flex';
@@ -3252,11 +3309,10 @@
                     if (user && user.email === 'voxtek@voxtek.net') {
                         document.getElementById('adminToggleBtn').style.display = 'block';
                         voxNotify('ADMIN CLEARANCE GRANTED. WELCOME, VOX.', 'error');
-                        this.loadUsers(); // Сразу грузим список
+                        this.loadUsers();
                     } else {
                         document.getElementById('adminToggleBtn').style.display = 'none';
                     }
-                    this.listenForAlerts();
                 },
                 
                 broadcast() {
@@ -3558,6 +3614,9 @@
                         if(document.body.className) {
                             const sel = document.getElementById('pTheme');
                             if(sel) sel.value = document.body.className;
+
+                            const linkBox = document.getElementById('inviteLink');
+                            if(linkBox) linkBox.textContent = `${window.location.origin}/?ref=${user.uid}`;
                         }
                     }
                 },
@@ -3961,6 +4020,19 @@
                     this.chatListener = window.fbSnap(q, (snapshot) => {
                         feed.innerHTML = '';
                         
+                        if (snapshot.empty) {
+                            feed.innerHTML = `
+                                <div class="empty-chat-state">
+                                    <div class="empty-icon-box">
+                                        <div class="empty-icon">❌</div>
+                                    </div>
+                                    <div class="empty-title">NO SIGNAL DETECTED</div>
+                                    <div class="empty-sub">This channel is silent. Send encrypted data to begin transmission.</div>
+                                </div>
+                            `;
+                            return;
+                        }
+
                         snapshot.docChanges().forEach((change) => {
                             if (change.type === "added") {
                                 const data = change.doc.data();
@@ -4515,7 +4587,7 @@
                 if (user && user.email === 'voxtek@voxtek.net') {
                     const panel = document.getElementById('adminPanel');
                     panel.classList.add('blue-mode');
-                    panel.querySelector('h3').textContent = "/// SYSTEM OVERLORD ///";
+                    panel.querySelector('h3').textContent = "VOXTEK ENTERPRISES";
                     document.getElementById('adminToggleBtn').style.borderColor = "var(--vox-cyan)";
                     document.getElementById('adminToggleBtn').style.color = "var(--vox-cyan)";
                 }
