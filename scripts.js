@@ -138,8 +138,29 @@
                 const link = e.target.closest('[data-route]');
                 if (!link) return;
 
-                e.preventDefault();
+                e.preventDefault(); // Останавливаем стандартное поведение
+                
+                // 1. Переключаем экран (View)
                 Router.go(link.dataset.route);
+
+                // 2. Проверяем, есть ли якорь (например #about)
+                const href = link.getAttribute('href');
+                
+                if (href && href.startsWith('#') && href.length > 1) {
+                    // Если это ссылка на секцию (About, Tech, Terminal)
+                    const targetId = href.substring(1); // Убираем решетку
+                    const targetEl = document.getElementById(targetId);
+                    
+                    if (targetEl) {
+                        // Даем браузеру 10мс, чтобы отрисовать View, затем скроллим
+                        setTimeout(() => {
+                            targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }, 10);
+                    }
+                } else if (link.dataset.route === 'home') {
+                    // Если нажали на Логотип (просто Home без якоря) -> скроллим в самый верх
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
             });
 
             // --- 1. SOUND ENGINE (SFX) ---
@@ -1379,17 +1400,21 @@
                     this.input.addEventListener('keydown', (e) => {
                         if (e.key === 'Enter') this.processCmd();
                     });
-        
-                    this.input.focus();
+
                 },
 
                 // Улучшенная функция вывода с поддержкой HTML и цветов
                 print(txt, color = 'var(--vox-cyan)', prefix = '') {
                     const l = document.createElement('div');
                     l.style.color = color;
-                    l.style.marginBottom = '2px';
-                    l.style.fontFamily = "var(--font-code)";
-                    l.style.textShadow = `0 0 5px ${color}`; // Неоновое свечение текста
+                    l.style.marginBottom = '4px'; // Чуть больше воздуха между строками
+                    l.style.fontFamily = "'JetBrains Mono', monospace"; // Новый шрифт
+                    l.style.fontSize = "13px"; // Чуть аккуратнее размер
+                    l.style.letterSpacing = "0.5px"; // Премиальный интервал
+    
+                    // 🔥 ПРЕМИАЛЬНЫЙ ЭФФЕКТ: Четкий текст + Мягкая аура
+                    // Мы НЕ размываем сам текст, мы добавляем тень ВОКРУГ него
+                    l.style.textShadow = `0 0 2px ${color === '#fff' ? 'rgba(255,255,255,0.5)' : 'rgba(0, 243, 255, 0.4)'}`;
         
                     // Время команды
                     const time = new Date().toLocaleTimeString('en-US', {hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit"});
@@ -1881,6 +1906,125 @@
                 }
             };
             
+            // --- 15. LOYALTY LEADERBOARD ---
+            window.LeaderboardSystem = {
+                async load(type = 'loyal') {
+                    const modal = document.getElementById('leaderboardModal');
+                    const list = document.getElementById('leaderboardList');
+                    modal.classList.add('active');
+                    list.innerHTML = '<div style="padding:20px;text-align:center;">CALCULATING RANKINGS...</div>';
+
+                    let q;
+                    if (type === 'loyal') {
+                        // Топ 10 самых лояльных
+                        q = window.fbQuery(window.fbCol(window.db, "users"), window.fbOrder("trustScore", "desc"), window.fbLimit(10));
+                    } else {
+                        // Топ 10 преступников (самый низкий рейтинг)
+                        q = window.fbQuery(window.fbCol(window.db, "users"), window.fbOrder("trustScore", "asc"), window.fbLimit(10));
+                    }
+
+                    try {
+                        const snapshot = await window.fbGetDocs(q);
+                        list.innerHTML = '';
+                        
+                        let rank = 1;
+                        snapshot.forEach(doc => {
+                            const u = doc.data();
+                            const score = u.trustScore || 0;
+                            const isBanned = u.isBanned ? ' (TERMINATED)' : '';
+                            
+                            // Стили для 1, 2, 3 места
+                            let rankClass = '';
+                            if (rank === 1) rankClass = 'rank-1';
+                            if (rank === 2) rankClass = 'rank-2';
+                            if (rank === 3) rankClass = 'rank-3';
+
+                            const row = document.createElement('div');
+                            row.className = `rank-row ${type === 'wanted' ? 'wanted' : ''}`;
+                            row.innerHTML = `
+                                <div class="rank-pos ${rankClass}">#${rank}</div>
+                                <div class="rank-user">
+                                    <img src="${u.avatar || 'https://placehold.co/30/000/00f3ff'}" class="rank-av">
+                                    <div>
+                                        <div style="font-size:12px; font-weight:bold;">${u.name || 'Citizen'}</div>
+                                        <div style="font-size:9px; color:#666;">ID: ${doc.id.substr(0, 5)}...${isBanned}</div>
+                                    </div>
+                                </div>
+                                <div class="rank-score">${score}%</div>
+                            `;
+                            list.appendChild(row);
+                            rank++;
+                        });
+                    } catch (e) {
+                        list.innerHTML = `<div style="color:red; padding:20px;">ACCESS DENIED: ${e.message}</div>`;
+                    }
+                }
+            };
+
+            // --- 16. CITIZEN ID CARD GENERATOR ---
+            window.IdCardSystem = {
+                generate() {
+                    const user = window.auth.currentUser;
+                    if (!user) return voxNotify("LOGIN REQUIRED", "error");
+
+                    voxNotify("GENERATING BIOMETRIC PASS...", "info");
+
+                    // 1. Получаем данные пользователя из БД (чтобы взять точный Trust Score)
+                    window.fbGet(window.fbDoc(window.db, "users", user.uid)).then(doc => {
+                        const data = doc.data() || {};
+                        const score = data.trustScore !== undefined ? data.trustScore : 50;
+
+                        // 2. Заполняем шаблон данными
+                        document.getElementById('idCardName').textContent = user.displayName || "CITIZEN";
+                        document.getElementById('idCardUid').textContent = user.uid.substr(0, 8).toUpperCase();
+                        document.getElementById('idCardTrust').textContent = score + "%";
+                        
+                        // Меняем цвет статуса в зависимости от рейтинга
+                        const statusEl = document.getElementById('idCardStatus');
+                        if (data.isBanned) {
+                            statusEl.textContent = "TERMINATED";
+                            statusEl.style.color = "var(--alert-red)";
+                        } else if (score > 80) {
+                            statusEl.textContent = "VANGUARD ELITE";
+                            statusEl.style.color = "gold";
+                        } else {
+                            statusEl.textContent = "VERIFIED";
+                            statusEl.style.color = "var(--vox-cyan)";
+                        }
+
+                        // Аватар (Используем прокси или base64, если CORS мешает, но пробуем напрямую)
+                        const img = document.getElementById('idCardAvatar');
+                        img.src = user.photoURL || "favicon.ico";
+
+                        // 3. Ждем загрузки картинки и рендерим
+                        img.onload = () => this.renderCanvas();
+                        img.onerror = () => { img.src = "favicon.ico"; this.renderCanvas(); }; // Если аватарка не грузится
+                    });
+                },
+
+                renderCanvas() {
+                    const element = document.getElementById('idCardTemplate');
+                    
+                    // Используем html2canvas
+                    html2canvas(element, {
+                        backgroundColor: "#000",
+                        scale: 3, // Высокое качество
+                        useCORS: true // Разрешить грузить аватарки с других доменов
+                    }).then(canvas => {
+                        // Скачивание
+                        const link = document.createElement('a');
+                        link.download = `VOX_ID_${Date.now()}.png`;
+                        link.href = canvas.toDataURL("image/png");
+                        link.click();
+                        voxNotify("CITIZEN CARD ISSUED. DOWNLOAD STARTED.", "success");
+                        SoundFX.playTone(600, 'square', 0.2);
+                    }).catch(err => {
+                        console.error(err);
+                        voxNotify("PRINT ERROR. TRY AGAIN.", "error");
+                    });
+                }
+            };
+
 // --- UPDATED: ADMIN SYSTEM (WITH BAN HAMMER) ---
             window.AdminSystem = {
                 init(user) {
@@ -1920,6 +2064,57 @@
                     }
                 },
 
+                loadReports() {
+                    const list = document.getElementById('adminReportsList');
+                    list.innerHTML = '<div style="padding:10px;text-align:center;">SCANNING...</div>';
+                    
+                    // Ищем только нерешенные (pending) жалобы
+                    const q = window.fbQuery(window.fbCol(window.db, "reports"), window.fbWhere("status", "==", "pending"));
+                    
+                    window.fbSnap(q, (snapshot) => {
+                        list.innerHTML = '';
+                        if(snapshot.empty) {
+                            list.innerHTML = '<div style="padding:10px;text-align:center;color:#666">ALL CLEAR. CITIZENS ARE LOYAL.</div>';
+                            return;
+                        }
+
+                        snapshot.forEach(doc => {
+                            const r = doc.data();
+                            const div = document.createElement('div');
+                            div.className = 'admin-row';
+                            div.style.borderColor = 'var(--alert-red)';
+                            
+                            div.innerHTML = `
+                                <div style="flex:1;">
+                                    <div style="color:var(--alert-red); font-weight:bold;">${r.reason}</div>
+                                    <div style="font-size:10px; color:white;">"${r.targetContent}"</div>
+                                    <div style="font-size:9px; color:#666;">Snitch: ${r.reporterName} -> Target: ${r.targetUid}</div>
+                                </div>
+                                <div style="display:flex; gap:5px; flex-direction:column;">
+                                    <button class="btn-tech" style="font-size:9px; padding:2px; background:var(--alert-red); color:black;" 
+                                        onclick="AdminSystem.resolveReport('${doc.id}', '${r.targetUid}', true)">PUNISH</button>
+                                    <button class="btn-tech" style="font-size:9px; padding:2px; border-color:#555; color:#777;" 
+                                        onclick="AdminSystem.resolveReport('${doc.id}', null, false)">IGNORE</button>
+                                </div>
+                            `;
+                            list.appendChild(div);
+                        });
+                    });
+                },
+
+                async resolveReport(reportId, targetUid, punish) {
+                    if (punish) {
+                        // Если наказываем — баним пользователя
+                        await this.banUser(targetUid);
+                        voxNotify("JUSTICE SERVED.", "success");
+                    } else {
+                        voxNotify("REPORT DISMISSED.", "info");
+                    }
+                    
+                    // Помечаем репорт как решенный (resolved), чтобы он пропал из списка
+                    window.fbSet(window.fbDoc(window.db, "reports", reportId), { status: 'resolved' }, { merge: true });
+                },
+
                 listenForAlerts() {
                     const q = window.fbQuery(window.fbCol(window.db, "system_alerts"), window.fbOrder("timestamp", "desc"), window.fbLimit(1));
                     window.fbSnap(q, (snapshot) => {
@@ -1935,6 +2130,15 @@
                             }
                         });
                     });
+                },
+
+                // Внутри AdminSystem...
+                async toggleVip(uid, status) {
+                    try {
+                        await window.fbSet(window.fbDoc(window.db, "users", uid), { isVip: status }, { merge: true });
+                        voxNotify(`VIP STATUS UPDATED: ${status}`, "success");
+                        this.loadUsers(); // Обновить список
+                    } catch(e) { voxNotify("ERROR: " + e.message, "error"); }
                 },
 
                 // --- НОВЫЙ ФУНКЦИОНАЛ: СПИСОК И БАН ---
@@ -1953,17 +2157,24 @@
                             div.className = 'admin-row';
                             
                             // Если забанен — показываем кнопку АМНИСТИИ (Зеленая/Голубая)
-                            // Если нет — кнопку БАНА (Красная)
+                            // Кнопка VIP (Золотая если уже VIP, серая если нет)
+                            const isVip = u.isVip || false;
+                            const vipBtn = `<button class="ban-btn" style="background:${isVip ? '#ffd700' : '#333'}; color:${isVip ? 'black' : '#888'};" 
+                                            onclick="AdminSystem.toggleVip('${u.uid}', ${!isVip})">VIP</button>`;
+
                             const banStatus = u.isBanned 
                                 ? `<button class="ban-btn" style="background:var(--vox-cyan); color:black;" onclick="AdminSystem.unbanUser('${u.uid}')">AMNESTY</button>` 
                                 : `<button class="ban-btn" onclick="AdminSystem.banUser('${u.uid}')">BAN</button>`;
                             
                             div.innerHTML = `
                                 <div style="display:flex;flex-direction:column;">
-                                    <span style="color:white;font-weight:bold;">${u.name}</span>
+                                    <span style="color:white;font-weight:bold;">${u.name} ${isVip ? '<span style="color:#ffd700">★</span>' : ''}</span>
                                     <span style="font-size:9px;">${u.email}</span>
                                 </div>
-                                ${banStatus}
+                                <div style="display:flex; gap:5px;">
+                                    ${vipBtn}
+                                    ${banStatus}
+                                </div>
                             `;
                             list.appendChild(div);
                         });
@@ -2241,18 +2452,75 @@
                     inp.value += `@${name} `;
                     inp.focus();
                 },
+
+                // Открытие карточки пользователя
+                async openUserCard(targetUid) {
+                    const modal = document.getElementById('userCardModal');
+                    const nameEl = document.getElementById('ucName');
+                    const uidEl = document.getElementById('ucUid');
+                    const avEl = document.getElementById('ucAvatar');
+                    const banEl = document.getElementById('ucBanner');
+                    const trustEl = document.getElementById('ucTrust');
+                    const vipBadge = document.getElementById('ucVipBadge');
+
+                    // Сброс данных пока грузится
+                    modal.classList.add('active');
+                    nameEl.textContent = "Loading...";
+                    avEl.src = "https://placehold.co/100/000/fff?text=...";
+                    banEl.style.display = 'none';
+                    vipBadge.style.display = 'none';
+
+                    try {
+                        const doc = await window.fbGet(window.fbDoc(window.db, "users", targetUid));
+                        if(doc.exists()) {
+                            const data = doc.data();
+                            
+                            nameEl.textContent = data.name || "Unknown";
+                            uidEl.textContent = "ID: " + targetUid.substr(0, 8);
+                            avEl.src = data.avatar || "favicon.ico";
+                            trustEl.textContent = (data.trustScore || 50) + "%";
+                            
+                            // Баннер
+                            if(data.banner) {
+                                banEl.src = data.banner;
+                                banEl.style.display = 'block';
+                            } else {
+                                banEl.style.display = 'none';
+                            }
+
+                            // VIP
+                            if(data.isVip) {
+                                vipBadge.style.display = 'inline-flex';
+                                nameEl.style.color = '#ffd700'; // Золотое имя
+                            } else {
+                                nameEl.style.color = 'white';
+                            }
+                        }
+                    } catch(e) {
+                        console.error(e);
+                        nameEl.textContent = "Error loading data";
+                    }
+                },
                 
+                // В функции openProfile() нужно добавить подгрузку текущего баннера для предпросмотра
                 openProfile() {
                     document.getElementById('profileModal').classList.add('active');
                     const user = window.auth.currentUser;
                     if(user) {
                         document.getElementById('pName').value = user.displayName || '';
-                        const currentAv = user.photoURL || `https://placehold.co/120x120/000000/00f3ff/png?text=${(user.email||"U")[0]}`;
-                        document.getElementById('pAvatarPreview').src = currentAv;
-                        const linkBox = document.getElementById('inviteLink');
-                        if(linkBox) linkBox.textContent = `${window.location.origin}/?ref=${user.uid}`;
+                        document.getElementById('pAvatarPreview').src = user.photoURL || "favicon.ico";
+                        
+                        // Пытаемся найти свой баннер в базе, чтобы показать его
+                        window.fbGet(window.fbDoc(window.db, "users", user.uid)).then(doc => {
+                            if(doc.exists() && doc.data().banner) {
+                                document.getElementById('pBannerPreview').src = doc.data().banner;
+                            } else {
+                                document.getElementById('pBannerPreview').src = ""; // Пусто
+                            }
+                        });
                     }
                 },
+
                 closeProfile() {
                     document.getElementById('profileModal').classList.remove('active');
                 },
@@ -2547,7 +2815,6 @@
 
                     // --- 🛡️ VANGUARD PROTOCOL: CENSORSHIP ---
                     if (type === 'text') {
-                        // --- 🛡️ VANGUARD CENSORSHIP PROTOCOL EXPANDED ---
                         const bannedWords = [
                             'alastor', 'radio', 'demon', 'deer', 'antler', 'cane', 'static', 
                             'analog', '1930', 'smile', 'smiling', 'jambalaya', 'jazz', 'broadcast',
@@ -2562,7 +2829,7 @@
                         let violationDetected = false;
 
                         bannedWords.forEach(word => {
-                            const regex = new RegExp(word, "gi"); // Ищем слово независимо от регистра
+                            const regex = new RegExp(word, "gi"); 
                             if (finalContent.match(regex)) {
                                 finalContent = finalContent.replace(regex, '[REDACTED]');
                                 violationDetected = true;
@@ -2571,7 +2838,6 @@
                         });
 
                         if (violationDetected) {
-                            // 1. Наказываем пользователя (снимаем Trust Score)
                             const userRef = window.fbDoc(window.db, "users", user.uid);
                             window.fbGet(userRef).then(doc => {
                                 if (doc.exists()) {
@@ -2581,29 +2847,33 @@
                                 }
                             });
 
-                            // 2. Пугаем пользователя звуком и уведомлением
                             if(window.SoundFX) window.SoundFX.error();
                             voxNotify(`WARNING: LANGUAGE VIOLATION DETECTED. TRUST SCORE -${penalty}.`, 'error');
                         }
                     }
-                    // -------------------------------------------
                     
-                    let chatId = MessengerUI.currentChat;
-                    let colName = chatId === 'global' ? "messages_global" : "messages_private";
-                    
-                    const payload = {
-                        text: finalContent, // Отправляем уже очищенный текст
-                        type: type,
-                        uid: user.uid,
-                        name: user.displayName || user.email.split('@')[0],
-                        avatar: user.photoURL,
-                        chatId: chatId,
-                        createdAt: window.fbTime()
-                    };
+                    // 🔥 ИСПРАВЛЕНИЕ ЗДЕСЬ: Сначала читаем данные пользователя из базы
+                    window.fbGet(window.fbDoc(window.db, "users", user.uid)).then(doc => {
+                        const userData = doc.data() || {}; // <-- Теперь переменная userData существует!
+                        
+                        let chatId = MessengerUI.currentChat;
+                        let colName = chatId === 'global' ? "messages_global" : "messages_private";
+                        
+                        const payload = {
+                            text: finalContent,
+                            type: type,
+                            uid: user.uid,
+                            name: user.displayName || user.email.split('@')[0],
+                            avatar: user.photoURL,
+                            isVip: userData.isVip || false, // <-- Теперь это сработает, так как userData определена
+                            chatId: chatId,
+                            createdAt: window.fbTime()
+                        };
 
-                    window.fbAdd(window.fbCol(window.db, colName), payload);
-                    this.setTyping(false);
-                    SoundFX.click();
+                        window.fbAdd(window.fbCol(window.db, colName), payload);
+                        this.setTyping(false);
+                        SoundFX.click();
+                    });
                 },
 
                 // --- ВСТАВИТЬ ЭТО ВНУТРЬ CloudSystem (после sendMessage) ---
@@ -2669,55 +2939,56 @@
                         }
                     );
                 },
+                
+                previewBanner(input) {
+                    if (input.files && input.files[0]) {
+                        const reader = new FileReader();
+                        reader.onload = (e) => document.getElementById('pBannerPreview').src = e.target.result;
+                        reader.readAsDataURL(input.files[0]);
+                    }
+                },
 
+                // ОБНОВЛЕННАЯ ФУНКЦИЯ UPDATE PROFILE
                 async updateProfile() {
                     const name = document.getElementById('pName').value.trim();
-                    const themeSelect = document.getElementById('pTheme');
-                    const theme = themeSelect ? themeSelect.value : '';
-                    const fileInput = document.getElementById('pAvatarFile');
+                    const avInput = document.getElementById('pAvatarFile');
+                    const banInput = document.getElementById('pBannerFile'); // Новый инпут
                     
                     const user = window.auth.currentUser;
                     if(!user) return;
 
-                    voxNotify('PROCESSING BIOMETRIC DATA...', 'info');
-
-                    let photoURL = user.photoURL; // По умолчанию оставляем старую
+                    voxNotify('UPLOADING DATA...', 'info');
 
                     try {
-                        // А. Если выбрали новый файл — грузим в облако
-                        if (fileInput.files.length > 0) {
-                            const file = fileInput.files[0];
-                            // Создаем уникальное имя файла
-                            const storageRef = window.fbRef(window.storage, `avatars/${user.uid}_${Date.now()}`);
-                            const snapshot = await window.fbUpload(storageRef, file);
-                            photoURL = await window.fbUrl(snapshot.ref); // Получаем ссылку
+                        let photoURL = user.photoURL;
+                        
+                        // 1. Загрузка Аватарки (если есть)
+                        if (avInput.files.length > 0) {
+                            const snap = await window.fbUpload(window.fbRef(window.storage, `avatars/${user.uid}_${Date.now()}`), avInput.files[0]);
+                            photoURL = await window.fbUrl(snap.ref);
                         }
 
-                        // Б. Обновляем профиль Firebase Auth
-                        await window.fbUpdateProfile(user, {
-                            displayName: name,
-                            photoURL: photoURL
-                        });
+                        // 2. Загрузка Баннера (если есть)
+                        let bannerURL = null;
+                        if (banInput.files.length > 0) {
+                            const snap = await window.fbUpload(window.fbRef(window.storage, `banners/${user.uid}_${Date.now()}`), banInput.files[0]);
+                            bannerURL = await window.fbUrl(snap.ref);
+                        }
 
-                        // В. Обновляем запись в Базе Данных (Firestore)
-                        const userRef = window.fbDoc(window.db, "users", user.uid);
-                        await window.fbSet(userRef, {
-                            name: name,
-                            avatar: photoURL,
-                            theme: theme
-                        }, { merge: true });
+                        // 3. Обновление Auth
+                        await window.fbUpdateProfile(user, { displayName: name, photoURL: photoURL });
 
-                        // Г. Применяем тему сразу
-                        if(theme) document.body.className = theme;
+                        // 4. Обновление БД
+                        const updateData = { name: name, avatar: photoURL };
+                        if(bannerURL) updateData.banner = bannerURL; // Сохраняем баннер, если он обновился
 
-                        voxNotify('IDENTITY UPDATED SUCCESSFULLY', 'success');
-                        
-                        // Обновляем список пользователей, чтобы увидеть изменения
+                        await window.fbSet(window.fbDoc(window.db, "users", user.uid), updateData, { merge: true });
+
+                        voxNotify('PROFILE UPDATED.', 'success');
                         this.registerUser(user);
                         MessengerUI.closeProfile();
 
                     } catch (err) {
-                        console.error(err);
                         voxNotify('UPDATE FAILED: ' + err.message, 'error');
                     }
                 },
@@ -2774,7 +3045,7 @@
                         const btn = document.createElement('button');
                         btn.id = "btnStartCall";
         
-        // СТИЛИ КНОПКИ (Контейнер)
+                        // СТИЛИ КНОПКИ (Контейнер)
                         btn.style = `
                             width: 40px; height: 40px; 
                             border-radius: 50%; border: 2px solid var(--vox-cyan);
@@ -2790,75 +3061,53 @@
                         cvs.height = 40;
                         const ctx = cvs.getContext('2d');
 
-        // ФУНКЦИЯ ОТРИСОВКИ (Кибер-Трубка)
+                        // ФУНКЦИЯ ОТРИСОВКИ (Кибер-Трубка)
                         const drawIcon = (isActive) => {
                             ctx.clearRect(0, 0, 40, 40); // Чистим холст
-            
-            // Настройка цвета
-                            const color = isActive ? '#000000' : '#00f3ff'; // При наведении черный (на фоне заливки), иначе циан
+                            const color = isActive ? '#000000' : '#00f3ff'; // При наведении черный, иначе циан
             
                             ctx.save();
                             ctx.translate(20, 20); // Центр
-                            ctx.rotate(-45 * Math.PI / 180); // Поворот на 45 градусов (трубка лежит)
-                            ctx.translate(-20, -20); // Возвращаем координаты
+                            ctx.rotate(-45 * Math.PI / 180); // Поворот
+                            ctx.translate(-20, -20); // Возврат
 
                             ctx.beginPath();
                             ctx.lineWidth = 2.5;
                             ctx.strokeStyle = color;
                             ctx.fillStyle = color;
             
-            // Рисуем угловатую трубку (Low Poly Style)
-            // Верхняя часть (динамик)
-                            ctx.moveTo(12, 10); 
-                            ctx.lineTo(28, 10);
-                            ctx.lineTo(28, 16);
-                            ctx.lineTo(24, 16);
-            
-            // Ручка (узкая часть)
-                            ctx.lineTo(24, 24); 
-                            ctx.lineTo(28, 24);
-            
-            // Нижняя часть (микрофон)
-                            ctx.lineTo(28, 30);
-                            ctx.lineTo(12, 30);
-                            ctx.lineTo(12, 24);
-                            ctx.lineTo(16, 24);
-            
-            // Возврат ручки
-                            ctx.lineTo(16, 16);
-                            ctx.lineTo(12, 16);
+                            // Рисуем трубку
+                            ctx.moveTo(12, 10); ctx.lineTo(28, 10); ctx.lineTo(28, 16); ctx.lineTo(24, 16);
+                            ctx.lineTo(24, 24); ctx.lineTo(28, 24);
+                            ctx.lineTo(28, 30); ctx.lineTo(12, 30); ctx.lineTo(12, 24); ctx.lineTo(16, 24);
+                            ctx.lineTo(16, 16); ctx.lineTo(12, 16);
                             ctx.closePath();
 
                             if (isActive) {
-                                ctx.fill(); // Заливаем цветом при наведении
+                                ctx.fill(); 
                             } else {
-                                ctx.stroke(); // Только контур в обычном состоянии
-                
-                // Добавляем "техно-точки" внутри, когда не активно
+                                ctx.stroke(); 
                                 ctx.fillStyle = color;
-                                ctx.fillRect(18, 12, 4, 2); // Точка сверху
-                                ctx.fillRect(18, 26, 4, 2); // Точка снизу
+                                ctx.fillRect(18, 12, 4, 2); 
+                                ctx.fillRect(18, 26, 4, 2); 
                             }
-            
                             ctx.restore();
                         };
 
-        // Рисуем исходное состояние
                         drawIcon(false);
                         btn.appendChild(cvs);
 
-        // Эффекты при наведении
                         btn.onmouseenter = () => { 
                             btn.style.background = "var(--vox-cyan)"; 
                             btn.style.boxShadow = "0 0 20px var(--vox-cyan)";
                             btn.style.transform = "scale(1.1)";
-                            drawIcon(true); // Перерисовываем (заливка)
+                            drawIcon(true);
                         };
                         btn.onmouseleave = () => { 
                             btn.style.background = "transparent"; 
                             btn.style.boxShadow = "0 0 10px rgba(0, 243, 255, 0.2)";
                             btn.style.transform = "scale(1)";
-                            drawIcon(false); // Перерисовываем (контур)
+                            drawIcon(false);
                         };
 
                         btn.onclick = () => {
@@ -2870,7 +3119,6 @@
                     }
                     // --- КОНЕЦ ЛОГИКИ КНОПКИ ---
 
-                    // Дальше идет стандартная логика чата...
                     if(this.chatListener) this.chatListener();
                     
                     const feed = document.getElementById('chatFeed');
@@ -2911,42 +3159,47 @@
                         snapshot.docChanges().forEach((change) => {
                             if (change.type === "added") {
                                 const data = change.doc.data();
-                                // Тут можно добавить логику уведомлений
                             }
                         });
 
+                        // 🔥 ИСПРАВЛЕННЫЙ ЦИКЛ 🔥
                         snapshot.forEach((doc) => {
                             const data = doc.data();
                             const isMe = data.uid === window.auth.currentUser.uid;
                             
                             const div = document.createElement('div');
-                            div.dataset.id = doc.id; // ВАЖНО ДЛЯ АДМИНКИ (Удаление сообщений)
+                            div.dataset.id = doc.id;
                             div.className = `msg-wrapper ${isMe ? 'me' : ''}`;
                             
-                            const avatarUrl = data.avatar || `https://placehold.co/40x40/000000/00f3ff/png?text=${data.name[0]}`;
+                            // 1. Создаем переменные ДО использования
+                            const avatarUrl = data.avatar || `https://placehold.co/40x40/000000/00f3ff/png?text=${data.name ? data.name[0] : '?'}`;
+                            const safeText = data.text ? data.text.replace(/'/g, "&#39;").replace(/"/g, "&quot;") : "";
                             
                             let contentHtml = '';
                             if (data.type === 'image') {
-                                // 🔥 БЫЛО: onclick="window.open(this.src)"
-                                // 🔥 СТАЛО: onclick="MessengerUI.openImage(this.src)"
                                 contentHtml = `<img src="${data.text}" class="msg-image" onclick="MessengerUI.openImage(this.src)">`;
                             } else {
                                 contentHtml = `<div class="msg-bubble">${data.text}</div>`; 
                             }
                             
+                            // 2. Вставляем HTML
                             div.innerHTML = `
-                                <div class="msg-avatar" onclick="MessengerUI.pingUser('${data.name}')">
+                                <div class="msg-avatar" onclick="MessengerUI.openUserCard('${data.uid}')" style="cursor:pointer;" title="View Profile">
                                     <img src="${avatarUrl}">
                                 </div>
-                                <div class="msg-content">
-                                    <div class="msg-name">${data.name}</div>
+                                <div class="msg-content" 
+                                     data-context-type="message"
+                                     oncontextmenu="VMenu.show(event, 'message', {id: '${doc.id}', text: '${safeText}', uid: '${data.uid}'})">
+                                    <div class="msg-name">
+                                        ${data.name}
+                                        ${data.isVip ? '<span class="vip-badge">VIP</span>' : ''}
+                                        </div>
                                     ${contentHtml} 
                                 </div>
                             `;
                             
                             feed.appendChild(div);
 
-                            // Скремблинг только для текста и чужих сообщений
                             if (!isMe && data.type !== 'image') {
                                 const bubble = div.querySelector('.msg-bubble');
                                 if(bubble) {
@@ -2955,6 +3208,7 @@
                                 }
                             }
                         });
+
                         feed.scrollTop = feed.scrollHeight;
                     });
                 }
@@ -3875,6 +4129,216 @@
                 draw();
             };
             
+            // --- BOOT SEQUENCE ---
+            const runBootSequence = () => {
+                // Проверяем, была ли уже загрузка в этой сессии (чтобы не бесило при обновлении)
+                if (sessionStorage.getItem('vox_booted')) {
+                    document.getElementById('bootSequence').style.display = 'none';
+                    return;
+                }
+
+                const text = document.getElementById('bootText');
+                const bar = document.getElementById('bootBar');
+                const screen = document.getElementById('bootSequence');
+                
+                const steps = [
+                    { msg: "CHECKING BIOMETRICS...", progress: 20 },
+                    { msg: "CONNECTING TO PENTAGRAM CITY...", progress: 50 },
+                    { msg: "SYNCING SOUL CONTRACTS...", progress: 75 },
+                    { msg: "ESTABLISHING SECURE LINK...", progress: 90 },
+                    { msg: "ACCESS GRANTED. WELCOME.", progress: 100 }
+                ];
+
+                let step = 0;
+
+                const nextStep = () => {
+                    if (step >= steps.length) {
+                        // Завершение
+                        setTimeout(() => {
+                            screen.style.transition = "opacity 0.5s";
+                            screen.style.opacity = "0";
+                            setTimeout(() => screen.remove(), 500);
+                            sessionStorage.setItem('vox_booted', 'true');
+                            // Звук приветствия
+                            if(window.SoundFX) window.SoundFX.playTone(600, 'sine', 0.5);
+                        }, 500);
+                        return;
+                    }
+
+                    text.innerText = steps[step].msg;
+                    bar.style.width = steps[step].progress + "%";
+                    
+                    // Звук "тика" при каждом шаге
+                    if(window.SoundFX) window.SoundFX.playTone(800 + (step * 100), 'square', 0.05);
+
+                    step++;
+                    setTimeout(nextStep, Math.random() * 400 + 400); // Случайная задержка
+                };
+
+                setTimeout(nextStep, 500);
+            };
+
+            // Запуск после загрузки страницы
+            window.addEventListener('load', runBootSequence);
+
+            // --- HOLOGRAPHIC TILT EFFECT ---
+            document.querySelectorAll('.tech-card, .review-item, .cctv-cam').forEach(card => {
+                card.addEventListener('mousemove', function(e) {
+                    const rect = this.getBoundingClientRect();
+                    // Вычисляем координаты мыши внутри карточки
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    // Вычисляем центр
+                    const centerX = rect.width / 2;
+                    const centerY = rect.height / 2;
+                    
+                    // Угол поворота (делим на 10 или 20, чтобы не было слишком резко)
+                    const rotateX = (centerY - y) / 10; 
+                    const rotateY = (x - centerX) / 10;
+
+                    // Применяем 3D трансформацию
+                    this.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
+                    
+                    // Добавляем красивый блик
+                    this.style.background = `
+                        radial-gradient(
+                            circle at ${x}px ${y}px, 
+                            rgba(0, 243, 255, 0.1) 0%, 
+                            rgba(5, 8, 12, 0.95) 80%
+                        )
+                    `;
+                    this.style.borderColor = "var(--vox-cyan)";
+                });
+
+                // Сброс при уходе мыши
+                card.addEventListener('mouseleave', function() {
+                    this.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) scale(1)';
+                    this.style.background = 'var(--panel-bg)'; // Возвращаем родной фон
+                    this.style.borderColor = '#333';
+                });
+            });
+
+            // --- V-MENU SYSTEM (UPDATED) ---
+            const VMenu = {
+                menu: document.getElementById('vContextMenu'),
+                activeTarget: null, // Тут будем хранить данные цели
+
+                init() {
+                    if (!this.menu) return;
+
+                    // 1. Глобальный клик чтобы закрыть
+                    document.addEventListener('click', () => this.hide());
+                    
+                    // 2. ВАЖНО: Мы НЕ вешаем глобальный contextmenu,
+                    // мы будем вызывать show() прямо из элементов сообщений.
+                    // Но оставим глобальную заглушку, чтобы не было стандартного меню
+                    document.addEventListener('contextmenu', (e) => {
+                        // Если клик не по специальному элементу - просто блочим
+                        if(!e.target.closest('[data-context-type]')) {
+                            e.preventDefault();
+                        }
+                    });
+                },
+
+                // Теперь show принимает событие и данные
+                show(e, type, data) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    this.activeTarget = { type, ...data }; // Запоминаем: {type: 'msg', id: '...', content: '...'}
+                    
+                    const w = window.innerWidth;
+                    const h = window.innerHeight;
+                    const finalX = e.clientX + 200 > w ? e.clientX - 200 : e.clientX;
+                    const finalY = e.clientY + 150 > h ? e.clientY - 150 : e.clientY;
+
+                    this.menu.style.left = finalX + 'px';
+                    this.menu.style.top = finalY + 'px';
+                    this.menu.style.display = 'flex';
+                    
+                    if(window.SoundFX) window.SoundFX.hover();
+                },
+                
+                hide() {
+                    this.menu.style.display = 'none';
+                },
+
+                action(actType) {
+                    this.hide();
+                    if(window.SoundFX) window.SoundFX.click();
+
+                    switch(actType) {
+                        case 'report':
+                            // Если это сообщение — открываем окно репорта
+                            if (this.activeTarget && this.activeTarget.type === 'message') {
+                                ReportSystem.open(
+                                    this.activeTarget.id, 
+                                    this.activeTarget.text, 
+                                    this.activeTarget.uid
+                                );
+                            } else {
+                                voxNotify("NOTHING TO REPORT HERE.", "error");
+                            }
+                            break;
+                            
+                        // ... твои старые кейсы (copy, scan, reload) ...
+                        case 'copy':
+                             if(this.activeTarget && this.activeTarget.text) {
+                                 navigator.clipboard.writeText(this.activeTarget.text);
+                                 voxNotify("TEXT COPIED", "info");
+                             } else {
+                                 navigator.clipboard.writeText(window.location.href);
+                                 voxNotify("URL COPIED", "info");
+                             }
+                             break;
+                        case 'reload': location.reload(); break;
+                    }
+                }
+            };
+
+            window.VMenu = VMenu;
+
+            // Запуск
+            VMenu.init();
+
+            // --- 17. REPORT SYSTEM (SNITCH PROTOCOL) ---
+            window.ReportSystem = {
+                targetId: null,     // ID сообщения, на которое жалуются
+                targetContent: null,// Текст сообщения (для удобства админа)
+                targetUid: null,    // Кто написал гадость
+
+                // Открыть окно выбора причины
+                open(msgId, content, uid) {
+                    this.targetId = msgId;
+                    this.targetContent = content;
+                    this.targetUid = uid;
+                    
+                    document.getElementById('reportModal').classList.add('active');
+                },
+
+                // Отправить жалобу в базу
+                submit(reason) {
+                    if(!this.targetId) return;
+
+                    const user = window.auth.currentUser;
+                    
+                    window.fbAdd(window.fbCol(window.db, "reports"), {
+                        targetId: this.targetId,
+                        targetContent: this.targetContent,
+                        targetUid: this.targetUid, // Кого наказать
+                        reporterUid: user.uid,     // Кто донес (стукач)
+                        reporterName: user.displayName || "Anonymous Citizen",
+                        reason: reason,
+                        timestamp: window.fbTime(),
+                        status: 'pending' // Статус: ожидает решения
+                    });
+
+                    document.getElementById('reportModal').classList.remove('active');
+                    voxNotify("REPORT LOGGED. THANK YOU FOR YOUR LOYALTY.", "success");
+                    SoundFX.playTone(800, 'sine', 0.2);
+                }
+            };
 
             // Запускаем
             setTimeout(initMiniMatrix, 500);
