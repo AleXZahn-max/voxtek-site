@@ -942,7 +942,7 @@
                 const header = document.createElement('div');
                 header.style.fontWeight = 'bold';
                 header.style.marginBottom = '5px';
-                header.textContent = '/// SYSTEM ALERT ///';
+                header.textContent = '/// SYSTEM NOTIFICATION ///';
                 
                 const message = document.createElement('div');
                 message.textContent = msg; 
@@ -3418,15 +3418,24 @@
             // --- ☢️ DEFCON SYSTEM (GLOBAL CONTROL) ---
             window.DefconSystem = {
                 currentLevel: 1,
+                listener: null, // Добавляем переменную для хранения слушателя
                 
                 init() {
+                    // 🔥 ЗАЩИТА ОТ ДУБЛЕЙ: Если слушатель уже есть, выходим
+                    if (this.listener) return;
+
                     // Слушаем изменения в базе (system_state/defcon)
                     if(window.db) {
                         const ref = window.fbDoc(window.db, "system_state", "defcon");
-                        window.fbSnap(ref, (doc) => {
+                        
+                        // Сохраняем слушатель в переменную this.listener
+                        this.listener = window.fbSnap(ref, (doc) => {
                             if(doc.exists()) {
                                 const data = doc.data();
-                                this.applyLevel(data.level || 1);
+                                // Добавляем проверку, чтобы не уведомлять, если уровень тот же самый
+                                if (this.currentLevel !== data.level) {
+                                    this.applyLevel(data.level || 1);
+                                }
                             }
                         });
                     }
@@ -3442,7 +3451,10 @@
                             timestamp: window.fbTime(),
                             setBy: window.auth.currentUser.email
                         });
-                        voxNotify(`DEFCON LEVEL SET TO ${lvl}`, "success");
+                        // Уведомление "SET TO..." можно убрать, если хочешь, 
+                        // так как "THREAT LEVEL INCREASED..." всё равно придет через секунду.
+                        // Но можно и оставить для уверенности.
+                        voxNotify(`COMMAND SENT: DEFCON ${lvl}`, "success");
                     } catch(e) {
                         voxNotify("ERROR: " + e.message, "error");
                     }
@@ -3462,22 +3474,21 @@
                     switch(lvl) {
                         case 1: // SAFE
                             if(display) display.textContent = "STATUS: NORMAL OPERATION";
-                            if(ticker) ticker.style.animationDuration = "30s"; // Нормальная скорость
+                            if(ticker) ticker.style.animationDuration = "30s"; 
                             break;
                             
                         case 2: // CAUTION (Yellow)
                             body.classList.add('defcon-caution');
                             if(display) display.textContent = "STATUS: ELEVATED THREAT";
-                            if(ticker) ticker.style.animationDuration = "15s"; // Быстрее
+                            if(ticker) ticker.style.animationDuration = "15s"; 
                             voxNotify("ALERT: THREAT LEVEL INCREASED TO YELLOW.", "info");
                             break;
                             
                         case 3: // CRITICAL (Red)
                             body.classList.add('defcon-critical');
                             if(display) display.textContent = "STATUS: CRITICAL FAILURE";
-                            if(ticker) ticker.style.animationDuration = "5s"; // Паническая скорость
+                            if(ticker) ticker.style.animationDuration = "5s"; 
                             
-                            // Сирена (один раз)
                             if(window.SoundFX) {
                                 window.SoundFX.playTone(400, 'sawtooth', 0.5);
                                 setTimeout(() => window.SoundFX.playTone(300, 'sawtooth', 0.5), 600);
@@ -3488,16 +3499,12 @@
                         case 4: // LOCKDOWN (Black)
                             body.classList.add('defcon-lockdown');
                             if(display) display.textContent = "STATUS: MANDATORY LOCKDOWN";
-                            
-                            // Блокируем чат
                             const inp = document.getElementById('msgInput');
                             if(inp) { inp.disabled = true; inp.placeholder = "TERMINAL LOCKED BY ADMINISTRATOR"; }
-                            
                             voxNotify("LOCKDOWN INITIATED. REMAIN CALM.", "error");
                             break;
                     }
                     
-                    // Если вышли из локдауна — разблокируем чат
                     if (lvl !== 4) {
                         const inp = document.getElementById('msgInput');
                         if(inp) { inp.disabled = false; inp.placeholder = "Type encrypted message..."; }
