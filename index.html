@@ -33,7 +33,7 @@
     </div>
 
     <div id="cam-container">
-        <div class="cam-label">RECORDING</div>
+        <div class="cam-label">SUBJECT #8940</div>
         <div class="rec-dot"></div>
         <video id="webcamFeed" autoplay muted playsinline></video>
         <div id="cam-overlay"></div>
@@ -449,23 +449,72 @@
         <p>&copy; 2026 VOXTEK ENTERPRISES. TRUST US WITH YOUR NETWORK.</p>
     </footer>
 
-    <div id="globalCryptoPanel" class="vox-shield-panel" style="position:fixed; bottom:80px; right:20px; z-index:9999; width: 300px; padding: 15px; border: 1px solid #00f3ff; background: rgba(0,0,0,0.95); box-shadow: 0 0 15px rgba(0,243,255,0.3); display: none;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-            <h3 style="color:#00f3ff; font-size: 10px; letter-spacing: 1px; margin:0;">VOX-SHIELD: ENCRYPTION</h3>
-            <button onclick="this.parentElement.parentElement.style.display='none'" style="background:none; border:none; color:#00f3ff; cursor:pointer; font-size:12px;">✕</button>
+    <div id="adminPanel" style="position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:30000; width:90%; max-width:800px; max-height:85vh; display:none; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap:15px; padding:25px; background:rgba(0,0,0,0.98); border:2px solid var(--alert-red); box-shadow: 0 0 50px rgba(255,0,0,0.3); overflow-y:auto; scrollbar-width: thin;">
+        <div style="grid-column: 1 / -1; display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--alert-red); padding-bottom:10px; margin-bottom:10px;">
+            <h3 style="margin:0; color:var(--alert-red); font-size:18px; letter-spacing:3px;">/// SYSTEM OVERLORD ///</h3>
+            <button onclick="document.getElementById('adminPanel').style.display='none'" style="background:none; border:none; color:var(--alert-red); cursor:pointer; font-size:20px; font-weight:bold;">✕</button>
         </div>
         
-        <textarea id="cryptoInput" style="width:100%; background:#000; border:1px solid #333; color:#00f3ff; padding:8px; margin-bottom:8px; font-size: 12px; font-family: monospace; height: 60px; resize: none;" placeholder="ENTER TEXT..."></textarea>
-        
-        <input type="password" id="cryptoKey" style="width:100%; background:#000; border:1px solid #333; color:white; padding:8px; margin-bottom:10px; font-size: 12px;" placeholder="KEY">
-        
-        <div style="display:flex; gap:10px;">
-            <button class="btn-tech" onclick="window.CryptoSystem.process('encrypt')" style="flex:1; padding: 5px; font-size: 10px;">ENCRYPT</button>
-            <button class="btn-tech" onclick="window.CryptoSystem.process('decrypt')" style="flex:1; padding: 5px; font-size: 10px; border-color:#ffbb00; color:#ffbb00;">DECRYPT</button>
+        <div class="admin-section">
+            <label class="form-label" style="color:var(--vox-cyan);">GLOBAL BROADCAST</label>
+            <input type="text" id="adminAlertMsg" class="form-input" style="border-color:var(--vox-cyan); color:var(--vox-cyan); background:rgba(0, 243, 255, 0.05); margin-bottom:0;" placeholder="ENTER MESSAGE...">
+            <button class="btn-tech" onclick="AdminSystem.broadcast()" style="width:100%; margin-top:10px;">TRANSMIT SIGNAL</button>
         </div>
-        
-        <div id="cryptoOutput" style="margin-top:10px; padding:8px; background:rgba(0,243,255,0.1); border:1px dashed #00f3ff; display:none; word-break:break-all; font-family:monospace; font-size:11px; color:#00f3ff;"></div>
+
+        <div class="admin-section">
+            <label class="form-label" style="color:var(--alert-red);">FORCED VIEW PROTOCOL</label>
+            <div style="display:flex; gap:5px;">
+                <input type="text" id="adminForceUrl" class="form-input" placeholder="Video URL (.mp4)" style="margin:0; font-size:10px;">
+                <button class="btn-tech" style="padding:5px 10px; border-color:var(--alert-red); color:var(--alert-red);" onclick="AdminSystem.forceView()">EXECUTE</button>
+            </div>
+            <div style="height:1px; background:#333; margin: 10px 0;"></div>
+            <label class="form-label">TRUST SCORE ADJUSTMENT</label>
+            <div style="display:flex; gap:5px;">
+                <input type="text" id="adminTargetId" class="form-input" placeholder="User ID" style="margin:0; font-size:10px;">
+                <input type="number" id="adminTrustVal" class="form-input" placeholder="+/-" style="width:60px; margin:0; font-size:10px;">
+                <button class="btn-tech" style="padding:5px;" onclick="AdminSystem.modTrust()">SET</button>
+            </div>
+        </div>
+
+        <div class="admin-section">
+            <label class="form-label" style="color:var(--alert-red);">ACTIVE WIRETAPS</label>
+            <button class="btn-tech" style="width:100%; font-size:10px; padding:5px; margin-bottom:5px;" onclick="AdminSystem.monitorCalls()">SCAN FREQUENCIES</button>
+            <div id="spyGrid" class="spy-grid" style="max-height:150px;"></div>
+        </div>
+
+        <div class="admin-section" id="matrixContainer" style="padding:0; overflow:hidden; position:relative; height:150px; background:#000; border:1px solid var(--vox-cyan);">
+            <canvas id="miniMatrixCanvas" style="width:100%; height:100%; display:block; opacity:0.8;"></canvas>
+            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:var(--vox-cyan); background:rgba(0,0,0,0.85); padding:4px 10px; font-size:10px; border:1px solid var(--vox-cyan); letter-spacing:2px;">
+                SYSTEM ONLINE
+            </div>
+        </div>
+
+        <div class="admin-section">
+            <label class="form-label" style="color:var(--vox-cyan); border-bottom:1px solid #333; padding-bottom:5px;">GLOBAL THREAT LEVEL</label>
+            <div style="display:flex; gap:5px; margin-top:10px;">
+                <button class="btn-tech" style="flex:1; border-color:#00f3ff; color:#00f3ff;" onclick="DefconSystem.set(1)">SAFE</button>
+                <button class="btn-tech" style="flex:1; border-color:#ffbb00; color:#ffbb00;" onclick="DefconSystem.set(2)">WARN</button>
+                <button class="btn-tech" style="flex:1; border-color:#ff0000; color:#ff0000;" onclick="DefconSystem.set(3)">CRIT</button>
+            </div>
+            <div id="currentDefconDisplay" style="text-align:center; font-size:10px; margin-top:5px; color:#666;">STATUS: NORMAL</div>
+        </div>
+
+        <div class="admin-section" style="grid-column: 1 / -1;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <label class="form-label" style="color:var(--vox-cyan); margin:0;">CITIZEN DATABASE</label>
+                <button class="btn-tech" style="font-size:10px; padding:2px 10px;" onclick="AdminSystem.loadUsers()">↻ REFRESH</button>
+            </div>
+            <div id="adminUserList" class="admin-user-list" style="max-height: 200px; overflow-y: auto; margin-top:10px; border: 1px solid #222;">
+                <div style="padding:10px; text-align:center; color:#666;">WAITING FOR DATA...</div>
+            </div>
+        </div>
     </div>
+
+    <button id="adminToggleBtn" class="btn-tech" 
+        style="position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:20001; display:none; background:black; color:var(--alert-red); border-color:var(--alert-red); font-size:10px; padding:8px 20px; box-shadow: 0 0 20px rgba(255,0,0,0.2);" 
+        onclick="const p=document.getElementById('adminPanel'); p.style.display = (p.style.display === 'grid') ? 'none' : 'grid'; window.SoundFX.click();">
+        /// SYSTEM OVERLORD ///
+    </button>
 
     <div id="callInterface" class="call-overlay">
         <div class="call-video-grid">
@@ -515,65 +564,6 @@
         </div>
     </div>
 
-    <div id="adminPanel">
-        <h3>/// SYSTEM OVERLORD ///</h3>
-        
-        <div class="admin-section">
-            <label class="form-label" style="color:var(--vox-cyan);">GLOBAL BROADCAST</label>
-            <input type="text" id="adminAlertMsg" class="form-input" style="border-color:var(--vox-cyan); color:var(--vox-cyan); background:rgba(0, 243, 255, 0.05); margin-bottom:0;" placeholder="ENTER MESSAGE...">
-            <button class="btn-tech" onclick="AdminSystem.broadcast()">TRANSMIT SIGNAL</button>
-        </div>
-
-        <div class="admin-section">
-            <label class="form-label" style="color:var(--alert-red);">FORCED VIEW PROTOCOL</label>
-            <div style="display:flex; gap:5px;">
-                <input type="text" id="adminForceUrl" class="form-input" placeholder="Video URL (.mp4)" style="margin:0; font-size:10px;">
-                <button class="btn-tech" style="padding:5px 10px; border-color:var(--alert-red); color:var(--alert-red);" onclick="AdminSystem.forceView()">EXECUTE</button>
-            </div>
-            <div style="height:1px; background:#333; margin: 10px 0;"></div>
-            <label class="form-label">TRUST SCORE ADJUSTMENT</label>
-            <div style="display:flex; gap:5px;">
-                <input type="text" id="adminTargetId" class="form-input" placeholder="User ID" style="margin:0; font-size:10px;">
-                <input type="number" id="adminTrustVal" class="form-input" placeholder="+/-" style="width:60px; margin:0; font-size:10px;">
-                <button class="btn-tech" style="padding:5px;" onclick="AdminSystem.modTrust()">SET</button>
-            </div>
-        </div>
-
-        <div class="admin-section">
-            <label class="form-label" style="color:var(--alert-red);">ACTIVE WIRETAPS</label>
-            <button class="btn-tech" style="width:100%; font-size:10px; padding:5px; margin-bottom:5px;" onclick="AdminSystem.monitorCalls()">SCAN FREQUENCIES</button>
-            <div id="spyGrid" class="spy-grid" style="max-height:100px;"></div>
-        </div>
-
-        <div class="admin-section" id="matrixContainer" style="padding:0; overflow:hidden; position:relative; height:100px; background:#000; border:1px solid var(--vox-cyan); box-shadow: inset 0 0 20px rgba(0, 243, 255, 0.2);">
-            <canvas id="miniMatrixCanvas" style="width:100%; height:100%; display:block; opacity:0.8;"></canvas>
-            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); color:var(--vox-cyan); background:rgba(0,0,0,0.85); padding:4px 10px; font-size:10px; border:1px solid var(--vox-cyan); letter-spacing:2px; box-shadow: 0 0 10px var(--vox-cyan);">
-                SYSTEM ONLINE
-            </div>
-        </div>
-
-        <div class="admin-section">
-            <label class="form-label" style="color:var(--vox-cyan); border-bottom:1px solid #333; padding-bottom:5px;">GLOBAL THREAT LEVEL</label>
-            <div style="display:flex; gap:5px; margin-top:10px;">
-                <button class="btn-tech" style="flex:1; border-color:#00f3ff; color:#00f3ff;" onclick="DefconSystem.set(1)">SAFE</button>
-                <button class="btn-tech" style="flex:1; border-color:#ffbb00; color:#ffbb00;" onclick="DefconSystem.set(2)">WARN</button>
-                <button class="btn-tech" style="flex:1; border-color:#ff0000; color:#ff0000;" onclick="DefconSystem.set(3)">CRIT</button>
-                <button class="btn-tech" style="flex:1; border-color:#555; color:#aaa; background:#111;" onclick="DefconSystem.set(4)">LOCK</button>
-            </div>
-            <div id="currentDefconDisplay" style="text-align:center; font-size:10px; margin-top:5px; color:#666;">STATUS: NORMAL</div>
-        </div>
-
-        <div class="admin-section admin-full-width">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <label class="form-label" style="color:var(--vox-cyan); margin:0;">CITIZEN DATABASE</label>
-                <button class="btn-tech" style="font-size:10px; padding:2px 10px;" onclick="AdminSystem.loadUsers()">↻ REFRESH</button>
-            </div>
-            <div id="adminUserList" class="admin-user-list">
-                <div style="padding:10px; text-align:center; color:#666;">WAITING FOR DATA...</div>
-            </div>
-        </div>
-    </div>
-
     <div id="contractModal" class="modal-overlay">
         <div class="contract-paper glitch-paper">
             <div class="contract-title">SOUL BINDING AGREEMENT</div>
@@ -587,18 +577,6 @@
             <button class="btn-tech" style="margin-top:40px; width:100%; border-color:black; color:black;" onclick="document.getElementById('contractModal').classList.remove('active')">REFUSE (EXIT)</button>
         </div>
     </div>
-
-    <button id="adminToggleBtn" class="btn-tech" 
-        style="position:fixed; bottom:20px; left:20px; z-index:20001; display:none; background:black; color:var(--alert-red); border-color:var(--alert-red); font-size:10px; padding:5px 15px; box-shadow: 0 0 20px rgba(255,0,0,0.2);" 
-        onclick="const p=document.getElementById('adminPanel'); p.style.display = (p.style.display === 'grid') ? 'none' : 'grid'; window.SoundFX.click();">
-        /// SYSTEM OVERLORD ///
-    </button>
-
-    <button id="cryptoToggleBtn" class="btn-tech" 
-        style="position:fixed; bottom:20px; right:20px; z-index:20001; background:black; color:var(--vox-cyan); border-color:var(--vox-cyan); font-size:10px; padding:5px 15px;" 
-        onclick="const p=document.getElementById('globalCryptoPanel'); p.style.display = (p.style.display === 'block') ? 'none' : 'block';">
-        🛡️ VOX-SHIELD
-    </button>
 
     <div id="imageViewerModal" class="modal-overlay" onclick="MessengerUI.closeImage()">
         <div style="position:relative; max-width:90%; max-height:90%;">
