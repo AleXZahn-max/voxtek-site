@@ -47,7 +47,7 @@
 
     <div class="news-ticker" role="marquee" aria-label="News Ticker">
         <div class="ticker-side-icon header-glitch">
-            <img src="vox-eye.gif" alt="Vox Eye Left">
+            <img src="vox-eye.gif" alt="Vox Eye Left" onerror="this.src='https://placehold.co/40x40/000/00f3ff?text=O'">
         </div>
         <div class="ticker-move">
             <span>WELCOME TO VOXTEK ENTERPRISES</span>
@@ -57,7 +57,7 @@
             <span>YOU CAN TRUST US WITH YOUR ENTERTAINMENT</span>
         </div>
         <div class="ticker-side-icon header-glitch">
-            <img src="vox-eye.gif" alt="Vox Eye Right" style="transform: scaleX(-1);">
+            <img src="vox-eye.gif" alt="Vox Eye Right" style="transform: scaleX(-1);" onerror="this.src='https://placehold.co/40x40/000/00f3ff?text=O'">
         </div>
     </div>
 
@@ -80,8 +80,8 @@
         </div>
         
         <div class="cover-art-box">
-            <img id="coverImg" src="cover.png" alt="Cover Art">
-            <div class="cover-text"> </div>
+            <img id="coverImg" src="cover.png" alt="Cover Art" onerror="this.src='https://placehold.co/300x200/000/00f3ff?text=NO+DATA'">
+            <div class="cover-text">WAITING FOR INPUT</div>
             <label class="file-upload-btn" style="position:absolute; top:5px; right:5px; background:rgba(0,0,0,0.8); border:1px solid #333; padding:2px 5px; font-size:9px;">
                 UPLOAD ART
                 <input type="file" id="coverUpload" accept="image/*">
@@ -113,13 +113,12 @@
                 ADD TO PLAYLIST
                 <input type="file" id="localAudioInput" accept="audio/*" multiple>
             </label>
-            <div id="audioPlaylist" class="playlist-container">
-                </div>
+            <div id="audioPlaylist" class="playlist-container"></div>
         </div>
     </div>
 
     <header role="banner">
-        <a href="#top" class="logo-container" onclick="Router.go('home')" aria-label="VoxTek Home">
+        <a href="#top" class="logo-container" data-route="home" aria-label="VoxTek Home">
             <svg class="vox-logo-svg" viewBox="0 0 100 100" aria-hidden="true">
                 <path d="M10,10 L90,10 L80,80 L20,80 Z" stroke="var(--vox-cyan)" stroke-width="4" fill="none"/>
                 <path d="M35,30 L50,65 L65,30" stroke="var(--vox-cyan)" stroke-width="5" fill="none" stroke-linecap="round"/>
@@ -130,13 +129,13 @@
         
         <nav role="navigation">
             <ul>
-                <li><a href="#about" onclick="Router.go('home')">About</a></li>
-                <li><a href="#products" onclick="Router.go('home')">Tech</a></li>
-                <li><a href="#terminal" onclick="Router.go('home')">Terminal</a></li>
-                <li><a href="#" onclick="Router.go('video')" style="color:white;">BROADCAST</a></li>
-                <li><a href="#" onclick="Router.go('messenger')" style="color:var(--vox-cyan);">MESSENGER</a></li>
-                <li><a href="#" onclick="Router.go('storage')" style="color:#aaa;">ARCHIVE</a></li>
-                </ul>
+                <li><a href="#about" data-route="home">About</a></li>
+                <li><a href="#products" data-route="home">Tech</a></li>
+                <li><a href="#terminal" data-route="home">Terminal</a></li>
+                <li><a href="#" data-route="video" style="color:white;">BROADCAST</a></li>
+                <li><a href="#" data-route="messenger" style="color:var(--vox-cyan);">MESSENGER</a></li>
+                <li><a href="#" data-route="storage" style="color:#aaa;">ARCHIVE</a></li>
+            </ul>
         </nav>
     </header>
 
@@ -155,7 +154,7 @@
                 <div class="section-header"><h2 id="about-title">Our Vision</h2></div>
                 <div class="timeline-container reveal">
                     <div class="timeline-item">
-                        <div class="t-date">2019 -  OUR START</div>
+                        <div class="t-date">2019 - OUR START</div>
                         <div class="t-title">Foundation</div>
                         <div class="t-desc">VoxTek is established in Pentagram City. The first television broadcast started here.</div>
                     </div>
@@ -291,7 +290,7 @@
                                 <div class="c-status online">Global chat</div>
                             </div>
                         </div>
-                        </div>
+                    </div>
                 </div>
 
                 <div class="chat-main">
@@ -317,48 +316,42 @@
                         <button class="btn-tech" style="padding:10px 20px;" onclick="AuthSystem.send()">SEND</button>
                     </div>
 
-                <div id="profileModal" class="profile-modal">
-                    <div class="p-card">
-                        <h3 style="color:var(--vox-cyan);">PROFILE SETTINGS</h3>
-                        
-                        <label class="form-label">IDENTITY IMAGE</label>
-                        <div style="display:flex; align-items:center; gap:15px; margin-bottom:5px;">
-                            <img id="pAvatarPreview" src="" style="width:60px; height:60px; border-radius:50%; border:2px solid var(--vox-cyan); object-fit:cover; background:#111;">
-                            <label class="btn-tech" style="padding:10px; font-size:10px; flex:1; text-align:center; cursor:pointer;">
-                                UPLOAD FILE
-                                <input type="file" id="pAvatarFile" accept="image/*" style="display:none;" onchange="CloudSystem.previewAvatar(this)">
-                            </label>
-                        </div>
-
-                        <label class="form-label">DISPLAY NAME</label>
-                        <input type="text" id="pName" class="form-input" placeholder="Enter your name">
-
-                        <div class="invite-box">
-                            <label class="form-label" style="color:#aaa;">INVITE NEW CITIZEN</label>
-                            <div id="inviteLink" class="invite-link-display" onclick="AuthSystem.copyInvite()" title="Click to Copy">
-                                REFERRAL LINK
+                    <div id="profileModal" class="profile-modal">
+                        <div class="p-card">
+                            <h3 style="color:var(--vox-cyan);">PROFILE SETTINGS</h3>
+                            
+                            <label class="form-label">IDENTITY IMAGE</label>
+                            <div style="display:flex; align-items:center; gap:15px; margin-bottom:5px;">
+                                <img id="pAvatarPreview" src="" style="width:60px; height:60px; border-radius:50%; border:2px solid var(--vox-cyan); object-fit:cover; background:#111;">
+                                <label class="btn-tech" style="padding:10px; font-size:10px; flex:1; text-align:center; cursor:pointer;">
+                                    UPLOAD FILE
+                                    <input type="file" id="pAvatarFile" accept="image/*" style="display:none;" onchange="CloudSystem.previewAvatar(this)">
+                                </label>
                             </div>
-                        </div>
 
-                        <div class="p-btn-row">
-                            <button class="btn-tech" style="flex:1;" onclick="CloudSystem.updateProfile()">SAVE</button>
-                            <button class="btn-tech" style="flex:1; border-color:#555; color:#555;" onclick="MessengerUI.closeProfile()">CANCEL</button>
-                        </div>
+                            <label class="form-label">DISPLAY NAME</label>
+                            <input type="text" id="pName" class="form-input" placeholder="Enter your name">
 
-                        <button class="btn-tech" 
-                                style="width:100%; margin-top:10px; border-color:var(--alert-red); color:var(--alert-red);" 
-                                onclick="AuthSystem.logout(); MessengerUI.closeProfile();">
-                            LOGOUT SYSTEM
-                        </button>
+                            <div class="invite-box">
+                                <label class="form-label" style="color:#aaa;">INVITE NEW CITIZEN</label>
+                                <div id="inviteLink" class="invite-link-display" onclick="AuthSystem.copyInvite()" title="Click to Copy">
+                                    REFERRAL LINK
+                                </div>
+                            </div>
+
+                            <div class="p-btn-row">
+                                <button class="btn-tech" style="flex:1;" onclick="CloudSystem.updateProfile()">SAVE</button>
+                                <button class="btn-tech" style="flex:1; border-color:#555; color:#555;" onclick="MessengerUI.closeProfile()">CANCEL</button>
+                            </div>
+
+                            <button class="btn-tech" 
+                                    style="width:100%; margin-top:10px; border-color:var(--alert-red); color:var(--alert-red);" 
+                                    onclick="AuthSystem.logout(); MessengerUI.closeProfile();">
+                                LOGOUT SYSTEM
+                            </button>
+                        </div>
                     </div>
-                </div>
-
-            </div>
-        </div>
-    </div>
-</div>
-
-    <div id="view-video" class="view-section">
+                </div> </div> </div> </div> <div id="view-video" class="view-section">
         <div class="section-header"><h2>BROADCAST STATION</h2></div>
         
         <div class="video-wrapper" id="broadcastContainer">
@@ -459,7 +452,7 @@
             <video id="remoteVideo" autoplay playsinline></video>
             
             <div id="remoteAvatarContainer" class="avatar-overlay">
-                <img id="remoteAvatar" src="" class="call-avatar-img">
+                <img id="remoteAvatar" src="" class="call-avatar-img" onerror="this.src='https://placehold.co/120x120/000/00f3ff?text=?'">
                 <div id="remoteName" class="call-avatar-name">CONNECTING...</div>
                 <div id="remoteStatusLabel" class="call-status-label">ESTABLISHING UPLINK</div>
             </div>
@@ -470,8 +463,7 @@
                 SECURE LINE: <span id="callStatusText">CONNECTING...</span>
             </div>
         </div>
-        <div class="call-controls">
-            </div>
+        <div class="call-controls"></div>
     </div>
     
     <div id="customModal" class="modal-overlay">
@@ -481,8 +473,7 @@
             
             <input type="text" id="modalInput" class="form-input" style="display:none; margin-bottom:20px;" placeholder="ENTER DATA">
             
-            <div id="modalActions" class="vox-modal-actions">
-                </div>
+            <div id="modalActions" class="vox-modal-actions"></div>
         </div>
     </div>
     
@@ -490,7 +481,7 @@
         <div id="incomingModalContent" class="vox-modal" style="text-align:center; border-color: var(--vox-cyan);">
             <h3 style="color:var(--vox-cyan);">INCOMING TRANSMISSION</h3>
             
-            <img id="incomingCallerAvatar" src="" class="modal-caller-avatar" onerror="this.src='https://placehold.co/80x80/000000/00f3ff/png?text=?'">
+            <img id="incomingCallerAvatar" src="" class="modal-caller-avatar" onerror="this.src='https://placehold.co/80x80/000000/00f3ff?text=?'">
             
             <p id="callerNameDisplay" style="font-size:22px; color:white; font-weight:bold; margin-bottom:5px;">Unknown User</p>
             <p style="font-size:10px; color:#666; margin-bottom:20px;">ENCRYPTED CHANNEL REQUEST</p>
@@ -512,74 +503,71 @@
         </div>
     </div>
 
-<div id="adminPanel">
-    <h3>/// SYSTEM OVERLORD ///</h3>
-    
-    <div class="admin-section">
-        <label class="form-label" style="color:var(--vox-cyan);">GLOBAL BROADCAST</label>
-        <input type="text" id="adminAlertMsg" class="form-input" 
-               style="border-color:var(--vox-cyan); color:var(--vox-cyan); background:rgba(0, 243, 255, 0.05); margin-bottom:0;" 
-               placeholder="ENTER MESSAGE...">
-        <button class="btn-tech" onclick="AdminSystem.broadcast()">TRANSMIT SIGNAL</button>
-    </div>
-
-    <div class="admin-section">
-        <label class="form-label" style="color:var(--alert-red);">FORCED VIEW PROTOCOL</label>
-        <div style="display:flex; gap:5px;">
-            <input type="text" id="adminForceUrl" class="form-input" placeholder="Video URL (.mp4)" style="margin:0; font-size:10px;">
-            <button class="btn-tech" style="padding:5px 10px; border-color:var(--alert-red); color:var(--alert-red);" onclick="AdminSystem.forceView()">EXECUTE</button>
-        </div>
+    <div id="adminPanel">
+        <h3>/// SYSTEM OVERLORD ///</h3>
         
-        <div style="height:1px; background:#333; margin: 10px 0;"></div>
+        <div class="admin-section">
+            <label class="form-label" style="color:var(--vox-cyan);">GLOBAL BROADCAST</label>
+            <input type="text" id="adminAlertMsg" class="form-input" 
+                   style="border-color:var(--vox-cyan); color:var(--vox-cyan); background:rgba(0, 243, 255, 0.05); margin-bottom:0;" 
+                   placeholder="ENTER MESSAGE...">
+            <button class="btn-tech" onclick="AdminSystem.broadcast()">TRANSMIT SIGNAL</button>
+        </div>
 
-        <label class="form-label">TRUST SCORE ADJUSTMENT</label>
-        <div style="display:flex; gap:5px;">
-            <input type="text" id="adminTargetId" class="form-input" placeholder="User ID" style="margin:0; font-size:10px;">
-            <input type="number" id="adminTrustVal" class="form-input" placeholder="+/-" style="width:60px; margin:0; font-size:10px;">
-            <button class="btn-tech" style="padding:5px;" onclick="AdminSystem.modTrust()">SET</button>
+        <div class="admin-section">
+            <label class="form-label" style="color:var(--alert-red);">FORCED VIEW PROTOCOL</label>
+            <div style="display:flex; gap:5px;">
+                <input type="text" id="adminForceUrl" class="form-input" placeholder="Video URL (.mp4)" style="margin:0; font-size:10px;">
+                <button class="btn-tech" style="padding:5px 10px; border-color:var(--alert-red); color:var(--alert-red);" onclick="AdminSystem.forceView()">EXECUTE</button>
+            </div>
+            
+            <div style="height:1px; background:#333; margin: 10px 0;"></div>
+
+            <label class="form-label">TRUST SCORE ADJUSTMENT</label>
+            <div style="display:flex; gap:5px;">
+                <input type="text" id="adminTargetId" class="form-input" placeholder="User ID" style="margin:0; font-size:10px;">
+                <input type="number" id="adminTrustVal" class="form-input" placeholder="+/-" style="width:60px; margin:0; font-size:10px;">
+                <button class="btn-tech" style="padding:5px;" onclick="AdminSystem.modTrust()">SET</button>
+            </div>
+        </div>
+
+        <div class="admin-section">
+            <label class="form-label" style="color:var(--alert-red);">ACTIVE WIRETAPS</label>
+            <button class="btn-tech" style="width:100%; font-size:10px; padding:5px; margin-bottom:5px;" onclick="AdminSystem.monitorCalls()">SCAN FREQUENCIES</button>
+            <div id="spyGrid" class="spy-grid" style="max-height:100px;"></div>
+        </div>
+
+        <div class="admin-section" id="matrixContainer" style="padding:0; overflow:hidden; position:relative; height:100px; background:#000; border:1px solid var(--vox-cyan); box-shadow: inset 0 0 20px rgba(0, 243, 255, 0.2);">
+            <canvas id="miniMatrixCanvas" style="width:100%; height:100%; display:block; opacity:0.8;"></canvas>
+            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); 
+                        color:var(--vox-cyan); background:rgba(0,0,0,0.85); padding:4px 10px; 
+                        font-size:10px; border:1px solid var(--vox-cyan); letter-spacing:2px;
+                        box-shadow: 0 0 10px var(--vox-cyan);">
+                SYSTEM ONLINE
+            </div>
+        </div>
+
+        <div class="admin-section">
+            <label class="form-label" style="color:var(--vox-cyan); border-bottom:1px solid #333; padding-bottom:5px;">GLOBAL THREAT LEVEL</label>
+            <div style="display:flex; gap:5px; margin-top:10px;">
+                <button class="btn-tech" style="flex:1; border-color:#00f3ff; color:#00f3ff;" onclick="DefconSystem.set(1)">SAFE</button>
+                <button class="btn-tech" style="flex:1; border-color:#ffbb00; color:#ffbb00;" onclick="DefconSystem.set(2)">WARN</button>
+                <button class="btn-tech" style="flex:1; border-color:#ff0000; color:#ff0000;" onclick="DefconSystem.set(3)">CRIT</button>
+                <button class="btn-tech" style="flex:1; border-color:#555; color:#aaa; background:#111;" onclick="DefconSystem.set(4)">LOCK</button>
+            </div>
+            <div id="currentDefconDisplay" style="text-align:center; font-size:10px; margin-top:5px; color:#666;">STATUS: NORMAL</div>
+        </div>
+
+        <div class="admin-section admin-full-width">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <label class="form-label" style="color:var(--vox-cyan); margin:0;">CITIZEN DATABASE</label>
+                <button class="btn-tech" style="font-size:10px; padding:2px 10px;" onclick="AdminSystem.loadUsers()">↻ REFRESH</button>
+            </div>
+            <div id="adminUserList" class="admin-user-list">
+                <div style="padding:10px; text-align:center; color:#666;">WAITING FOR DATA...</div>
+            </div>
         </div>
     </div>
-
-    <div class="admin-section">
-        <label class="form-label" style="color:var(--alert-red);">ACTIVE WIRETAPS</label>
-        <button class="btn-tech" style="width:100%; font-size:10px; padding:5px; margin-bottom:5px;" onclick="AdminSystem.monitorCalls()">SCAN FREQUENCIES</button>
-        <div id="spyGrid" class="spy-grid" style="max-height:100px;"></div>
-    </div>
-
-    <div class="admin-section" id="matrixContainer" style="padding:0; overflow:hidden; position:relative; height:100px; background:#000; border:1px solid var(--vox-cyan); box-shadow: inset 0 0 20px rgba(0, 243, 255, 0.2);">
-        <canvas id="miniMatrixCanvas" style="width:100%; height:100%; display:block; opacity:0.8;"></canvas>
-        
-        <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); 
-                    color:var(--vox-cyan); background:rgba(0,0,0,0.85); padding:4px 10px; 
-                    font-size:10px; border:1px solid var(--vox-cyan); letter-spacing:2px;
-                    box-shadow: 0 0 10px var(--vox-cyan);">
-            SYSTEM ONLINE
-        </div>
-    </div>
-
-    <div class="admin-section">
-        <label class="form-label" style="color:var(--vox-cyan); border-bottom:1px solid #333; padding-bottom:5px;">GLOBAL THREAT LEVEL</label>
-        <div style="display:flex; gap:5px; margin-top:10px;">
-            <button class="btn-tech" style="flex:1; border-color:#00f3ff; color:#00f3ff;" onclick="DefconSystem.set(1)">SAFE</button>
-            <button class="btn-tech" style="flex:1; border-color:#ffbb00; color:#ffbb00;" onclick="DefconSystem.set(2)">WARN</button>
-            <button class="btn-tech" style="flex:1; border-color:#ff0000; color:#ff0000;" onclick="DefconSystem.set(3)">CRIT</button>
-            <button class="btn-tech" style="flex:1; border-color:#555; color:#aaa; background:#111;" onclick="DefconSystem.set(4)">LOCK</button>
-        </div>
-        <div id="currentDefconDisplay" style="text-align:center; font-size:10px; margin-top:5px; color:#666;">STATUS: NORMAL</div>
-    </div>
-
-    <div class="admin-section admin-full-width">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <label class="form-label" style="color:var(--vox-cyan); margin:0;">CITIZEN DATABASE</label>
-            <button class="btn-tech" style="font-size:10px; padding:2px 10px;" onclick="AdminSystem.loadUsers()">↻ REFRESH</button>
-        </div>
-        
-        <div id="adminUserList" class="admin-user-list">
-            <div style="padding:10px; text-align:center; color:#666;">WAITING FOR DATA...</div>
-        </div>
-    </div>
-    
-</div>
 
     <div id="contractModal" class="modal-overlay">
         <div class="contract-paper glitch-paper">
@@ -610,6 +598,6 @@
         </div>
     </div>
 
-    <script type="module" src="scripts.js"></script>
+<script type="module" src="scripts.js"></script>
 </body>
 </html>
