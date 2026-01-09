@@ -650,26 +650,46 @@
                         if(!this.isLooping) this.playNext();
                     });
                     
-                    this.wrapper.addEventListener('mousemove', () => {
-                        this.wrapper.classList.add('user-active');
-                        clearTimeout(this.hideControlsTimer);
-                        
-                        // Если видео играет, запускаем таймер скрытия
-                        if(!this.video.paused) {
-                            this.hideControlsTimer = setTimeout(() => {
-                                this.wrapper.classList.remove('user-active');
-                            }, 5000);
-                        }
-                    });
-                    
-                    this.wrapper.addEventListener('touchstart', () => {
-                        this.wrapper.classList.add('user-active');
-                        clearTimeout(this.hideControlsTimer);
-                        this.hideControlsTimer = setTimeout(() => {
-                            this.wrapper.classList.remove('user-active');
-                        }, 5000);
-                    }, { passive: true });
+                    // --- 1.2.1 НОВАЯ ЛОГИКА ИНТЕРФЕЙСА (ВСТАВИТЬ СЮДА) ---
 
+                const updateUIState = () => {
+                    this.wrapper.classList.add('user-active'); // Показываем панель
+                    this.video.style.cursor = 'default';
+                    
+                    // Сбрасываем старый таймер
+                    if(this.hideControlsTimer) clearTimeout(this.hideControlsTimer);
+
+                    // Если видео на ПАУЗЕ -> Выходим (панель останется висеть вечно)
+                    if(this.video.paused) return;
+
+                    // Если видео ИГРАЕТ -> Запускаем таймер на 5 секунд
+                    this.hideControlsTimer = setTimeout(() => {
+                        // Проверяем, не держит ли юзер курсор на кнопках
+                        const controls = document.querySelector('.custom-video-controls');
+                        if (!controls || !controls.matches(':hover')) {
+                            this.wrapper.classList.remove('user-active'); // Скрываем
+                            // Убираем курсор (только на ПК)
+                            if(!window.matchMedia('(pointer: coarse)').matches) {
+                                this.video.style.cursor = 'none';
+                            }
+                        }
+                    }, 5000);
+                };
+
+                // 1. Слушаем любые взаимодействия (движение, касание, клик)
+                this.wrapper.addEventListener('mousemove', updateUIState);
+                this.wrapper.addEventListener('touchstart', updateUIState);
+                this.wrapper.addEventListener('click', updateUIState);
+
+                // 2. Слушаем статус видео
+                this.video.addEventListener('play', () => updateUIState()); // Старт -> запуск таймера
+
+                this.video.addEventListener('pause', () => {
+                    // Пауза -> показываем панель и УБИВАЕМ таймер (чтобы висела)
+                    this.wrapper.classList.add('user-active');
+                    if(this.hideControlsTimer) clearTimeout(this.hideControlsTimer);
+                });
+                    
                     // Если мышка ушла с видео - сразу прячем (опционально)
                     this.wrapper.addEventListener('mouseleave', () => {
                          if(!this.video.paused) this.wrapper.classList.remove('user-active');
