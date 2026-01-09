@@ -1350,7 +1350,7 @@
                         { txt: "Type 'help' for available subroutines.", color: "white", delay: 1600 }
                     ];
 
-                    et totalDelay = 0;
+                    let totalDelay = 0;
                     bootSequence.forEach(step => {
                         totalDelay += step.delay;
                         setTimeout(() => this.print(step.txt, step.color), totalDelay);
