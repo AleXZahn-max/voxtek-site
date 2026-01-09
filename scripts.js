@@ -3874,6 +3874,7 @@
 
                 draw();
             };
+            
 
             // Запускаем
             setTimeout(initMiniMatrix, 500);
