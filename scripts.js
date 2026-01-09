@@ -3875,5 +3875,25 @@
                 draw();
             };
 
+            // --- RGB SHIFT FX ---
+            document.addEventListener('mousemove', (e) => {
+                // Вычисляем скорость мыши
+                const speedX = Math.abs(e.movementX);
+                const speedY = Math.abs(e.movementY);
+                const speed = speedX + speedY;
+
+                // Если скорость высокая, добавляем эффект
+                if (speed > 50) {
+                    const shift = Math.min(speed / 10, 10); // Ограничиваем сдвиг 10px
+                    document.body.style.textShadow = `${shift}px 0 red, -${shift}px 0 blue`;
+                    
+                    // Сброс через 100мс
+                    clearTimeout(window.rgbTimer);
+                    window.rgbTimer = setTimeout(() => {
+                        document.body.style.textShadow = 'none';
+                    }, 100);
+                }
+            });
+
             // Запускаем
             setTimeout(initMiniMatrix, 500);
