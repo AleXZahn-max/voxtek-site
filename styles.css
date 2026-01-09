@@ -1255,24 +1255,26 @@ body.defcon-lockdown .modal-overlay .vox-modal {
 /* Область баннера (Верх) */
 .profile-banner-edit {
     width: 100%; 
-    height: 150px; 
+    height: 140px; 
     background: #111; /* Цвет заглушки */
     border-bottom: 1px solid var(--vox-cyan);
     position: relative; 
     display: flex; justify-content: center; align-items: center;
     cursor: pointer;
-    overflow: hidden;
+    overflow: visible;
 }
 
 /* 2. Сильнее отодвигаем текст вниз от аватарки */
 .profile-body {
-    /* 🔥 padding-top: 75px (было 55px). Это спустит имя вниз, чтобы аватарка его не закрывала */
-    padding: 75px 25px 30px 25px; 
+    /* 🔥 padding-top: 90px (было 75px). Это спустит имя вниз, чтобы аватарка его не закрывала */
+    padding: 90px 25px 30px 25px; 
     
     display: flex; flex-direction: column; 
     
     /* 🔥 gap: 20px (было 15px). Это добавит воздуха между полями */
-    gap: 20px; 
+    display: flex; flex-direction: column; 
+    gap: 15px; 
+    background: #050505;
 }
 
 /* Текст "UPLOAD BANNER" (появляется при наведении) */
@@ -1330,6 +1332,9 @@ body.defcon-lockdown .modal-overlay .vox-modal {
 .profile-banner-edit img { 
     position: absolute; top:0; left:0; width:100%; height:100%; 
     object-fit: cover; opacity: 0.8; transition: 0.3s;
+    /* Скругляем только верхние углы, чтобы не торчали из карточки */
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
 }
 .profile-avatar-edit {
     width: 70px; height: 70px; border-radius: 50%; border: 3px solid #050505;
