@@ -3875,42 +3875,5 @@
                 draw();
             };
 
-            const CryptoSystem = {
-                process(action) {
-                    const input = document.getElementById('cryptoInput').value;
-                    const pass = document.getElementById('cryptoKey').value;
-                    const out = document.getElementById('cryptoOutput');
-
-                    if(!input || !pass) return alert("DATA AND KEY REQUIRED");
-
-                    try {
-                        let result = "";
-                        if (action === 'encrypt') {
-                            // Реальное шифрование AES
-                            result = CryptoJS.AES.encrypt(input, pass).toString();
-                            out.style.color = "var(--vox-cyan)";
-                        } else {
-                            // Реальная расшифровка
-                            const bytes = CryptoJS.AES.decrypt(input, pass);
-                            result = bytes.toString(CryptoJS.enc.Utf8);
-                            if(!result) throw new Error("Wrong Key");
-                            out.style.color = "#0f0";
-                        }
-                        
-                        out.style.display = 'block';
-                        out.textContent = result;
-                        
-                        // Копирование в буфер
-                        navigator.clipboard.writeText(result);
-                        voxNotify(action.toUpperCase() + " COMPLETE. COPIED TO CLIPBOARD.", "success");
-                        
-                    } catch(e) {
-                        voxNotify("DECRYPTION FAILED. INVALID KEY.", "error");
-                    }
-                }
-            };
-
-            window.CryptoSystem = CryptoSystem;
-            
             // Запускаем
             setTimeout(initMiniMatrix, 500);
