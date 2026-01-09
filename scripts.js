@@ -956,6 +956,20 @@
                 }
             };
 
+            // --- DYNAMIC BROWSER THEME ---
+            window.setBrowserColor = (color) => {
+                // 1. Ищем или создаем мета-тег
+                let meta = document.querySelector('meta[name="theme-color"]');
+                if (!meta) {
+                    meta = document.createElement('meta');
+                    meta.name = "theme-color";
+                    document.head.appendChild(meta);
+                }
+                // 2. Меняем цвет
+                meta.setAttribute('content', color);
+                console.log(`%c BROWSER THEME: ${color} `, `background: ${color}; color: black; font-weight: bold;`);
+            };
+
             // --- NOTIFICATIONS ---
             const voxNotify = (msg, type = 'info') => {
                 const area = document.getElementById('notification-area');
@@ -1309,39 +1323,74 @@
             };
             reviewSystem.init();
 
-            // --- 6. TERMINAL & ALASTOR LOGIC ---
+            // --- 6. TERMINAL & ALASTOR LOGIC (REMASTERED) ---
             const terminal = {
                 screen: document.getElementById('termScreen'),
                 input: document.getElementById('cmdInput'),
+    
+                // Файловая система с метаданными (права, размер, дата)
                 fs: {
-                    'readme.txt': 'Welcome to Vanguard OS v10. Do not attempt to decompile.',
-                    'passwords.log': 'ERROR: ENCRYPTED. LEVEL 5 CLEARANCE REQUIRED.',
-                    'alastor_report.log': 'Target Status: MIA. Radio Signal: 0%. Threat: Negligible.'
+                    'readme.txt': { type: 'file', content: 'Welcome to Vanguard OS v10. Submission is Safety.', meta: 'r--r--r--  1.2kb  2026-01-01' },
+                    'passwords.log': { type: 'file', content: 'ERROR: ENCRYPTED. LEVEL 5 CLEARANCE REQUIRED.', meta: 'rw-------  0.5kb  2026-01-02' },
+                    'alastor_report.log': { type: 'file', content: 'Target Status: MIA. Radio Signal: 0%. Threat: Negligible.', meta: 'r--------  4.8kb  2025-12-25' },
+                    'vanguard.exe': { type: 'bin', content: null, meta: 'rwx------  124mb  2026-01-04' },
+                    'sys_core': { type: 'dir', content: null, meta: 'drwxr-xr-x  DIR    2026-01-01' }
                 },
+    
                 matrixInterval: null,
+
                 init() {
-                    setTimeout(() => this.print("Initializing..."), 500);
-                    setTimeout(() => this.print("Mounting File System... [OK]", "#0f0"), 800);
-                    setTimeout(() => this.print("Type 'help' for commands."), 1200);
+                    // Красивая анимация загрузки при старте
+                    const bootSequence = [
+                        { txt: "BIOS CHECK...", color: "#666", delay: 100 },
+                        { txt: "LOADING VANGUARD KERNEL v9.2...", color: "#666", delay: 300 },
+                        { txt: "MOUNTING FILESYSTEM...", color: "#666", delay: 600 },
+                        { txt: "CONNECTING TO VOXTEK MAINFRAME...", color: "var(--vox-cyan)", delay: 900 },
+                        { txt: "ACCESS GRANTED. WELCOME, CITIZEN.", color: "#0f0", delay: 1400 },
+                        { txt: "Type 'help' for available subroutines.", color: "white", delay: 1600 }
+                    ];
+
+                    et totalDelay = 0;
+                    bootSequence.forEach(step => {
+                        totalDelay += step.delay;
+                        setTimeout(() => this.print(step.txt, step.color), totalDelay);
+                    });
 
                     this.input.addEventListener('keydown', (e) => {
                         if (e.key === 'Enter') this.processCmd();
                     });
+        
+                    this.input.focus();
                 },
-                print(txt, color = 'var(--vox-cyan)') {
+
+                // Улучшенная функция вывода с поддержкой HTML и цветов
+                print(txt, color = 'var(--vox-cyan)', prefix = '') {
                     const l = document.createElement('div');
                     l.style.color = color;
-                    l.style.marginBottom = '5px';
-                    l.textContent = txt; 
+                    l.style.marginBottom = '2px';
+                    l.style.fontFamily = "var(--font-code)";
+                    l.style.textShadow = `0 0 5px ${color}`; // Неоновое свечение текста
+        
+                    // Время команды
+                    const time = new Date().toLocaleTimeString('en-US', {hour12: false, hour: "2-digit", minute: "2-digit", second: "2-digit"});
+                    const timestamp = `<span style="color:#444; margin-right:10px;">[${time}]</span>`;
+        
+                    l.innerHTML = `${timestamp}${prefix}${txt}`;
+        
                     this.screen.appendChild(l);
                     this.screen.scrollTop = this.screen.scrollHeight;
                 },
+
                 triggerCrash() {
-                    SoundFX.staticNoise();
+                    if(window.SoundFX) window.SoundFX.staticNoise();
                     document.body.classList.add('theme-radio');
+        
+                    // 🔥 МЕНЯЕМ ЦВЕТ БРАУЗЕРА НА КРАСНЫЙ (АЛАСТОР)
+                    window.setBrowserColor("#8a0000");
+
                     const vsod = document.getElementById('vsod-layer');
                     vsod.classList.add('active');
-                    
+        
                     window.onkeydown = (e) => e.preventDefault();
                     document.body.style.cursor = 'none';
 
@@ -1349,79 +1398,140 @@
                     setInterval(() => {
                         if (p < 99) p++;
                         else p = 666;
-                        document.getElementById('vsod-percent').textContent = "Corruption: " + p + "%";
-                        document.getElementById('vsod-percent').style.fontSize = (20 + Math.random()*5) + "px";
+                        const el = document.getElementById('vsod-percent');
+                        if(el) {
+                            el.textContent = "Corruption: " + p + "%";
+                            el.style.fontSize = (20 + Math.random()*5) + "px";
+                        }
                     }, 100);
                 },
+
                 processCmd() {
                     const raw = this.input.value.trim();
                     if (!raw) return;
-                    
+        
                     const parts = raw.split(/\s+/);
                     const cmd = parts[0].toLowerCase();
                     const arg = parts[1];
 
-                    const echo = document.createElement('div');
-                    echo.style.color = 'white';
-                    echo.textContent = `root@vanguard:~# ${raw}`;
-                    this.screen.appendChild(echo);
+                    // Эффект ввода (повторяем команду пользователя белым цветом)
+                    this.print(raw, '#fff', '<span style="color:var(--vox-cyan);">root@vanguard:~# </span>');
                     this.input.value = '';
+
+                    // Звук нажатия Enter
+                    if(window.SoundFX) window.SoundFX.click();
 
                     switch (cmd) {
                         case 'help':
-                            this.print("COMMANDS: ls, cat [file], clear, whoami, matrix, radio, exit");
+                            this.print("--- AVAILABLE SUBROUTINES ---", "#fff");
+                            this.print("ls      : List directory contents");
+                            this.print("cat [f] : Read file content");
+                            this.print("whoami  : Display user identity");
+                            this.print("clear   : Clear terminal buffer");
+                            this.print("val     : Activate Valentino Protocol");
+                            this.print("vox     : Restore VoxTek Factory Settings");
+                            this.print("matrix  : Initiate visual hack simulation");
+                            this.print("exit    : Terminate session");
                             break;
+
                         case 'ls':
-                            this.print("FILES:");
-                            Object.keys(this.fs).forEach(f => this.print(`- ${f}`));
-                            this.print("- vanguard.exe");
+                            this.print("Reading file table...", "#666");
+                            setTimeout(() => {
+                                this.print("PERM        SIZE   DATE        NAME", "#888");
+                                Object.keys(this.fs).forEach(key => {
+                                    const f = this.fs[key];
+                                    // Выравнивание колонок пробелами (padEnd)
+                                    this.print(`${f.meta}  <span style="color:${f.type === 'dir' ? '#0044ff' : 'var(--vox-cyan)'}">${key}</span>`, "#ccc");
+                                });
+                            }, 300);
                             break;
+
                         case 'cat':
-                            if (this.fs[arg]) {
-                                this.print(this.fs[arg], "#ccc");
-                            } else if (arg === 'vanguard.exe') {
-                                this.print("[BINARY DATA CANNOT BE DISPLAYED]", "red");
+                            if (!arg) {
+                                this.print("Error: Missing target operand.", "var(--alert-red)");
+                                return;
+                            }
+                            const file = this.fs[arg];
+                            if (file) {
+                                if (file.type === 'bin') {
+                                    this.print("ERR: CANNOT DISPLAY BINARY FILE. EXECUTE ONLY.", "var(--alert-red)");
+                                } else if (file.type === 'dir') {
+                                    this.print("ERR: IS A DIRECTORY", "var(--alert-red)");
+                                } else {
+                                    this.print("Decrypting...", "#666");
+                                    setTimeout(() => this.print(file.content, "#fff"), 400);
+                                }
                             } else {
-                                this.print(`Error: File '${arg ? arg : ''}' not found.`, "red");
+                                this.print(`Error: File '${arg}' not found in sector.`, "var(--alert-red)");
                             }
                             break;
+
                         case 'clear':
-                            while(this.screen.firstChild) this.screen.removeChild(this.screen.firstChild);
+                            this.screen.innerHTML = '';
+                            this.print("Buffer cleared.", "#666");
                             break;
+
                         case 'whoami':
-                            this.print("User: LOYAL_CITIZEN_8940");
+                            this.print("--- USER IDENTITY ---", "#fff");
+                            this.print("ID:        #8940");
+                            this.print("CLASS:     LOYAL CITIZEN");
+                            this.print("TRUST:     98%");
+                            this.print("STATUS:    MONITORED");
                             break;
+
                         case 'radio':
                         case 'alastor':
-                            this.print("!!! ALERT: FORBIDDEN FREQUENCY DETECTED !!!", "red");
-                            this.print("RUNNING DIAGNOSTICS...", "red");
+                            this.print("!!! CRITICAL ALERT: FORBIDDEN FREQUENCY !!!", "var(--alert-red)");
+                            this.print("TRACING SIGNAL SOURCE...", "var(--alert-red)");
                             setTimeout(() => this.triggerCrash(), 2000);
                             break;
+
                         case 'matrix': 
                             if (this.matrixInterval) clearInterval(this.matrixInterval);
-                            this.print("Injecting code...", "#0f0");
+                            this.print("Injecting payload...", "#0f0");
                             let count = 0;
                             this.matrixInterval = setInterval(() => {
-                                if(count > 50) { clearInterval(this.matrixInterval); return; }
+                                if(count > 100) { clearInterval(this.matrixInterval); this.print("Injection complete.", "#0f0"); return; }
                                 let line = "";
-                                for (let i = 0; i < 30; i++) line += Math.floor(Math.random() * 2);
-                                this.print(line, "#0f0");
+                                for (let i = 0; i < 40; i++) line += Math.floor(Math.random() * 2);
+                                this.print(line, "rgba(0, 255, 0, 0.6)");
                                 count++;
-                            }, 50);
+                            }, 40);
                             break;
+
                         case 'val':
+                            document.body.classList.remove('theme-radio');
                             document.body.classList.add('theme-val');
-                            this.print("Fashion Mode Activated.", "#ff00ff");
+                            this.print("Fashion Mode Activated. Pimping style...", "#ff00ff");
+                            // 🔥 МЕНЯЕМ ЦВЕТ БРАУЗЕРА НА РОЗОВЫЙ
+                            window.setBrowserColor("#ff00ff");
                             break;
+
                         case 'vox':
-                             document.body.className = '';
-                             this.print("Trust the signal.", "var(--vox-cyan)");
-                             break;
+                            document.body.className = '';
+                            this.print("Factory Settings Restored. Trust the signal.", "var(--vox-cyan)");
+                            // 🔥 МЕНЯЕМ ЦВЕТ БРАУЗЕРА НА ГОЛУБОЙ
+                            window.setBrowserColor("#00f3ff");
+                            break;
+                        
+                        case 'exit':
+                            this.print("Terminating session...", "var(--alert-red)");
+                            setTimeout(() => {
+                                document.getElementById('view-home').scrollIntoView({ behavior: 'smooth' });
+                            }, 1000);
+                            break;
+
+                        case 'date':
+                            this.print(new Date().toString(), "#ccc");
+                            break;
+
                         default:
-                            this.print("Command not found.", "red");
+                            this.print(`Unknown command: '${cmd}'. Check syntax.`, "var(--alert-red)");
                     }
                 }
             };
+
+            // Запускаем терминал
             terminal.init();
 
             // --- 7. EYE TRACKING (OPTIMIZED) ---
@@ -3496,6 +3606,7 @@
                                 "HERE YOU CAN SEND MESSAGES, MAKE CALLS AND MUCH MORE",
                                 "YOU CAN TRUST US WITH YOUR ENTERTAIMENT"
                             );
+                            window.setBrowserColor("#00f3ff"); 
                             break;
                             
                         case 2: // CAUTION (Yellow)
@@ -3512,6 +3623,7 @@
                             );
                             
                             voxNotify("ALERT: THREAT LEVEL INCREASED.", "info");
+                            window.setBrowserColor("#ffbb00"); 
                             break;
                             
                         case 3: // CRITICAL (Red)
@@ -3531,6 +3643,7 @@
                                 setTimeout(() => window.SoundFX.playTone(300, 'sawtooth', 0.5), 600);
                             }
                             voxNotify("WARNING: IMMINENT DANGER.", "error");
+                            window.setBrowserColor("#ff0000"); 
                             break;
                             
                         case 4: // LOCKDOWN (Black)
@@ -3542,12 +3655,13 @@
                             setTickerText(
                                 "SITE BLOCKING HAS BEEN INTRODUCED",
                                 "KEEP CALM, DO NOT PANIC",
-                                "WE ARE ALREADY WORKING ON THE SITUATION"
+                                "WE ARE ALREADY WORKING ON THE SITUATIONN"
                             );
 
                             const inp = document.getElementById('msgInput');
                             if(inp) { inp.disabled = true; inp.placeholder = "TERMINAL LOCKED BY ADMINISTRATOR"; }
                             voxNotify("LOCKDOWN INITIATED. REMAIN CALM.", "error");
+                            window.setBrowserColor("#000000"); 
                             break;
                     }
                     
