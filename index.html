@@ -6,12 +6,21 @@
     <meta name="description" content="VoxTek Enterprises - The future of secure technology.">
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     <title>VoxTek Enterprises | Submission is Safety</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link rel="stylesheet" href="styles.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#00f3ff">
 </head>
 <body id="top">
+
+    <div id="bootSequence" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 99999; display: flex; flex-direction: column; justify-content: center; align-items: center; font-family: 'JetBrains Mono', monospace;">
+        <img src="icon.png" style="width: 80px; margin-bottom: 20px; filter: drop-shadow(0 0 10px var(--vox-cyan));">
+        <div id="bootText" style="color: var(--vox-cyan); font-size: 14px; margin-bottom: 10px;">INITIALIZING VANGUARD KERNEL...</div>
+        <div style="width: 300px; height: 4px; background: #222; border-radius: 2px; overflow: hidden;">
+            <div id="bootBar" style="width: 0%; height: 100%; background: var(--vox-cyan); box-shadow: 0 0 10px var(--vox-cyan); transition: width 0.1s;"></div>
+        </div>
+    </div>
 
     <div class="crt-overlay" aria-hidden="true"></div>
     <div class="vignette" aria-hidden="true"></div>
@@ -318,38 +327,40 @@
                     </div>
 
                     <div id="profileModal" class="profile-modal">
-                        <div class="p-card">
-                            <h3 style="color:var(--vox-cyan);">PROFILE SETTINGS</h3>
+                        <div class="p-card" style="padding-top:0; overflow:hidden;">
+                            <label class="profile-banner-edit" style="cursor:pointer;">
+                                <img id="pBannerPreview" src="">
+                                <span style="position:relative; z-index:2; font-size:10px; font-weight:bold; text-shadow:0 0 5px black;">CLICK TO UPLOAD BANNER</span>
+                                <input type="file" id="pBannerFile" accept="image/*" style="display:none;" onchange="CloudSystem.previewBanner(this)">
+                                
+                                <div class="profile-avatar-edit">
+                                    <img id="pAvatarPreview" src="" style="width:100%; height:100%; object-fit:cover;">
+                                </div>
+                            </label>
                             
-                            <label class="form-label">IDENTITY IMAGE</label>
-                            <div style="display:flex; align-items:center; gap:15px; margin-bottom:5px;">
-                                <img id="pAvatarPreview" src="" style="width:60px; height:60px; border-radius:50%; border:2px solid var(--vox-cyan); object-fit:cover; background:#111;">
-                                <label class="btn-tech" style="padding:10px; font-size:10px; flex:1; text-align:center; cursor:pointer;">
-                                    UPLOAD FILE
-                                    <input type="file" id="pAvatarFile" accept="image/*" style="display:none;" onchange="CloudSystem.previewAvatar(this)">
-                                </label>
-                            </div>
+                            <label class="btn-tech" style="font-size:9px; padding:5px; margin-left: 100px; width:auto; display:inline-block; margin-bottom:10px;">
+                                CHANGE AVATAR
+                                <input type="file" id="pAvatarFile" accept="image/*" style="display:none;" onchange="CloudSystem.previewAvatar(this)">
+                            </label>
 
                             <label class="form-label">DISPLAY NAME</label>
                             <input type="text" id="pName" class="form-input" placeholder="Enter your name">
 
                             <div class="invite-box">
                                 <label class="form-label" style="color:#aaa;">INVITE NEW CITIZEN</label>
-                                <div id="inviteLink" class="invite-link-display" onclick="AuthSystem.copyInvite()" title="Click to Copy">
-                                    REFERRAL LINK
-                                </div>
+                                <div id="inviteLink" class="invite-link-display" onclick="AuthSystem.copyInvite()" title="Click to Copy">REFERRAL LINK</div>
                             </div>
 
                             <div class="p-btn-row">
                                 <button class="btn-tech" style="flex:1;" onclick="CloudSystem.updateProfile()">SAVE</button>
                                 <button class="btn-tech" style="flex:1; border-color:#555; color:#555;" onclick="MessengerUI.closeProfile()">CANCEL</button>
                             </div>
-
-                            <button class="btn-tech" 
-                                    style="width:100%; margin-top:10px; border-color:var(--alert-red); color:var(--alert-red);" 
-                                    onclick="AuthSystem.logout(); MessengerUI.closeProfile();">
-                                LOGOUT SYSTEM
-                            </button>
+                            
+                            <div style="display:flex; gap:10px; margin-top:10px; width:100%;">
+                                <button class="btn-tech" style="flex:1; font-size:10px; padding:8px;" onclick="IdCardSystem.generate()">GET ID CARD</button>
+                                <button class="btn-tech" style="flex:1; font-size:10px; padding:8px;" onclick="LeaderboardSystem.load('loyal')">LEADERBOARD</button>
+                            </div>
+                            <button class="btn-tech" style="width:100%; margin-top:10px; border-color:var(--alert-red); color:var(--alert-red);" onclick="AuthSystem.logout(); MessengerUI.closeProfile();">LOGOUT SYSTEM</button>
                         </div>
                     </div>
                 </div> </div> </div> </div> <div id="view-video" class="view-section">
@@ -504,62 +515,28 @@
         </div>
     </div>
 
-    <div id="adminPanel">
+<div id="adminPanel">
         <h3>/// SYSTEM OVERLORD ///</h3>
         
-        <div class="admin-section">
-            <label class="form-label" style="color:var(--vox-cyan);">GLOBAL BROADCAST</label>
-            <input type="text" id="adminAlertMsg" class="form-input" 
-                   style="border-color:var(--vox-cyan); color:var(--vox-cyan); background:rgba(0, 243, 255, 0.05); margin-bottom:0;" 
-                   placeholder="ENTER MESSAGE...">
-            <button class="btn-tech" onclick="AdminSystem.broadcast()">TRANSMIT SIGNAL</button>
+        <div class="admin-section sec-broadcast">
+            <label class="form-label" style="color:var(--vox-cyan);">GLOBAL BROADCAST TRANSMITTER</label>
+            <textarea id="adminAlertMsg" class="form-input" rows="3" 
+                   style="border-color:var(--vox-cyan); color:var(--vox-cyan); background:rgba(0, 243, 255, 0.05); resize:none;" 
+                   placeholder="ENTER MESSAGE FOR ALL CITIZENS..."></textarea>
+            <button class="btn-tech" onclick="AdminSystem.broadcast()">📡 TRANSMIT SIGNAL</button>
         </div>
 
-        <div class="admin-section">
-            <label class="form-label" style="color:var(--alert-red);">FORCED VIEW PROTOCOL</label>
-            <div style="display:flex; gap:5px;">
-                <input type="text" id="adminForceUrl" class="form-input" placeholder="Video URL (.mp4)" style="margin:0; font-size:10px;">
-                <button class="btn-tech" style="padding:5px 10px; border-color:var(--alert-red); color:var(--alert-red);" onclick="AdminSystem.forceView()">EXECUTE</button>
+        <div class="admin-section sec-reports">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <label class="form-label" style="color:var(--alert-red); margin:0;">🚨 ACTIVE REPORTS</label>
+                <button class="btn-tech" style="font-size:10px; padding:2px 10px; border-color:var(--alert-red); color:var(--alert-red);" onclick="AdminSystem.loadReports()">↻ SCAN</button>
             </div>
-            
-            <div style="height:1px; background:#333; margin: 10px 0;"></div>
-
-            <label class="form-label">TRUST SCORE ADJUSTMENT</label>
-            <div style="display:flex; gap:5px;">
-                <input type="text" id="adminTargetId" class="form-input" placeholder="User ID" style="margin:0; font-size:10px;">
-                <input type="number" id="adminTrustVal" class="form-input" placeholder="+/-" style="width:60px; margin:0; font-size:10px;">
-                <button class="btn-tech" style="padding:5px;" onclick="AdminSystem.modTrust()">SET</button>
+            <div id="adminReportsList" style="border:1px dashed var(--alert-red); flex:1; padding:5px;">
+                <div style="padding:10px; text-align:center; color:#666;">NO TREASON DETECTED</div>
             </div>
         </div>
 
-        <div class="admin-section">
-            <label class="form-label" style="color:var(--alert-red);">ACTIVE WIRETAPS</label>
-            <button class="btn-tech" style="width:100%; font-size:10px; padding:5px; margin-bottom:5px;" onclick="AdminSystem.monitorCalls()">SCAN FREQUENCIES</button>
-            <div id="spyGrid" class="spy-grid" style="max-height:100px;"></div>
-        </div>
-
-        <div class="admin-section" id="matrixContainer" style="padding:0; overflow:hidden; position:relative; height:100px; background:#000; border:1px solid var(--vox-cyan); box-shadow: inset 0 0 20px rgba(0, 243, 255, 0.2);">
-            <canvas id="miniMatrixCanvas" style="width:100%; height:100%; display:block; opacity:0.8;"></canvas>
-            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); 
-                        color:var(--vox-cyan); background:rgba(0,0,0,0.85); padding:4px 10px; 
-                        font-size:10px; border:1px solid var(--vox-cyan); letter-spacing:2px;
-                        box-shadow: 0 0 10px var(--vox-cyan);">
-                SYSTEM ONLINE
-            </div>
-        </div>
-
-        <div class="admin-section">
-            <label class="form-label" style="color:var(--vox-cyan); border-bottom:1px solid #333; padding-bottom:5px;">GLOBAL THREAT LEVEL</label>
-            <div style="display:flex; gap:5px; margin-top:10px;">
-                <button class="btn-tech" style="flex:1; border-color:#00f3ff; color:#00f3ff;" onclick="DefconSystem.set(1)">SAFE</button>
-                <button class="btn-tech" style="flex:1; border-color:#ffbb00; color:#ffbb00;" onclick="DefconSystem.set(2)">WARN</button>
-                <button class="btn-tech" style="flex:1; border-color:#ff0000; color:#ff0000;" onclick="DefconSystem.set(3)">CRIT</button>
-                <button class="btn-tech" style="flex:1; border-color:#555; color:#aaa; background:#111;" onclick="DefconSystem.set(4)">LOCK</button>
-            </div>
-            <div id="currentDefconDisplay" style="text-align:center; font-size:10px; margin-top:5px; color:#666;">STATUS: NORMAL</div>
-        </div>
-
-        <div class="admin-section admin-full-width">
+        <div class="admin-section sec-users">
             <div style="display:flex; justify-content:space-between; align-items:center;">
                 <label class="form-label" style="color:var(--vox-cyan); margin:0;">CITIZEN DATABASE</label>
                 <button class="btn-tech" style="font-size:10px; padding:2px 10px;" onclick="AdminSystem.loadUsers()">↻ REFRESH</button>
@@ -567,6 +544,48 @@
             <div id="adminUserList" class="admin-user-list">
                 <div style="padding:10px; text-align:center; color:#666;">WAITING FOR DATA...</div>
             </div>
+            
+            <div style="border-top:1px solid #333; padding-top:10px; margin-top:5px;">
+                <label class="form-label" style="font-size:9px;">TRUST SCORE ADJUSTMENT</label>
+                <div style="display:flex; gap:5px;">
+                    <input type="text" id="adminTargetId" class="form-input" placeholder="User ID" style="margin:0; font-size:10px; padding:5px;">
+                    <input type="number" id="adminTrustVal" class="form-input" placeholder="+/-" style="width:50px; margin:0; font-size:10px; padding:5px;">
+                    <button class="btn-tech" style="padding:5px;" onclick="AdminSystem.modTrust()">SET</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="admin-section sec-wiretaps">
+            <label class="form-label" style="color:orange;">ACTIVE WIRETAPS</label>
+            <button class="btn-tech" style="width:100%; font-size:10px; padding:5px; margin-bottom:5px; border-color:orange; color:orange;" onclick="AdminSystem.monitorCalls()">SCAN FREQUENCIES</button>
+            <div id="spyGrid" class="spy-grid" style="flex:1;"></div>
+        </div>
+
+        <div class="admin-section sec-forced">
+            <label class="form-label" style="color:var(--alert-red);">FORCED VIEW PROTOCOL</label>
+            <input type="text" id="adminForceUrl" class="form-input" placeholder="Video URL (.mp4)" style="margin-bottom:10px; font-size:10px; padding:8px;">
+            <button class="btn-tech" style="width:100%; border-color:var(--alert-red); color:var(--alert-red); background:rgba(255,0,0,0.1);" onclick="AdminSystem.forceView()">EXECUTE OVERRIDE</button>
+        </div>
+
+        <div class="admin-section sec-matrix" id="matrixContainer">
+            <canvas id="miniMatrixCanvas" style="width:100%; height:100%; display:block; opacity:0.8;"></canvas>
+            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); 
+                        color:var(--vox-cyan); background:rgba(0,0,0,0.85); padding:4px 10px; 
+                        font-size:10px; border:1px solid var(--vox-cyan); letter-spacing:2px;
+                        box-shadow: 0 0 10px var(--vox-cyan); pointer-events:none;">
+                NET_STATUS: OK
+            </div>
+        </div>
+
+        <div class="admin-section sec-defcon">
+            <label class="form-label" style="color:var(--vox-cyan); text-align:center;">GLOBAL THREAT LEVEL</label>
+            <div class="defcon-grid">
+                <button class="defcon-btn d-safe" onclick="DefconSystem.set(1)">SAFE</button>
+                <button class="defcon-btn d-warn" onclick="DefconSystem.set(2)">WARN</button>
+                <button class="defcon-btn d-crit" onclick="DefconSystem.set(3)">CRIT</button>
+                <button class="defcon-btn d-lock" onclick="DefconSystem.set(4)">LOCK</button>
+            </div>
+            <div id="currentDefconDisplay" style="text-align:center; font-size:10px; margin-top:5px; color:#666;">STATUS: NORMAL</div>
         </div>
     </div>
 
@@ -599,6 +618,107 @@
         </div>
     </div>
 
+    <div id="leaderboardModal" class="modal-overlay">
+        <div class="vox-modal" style="width: 600px; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--vox-cyan); padding-bottom: 10px; margin-bottom: 15px;">
+                <h3 style="margin:0;">CITIZEN RANKINGS</h3>
+                <button class="btn-tech" style="padding: 5px 10px; font-size: 10px;" onclick="document.getElementById('leaderboardModal').classList.remove('active')">CLOSE X</button>
+            </div>
+            
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <button class="btn-tech" style="flex:1;" onclick="LeaderboardSystem.load('loyal')">LOYALTY TOP</button>
+                <button class="btn-tech" style="flex:1; border-color: var(--alert-red); color: var(--alert-red);" onclick="LeaderboardSystem.load('wanted')">WANTED LIST</button>
+            </div>
+
+            <div id="leaderboardList" class="spy-grid" style="grid-template-columns: 1fr; gap: 5px; overflow-y: auto; max-height: 400px;">
+                <div style="text-align:center; color:#666; padding:20px;">ACCESSING DATABASE...</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="idCardContainer" style="position: fixed; top: -9999px; left: -9999px;">
+        <div id="idCardTemplate" class="id-card-wrapper">
+            <div class="id-header">
+                <img src="vox-eye.gif" class="id-logo" onerror="this.src='favicon.ico'"> 
+                <span>VOXTEK CITIZEN PASS</span>
+            </div>
+            <div class="id-body">
+                <div class="id-photo-box">
+                    <img id="idCardAvatar" src="" crossorigin="anonymous">
+                    <div class="id-overlay"></div>
+                </div>
+                <div class="id-info">
+                    <div class="id-row"><span class="id-label">NAME:</span> <span class="id-val" id="idCardName">UNKNOWN</span></div>
+                    <div class="id-row"><span class="id-label">UID:</span> <span class="id-val" id="idCardUid">#0000</span></div>
+                    <div class="id-row"><span class="id-label">TRUST:</span> <span class="id-val" id="idCardTrust">50%</span></div>
+                    <div class="id-row"><span class="id-label">STATUS:</span> <span class="id-val" id="idCardStatus" style="color:var(--vox-cyan);">VERIFIED</span></div>
+                
+                </div>
+                <div class="id-qr">
+                    <div style="width: 50px; height: 50px; background: white; padding: 2px;">
+                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyAQMAAAAk8RryAAAABlBMVEX///8AAABVwtN+AAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAQmlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4KPHg6eG11ZXRhIHhtbG5zOng9ImFkb2JlOm5zOm1ldGEvIiB4OnhtcHRrPSJBZG9iZSBYTVAgQ29yZSA1LjYtYzE0MCA3OS4xNjA0NTEsIDIwMTcvMDUvMDYtMDE6MDg6MjEgICAgICAgICI+CiA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPgogIDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PSIiLz4KIDwvcmRmOlJERj4KPC94OnhtcG1ldGE+Cjw/eHBhY2tldCBlbmQ9InIiPz6O1kUCAAAAB3RJTUUH5gMREh0y/tT80gAAAEZJREFUGNNjYKAxYIAO2Bj4/w/A4P//A4j4/x8Y2P8fAImD5P///w8R//8DSQx//wMVA4v///8fIvr/H0wMhAYQ0Q91Iw8AAMUWMx3JT4N4AAAAAElFTkSuQmCC" 
+                        style="width: 100%; height: 100%; image-rendering: pixelated;" 
+                        alt="QR">
+                </div>
+            </div>
+
+            </div>
+            <div class="id-footer">SUBMISSION IS SAFETY /// VOXTEK ENTERPRISES</div>
+        </div>
+    </div>
+
+    <div id="vContextMenu" class="v-context-menu">
+        <div class="v-ctx-item" onclick="VMenu.action('scan')">SCAN ELEMENT</div>
+        <div class="v-ctx-item" onclick="VMenu.action('copy')">COPY DATA</div>
+        <div class="v-ctx-separator"></div>
+        <div class="v-ctx-item" onclick="VMenu.action('report')">REPORT TREASON</div>
+        <div class="v-ctx-item" onclick="VMenu.action('reload')">SYSTEM REBOOT</div>
+    </div>
+
+    <div id="reportModal" class="modal-overlay">
+        <div class="vox-modal" style="border-color: var(--alert-red);">
+            <h3 style="color: var(--alert-red);">REPORT VIOLATION</h3>
+            <p style="color: #ccc; font-size: 12px;">SELECT THE NATURE OF THE TREASON:</p>
+            
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+                <button class="btn-tech" onclick="ReportSystem.submit('ALASTOR_PROPAGANDA')">ALASTOR PROPAGANDA</button>
+                <button class="btn-tech" onclick="ReportSystem.submit('DISRESPECT_TO_VOX')">DISRESPECT TO VOXTEK</button>
+                <button class="btn-tech" onclick="ReportSystem.submit('SPAM_SIGNAL')">SPAM / NOISE</button>
+                <button class="btn-tech" onclick="ReportSystem.submit('OTHER')">OTHER</button>
+            </div>
+            
+            <button class="btn-tech" style="width: 100%; border-color: #555; color: #777;" onclick="document.getElementById('reportModal').classList.remove('active')">CANCEL</button>
+        </div>
+    </div>
+
+    <div id="userCardModal" class="modal-overlay" onclick="if(event.target === this) this.classList.remove('active')">
+        <div class="vox-modal user-card-modal">
+            <div class="uc-banner">
+                <img id="ucBanner" src="" onerror="this.style.display='none'">
+            </div>
+            
+            <div style="position:relative; height:0;">
+                <div class="uc-avatar-box" onclick="MessengerUI.openImage(document.getElementById('ucAvatar').src)">
+                    <img id="ucAvatar" src="">
+                </div>
+            </div>
+
+            <div class="uc-info">
+                <div class="uc-name">
+                    <span id="ucName">Unknown</span>
+                    <span id="ucVipBadge" class="vip-badge" style="display:none;">VIP</span>
+                </div>
+                <div class="uc-uid" id="ucUid">ID: #0000</div>
+                
+                <div class="uc-status">
+                    <div style="font-weight:bold; color:var(--vox-cyan); margin-bottom:5px;">TRUST SCORE</div>
+                    <div id="ucTrust">50%</div>
+                </div>
+                
+                <button class="btn-tech" style="width:100%; margin-top:15px; font-size:10px;" onclick="document.getElementById('userCardModal').classList.remove('active')">CLOSE</button>
+            </div>
+        </div>
+    </div>
 <script type="module" src="scripts.js"></script>
 </body>
 </html>
