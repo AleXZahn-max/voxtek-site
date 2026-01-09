@@ -1255,13 +1255,24 @@ body.defcon-lockdown .modal-overlay .vox-modal {
 /* Область баннера (Верх) */
 .profile-banner-edit {
     width: 100%; 
-    height: 130px; 
+    height: 150px; 
     background: #111; /* Цвет заглушки */
     border-bottom: 1px solid var(--vox-cyan);
     position: relative; 
     display: flex; justify-content: center; align-items: center;
     cursor: pointer;
     overflow: hidden;
+}
+
+/* 2. Сильнее отодвигаем текст вниз от аватарки */
+.profile-body {
+    /* 🔥 padding-top: 75px (было 55px). Это спустит имя вниз, чтобы аватарка его не закрывала */
+    padding: 75px 25px 30px 25px; 
+    
+    display: flex; flex-direction: column; 
+    
+    /* 🔥 gap: 20px (было 15px). Это добавит воздуха между полями */
+    gap: 20px; 
 }
 
 /* Текст "UPLOAD BANNER" (появляется при наведении) */
