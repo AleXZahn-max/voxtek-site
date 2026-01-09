@@ -3910,5 +3910,7 @@
                 }
             };
 
+            window.CryptoSystem = CryptoSystem;
+            
             // Запускаем
             setTimeout(initMiniMatrix, 500);
