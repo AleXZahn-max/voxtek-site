@@ -3542,7 +3542,7 @@
                             setTickerText(
                                 "SITE BLOCKING HAS BEEN INTRODUCED",
                                 "KEEP CALM, DO NOT PANIC",
-                                "WE ARE ALREADY WORKING ON THE SITUATIONN"
+                                "WE ARE ALREADY WORKING ON THE SITUATION"
                             );
 
                             const inp = document.getElementById('msgInput');
