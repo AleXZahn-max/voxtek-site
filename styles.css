@@ -171,8 +171,8 @@ body.defcon-lockdown::after {
     margin: 0; 
     
     background: black;
-    color: var(--alert-red);
-    border-color: var(--alert-red);
+    color: var(--vox-cyan);
+    border-color: var(--alert-blue);
     font-size: 10px;
     padding: 5px 15px;
     box-shadow: 0 0 20px rgba(255,0,0,0.2);
@@ -183,7 +183,7 @@ body.defcon-lockdown::after {
 /* Она сохраняет translateX(-50%) во время глитча */
 #adminToggleBtn:hover {
     animation: glitch-skew-center 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both infinite;
-    background: var(--alert-red);
+    background: var(--vox-blue);
     color: black;
 }
 
@@ -609,7 +609,7 @@ footer { text-align: center; padding: 60px 20px; color: #444; font-size: 11px; b
 /* Mobile Menu Button */
 .mobile-menu-btn { display: none; background:none; border:none; color:white; font-size:20px; margin-right:10px; }
 .sidebar-close-btn {
-    display: none; background: none; border: 1px solid #333; color: var(--alert-red);
+    display: none; background: none; border: 1px solid #333; color: var(--text-main);
     font-weight: bold; width: 30px; height: 30px; border-radius: 5px;
     align-items: center; justify-content: center; cursor: pointer;
 }
@@ -744,7 +744,7 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance
 .admin-row { display: flex; justify-content: space-between; align-items: center; padding: 8px; border: 1px solid #222; background: #050505; }
 .admin-row:hover { border-color: var(--vox-cyan); }
 .ban-btn { background: var(--vox-cyan); color: black; border: none; font-weight: bold; padding: 2px 8px; font-family: var(--font-code); font-size: 10px; cursor: pointer; }
-.ban-btn:hover { background: white; color: red; }
+.ban-btn:hover { background: white; color: blue; }
 
 #adminPanel.blue-mode { border-color: var(--vox-cyan); box-shadow: 0 0 50px rgba(0, 243, 255, 0.3), inset 0 0 20px rgba(0, 243, 255, 0.1); }
 #adminPanel.blue-mode h3 { color: var(--vox-cyan); border-bottom-color: var(--vox-cyan); text-shadow: 0 0 10px var(--vox-cyan); }
