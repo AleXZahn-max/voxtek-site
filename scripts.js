@@ -1542,7 +1542,6 @@
                     else if (page === 'storage') {
                         document.getElementById('view-storage').classList.add('active-view');
                         if(window.VaultSystem) VaultSystem.init();
-                        if(window.DefconSystem) DefconSystem.init();
                     }
                 }
             };
@@ -3435,7 +3434,7 @@
 
                 // Функция для АДМИНА (Смена уровня)
                 async set(lvl) {
-                    if(!confirm(`INITIATE DEFCON ${lvl}? THIS AFFECTS ALL USERS.`)) return;
+                    if(!await confirm(`INITIATE DEFCON ${lvl}? THIS AFFECTS ALL USERS.`)) return;
                     
                     try {
                         await window.fbSet(window.fbDoc(window.db, "system_state", "defcon"), {
@@ -3517,6 +3516,7 @@
 
                     // 1. Запускаем авторизацию (проверку входа)
                     if(window.AuthSystem) AuthSystem.init();
+                    if(window.DefconSystem) DefconSystem.init();
                     
                     // 2. Запускаем глобальный слушатель сообщений (ИСПРАВЛЕННЫЙ)
                     if(window.auth.currentUser) {
