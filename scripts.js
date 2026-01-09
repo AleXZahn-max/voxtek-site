@@ -117,6 +117,31 @@
                 }
             };
 
+            // --- 11. ROUTER ---
+            const Router = {
+                go(page) {
+                    document.querySelectorAll('.view-section')
+                        .forEach(v => v.classList.remove('active-view'));
+
+                    const target = document.getElementById(`view-${page}`);
+                    if (!target) return;
+
+                    target.classList.add('active-view');
+
+                    if (page === 'storage' && window.VaultSystem) {
+                        VaultSystem.init();
+                    }
+                }
+            };
+
+            document.addEventListener('click', e => {
+                const link = e.target.closest('[data-route]');
+                if (!link) return;
+
+                e.preventDefault();
+                Router.go(link.dataset.route);
+            });
+
             // --- 1. SOUND ENGINE (SFX) ---
             const SoundFX = {
                 ctx: new (window.AudioContext || window.webkitAudioContext)(),
@@ -1530,21 +1555,6 @@
             document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
 
             Memory.check();
-
-            // --- 11. ROUTER ---
-            window.Router = {
-                go(page) {
-                    document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active-view'));
-                    
-                    if (page === 'home') document.getElementById('view-home').classList.add('active-view');
-                    else if (page === 'messenger') document.getElementById('view-messenger').classList.add('active-view');
-                    else if (page === 'video') document.getElementById('view-video').classList.add('active-view');
-                    else if (page === 'storage') {
-                        document.getElementById('view-storage').classList.add('active-view');
-                        if(window.VaultSystem) VaultSystem.init();
-                    }
-                }
-            };
 
             // --- NEW: CONTRACT SYSTEM ---
             window.ContractSystem = {
@@ -3532,7 +3542,7 @@
                             setTickerText(
                                 "SITE BLOCKING HAS BEEN INTRODUCED",
                                 "KEEP CALM, DO NOT PANIC",
-                                "WE ARE ALREADY WORKING ON THE SITUATION"
+                                "WE ARE ALREADY WORKING ON THE SITUATIONN"
                             );
 
                             const inp = document.getElementById('msgInput');
