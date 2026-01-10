@@ -2902,15 +2902,18 @@
                 },
                 
                 listenToUsers() {
-                    // 1. Слушаем список пользователей (как было)
+                    // 1. Слушаем список пользователей (Загрузка контактов)
                     const q = window.fbQuery(window.fbCol(window.db, "users"));
                     window.fbSnap(q, (snapshot) => {
                         const users = [];
                         snapshot.forEach(doc => users.push(doc.data()));
-                        MessengerUI.renderUsers(users);
+                        
+                        if(window.MessengerUI) {
+                            MessengerUI.renderUsers(users);
+                        }
                     });
                     
-                    // 2. 🔥 ДОБАВЛЕНО: Глобальная прослушка сообщений (теперь работает!)
+                    // 2. Глобальная прослушка сообщений (УВЕДОМЛЕНИЯ + СТАТУС ПРОЧИТАНО)
                     if (!window.auth.currentUser) return;
 
                     const qMsg = window.fbQuery(
@@ -2921,14 +2924,15 @@
                     
                     window.fbSnap(qMsg, (snapshot) => {
                         snapshot.docChanges().forEach((change) => {
-                            if (change.type === "added") {
+                            // Реагируем и на новые, и на измененные сообщения
+                            if (change.type === "added" || change.type === "modified") {
                                 const data = change.doc.data();
                                 const myUid = window.auth.currentUser.uid;
 
-                                // Проверяем: касается ли сообщение меня?
+                                // Проверяем: касается ли сообщение меня? (Я отправитель или получатель)
                                 if (data.chatId && data.chatId.includes(myUid)) {
                                     
-                                    // Вычисляем, кто собеседник
+                                    // Вычисляем ID собеседника для правильной сортировки в списке
                                     let partnerId = data.uid; 
                                     if (data.uid === myUid) {
                                         // Если писал я, то собеседник — это "второй" в ID чата
@@ -2937,14 +2941,34 @@
 
                                     // Обновляем интерфейс
                                     if(window.MessengerUI) {
+                                        // Обновляем время последней активности для сортировки
                                         const msgTime = data.createdAt ? data.createdAt.toMillis() : Date.now();
                                         MessengerUI.lastActiveTimes[partnerId] = msgTime;
                                         
-                                        // 🔥 ИЗМЕНЕНО: Добавили проверку && !data.isRead
-                                        // Теперь счетчик растет только если сообщение реально не прочитано в базе
-                                        if (data.uid !== myUid && MessengerUI.currentChat !== data.chatId && !data.isRead) {
-                                            MessengerUI.handleIncomingMessage(data.uid);
-                                        } else {
+                                        // --- 🔥 ЛОГИКА СТАТУСОВ (ЧУЖИЕ СООБЩЕНИЯ) ---
+                                        if (data.uid !== myUid) {
+                                            
+                                            // Сценарий 1: Я НЕ в этом чате -> Показываем уведомление (единичку)
+                                            if (MessengerUI.currentChat !== data.chatId && !data.isRead) {
+                                                MessengerUI.handleIncomingMessage(data.uid);
+                                            } 
+                                            
+                                            // Сценарий 2: Я ПРЯМО СЕЙЧАС в этом чате, но в базе оно еще "не прочитано"
+                                            // 🔥 ФИКС: Сразу сообщаем базе, что мы это видели!
+                                            else if (MessengerUI.currentChat === data.chatId && !data.isRead) {
+                                                window.fbSet(change.doc.ref, { isRead: true }, { merge: true });
+                                                // Единичку НЕ ставим, просто обновляем список (чтобы чат поднялся вверх)
+                                                MessengerUI.renderUsers(MessengerUI.usersCache);
+                                            }
+                                            
+                                            // Сценарий 3: Сообщение уже прочитано или другие изменения
+                                            else {
+                                                MessengerUI.renderUsers(MessengerUI.usersCache);
+                                            }
+                                        } 
+                                        // --- СВОИ СООБЩЕНИЯ ---
+                                        else {
+                                            // Если сообщение мое - просто обновляем список (чтобы чат поднялся вверх)
                                             MessengerUI.renderUsers(MessengerUI.usersCache);
                                         }
                                     }
