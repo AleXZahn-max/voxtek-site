@@ -1368,22 +1368,24 @@ body.defcon-lockdown .modal-overlay .vox-modal {
    15. VIP VISUAL DOMINANCE (NITRO STYLE)
    ========================================= */
 
-/* 1. АНИМИРОВАННЫЙ НИКНЕЙМ (ЗОЛОТОЙ ГРАДИЕНТ) */
+/* 1. АНИМИРОВАННЫЙ НИКНЕЙМ (VIP - ЗОЛОТО) */
 .vip-username {
     font-weight: 900 !important;
-    background: linear-gradient(90deg, #ffd700, #ffaa00, #fff, #ffd700);
-    background-size: 300% 100%;
+    /* Симметричный градиент: Золото -> Оранжевый -> Белый -> Оранжевый -> Золото */
+    background: linear-gradient(90deg, #ffd700, #ffaa00, #fff, #ffaa00, #ffd700);
+    background-size: 200% auto; /* 🔥 Размер 200% для идеального цикла */
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    animation: shimmerText 3s infinite linear;
+    animation: shimmerText 3s linear infinite;
     text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
     display: inline-block;
 }
 
+/* 🔥 ИСПРАВЛЕННАЯ АНИМАЦИЯ (БЕСШОВНАЯ) */
 @keyframes shimmerText {
-    0% { background-position: 0% 50%; }
-    100% { background-position: 100% 50%; }
+    0% { background-position: 0% center; }
+    100% { background-position: 200% center; } /* Двигаем ровно на ширину паттерна */
 }
 
 /* 2. АВАТАРКА С ВРАЩАЮЩЕЙСЯ ОБВОДКОЙ */
@@ -1510,16 +1512,18 @@ body.defcon-lockdown .modal-overlay .vox-modal {
     letter-spacing: 1px;
 }
 
-/* 3. Admin Username (Эффект) */
+/* 3. АДМИН НИКНЕЙМ (КРАСНЫЙ) */
 .admin-username {
     font-weight: 900 !important;
-    background: linear-gradient(90deg, #ff0000, #ff4444, #fff, #ff0000);
-    background-size: 300% 100%;
+    /* Симметричный градиент: Красный -> Светло-красный -> Белый -> Светло-красный -> Красный */
+    background: linear-gradient(90deg, #ff0000, #ff4444, #fff, #ff4444, #ff0000);
+    background-size: 200% auto; /* 🔥 Размер 200% */
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    animation: shimmerText 2s infinite linear; /* Быстрее чем VIP */
+    animation: shimmerText 2s linear infinite; /* Админ мерцает чуть быстрее */
     text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+    display: inline-block;
 }
 
 /* Кнопки в Админ Панели */
