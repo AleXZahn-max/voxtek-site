@@ -1489,3 +1489,43 @@ body.defcon-lockdown .modal-overlay .vox-modal {
     font-family: var(--font-code);
     max-width: 100%;
 }
+
+/* 1. Verified Badge (Галочка) */
+.verified-badge {
+    display: inline-flex;
+    color: var(--vox-cyan);
+    margin-left: 4px;
+    font-size: 12px;
+    filter: drop-shadow(0 0 5px var(--vox-cyan));
+    vertical-align: middle;
+}
+
+/* 2. Admin Badge (В чате) */
+.admin-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--alert-red); color: black; 
+    font-weight: 900; font-size: 9px; padding: 1px 4px; 
+    border-radius: 3px; margin-left: 5px;
+    box-shadow: 0 0 8px var(--alert-red); cursor: help;
+    letter-spacing: 1px;
+}
+
+/* 3. Admin Username (Эффект) */
+.admin-username {
+    font-weight: 900 !important;
+    background: linear-gradient(90deg, #ff0000, #ff4444, #fff, #ff0000);
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shimmerText 2s infinite linear; /* Быстрее чем VIP */
+    text-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+}
+
+/* Кнопки в Админ Панели */
+.role-btn { font-size:9px; padding:2px 5px; border:1px solid #555; background:black; color:#888; cursor:pointer; }
+.role-btn.is-vip { border-color:#ffd700; color:#ffd700; }
+.role-btn.is-admin { border-color:var(--alert-red); color:var(--alert-red); background:rgba(50,0,0,0.3); }
+
+.verify-btn { font-size:9px; padding:2px 5px; border:1px solid #333; background:black; color:#444; cursor:pointer; }
+.verify-btn.active { border-color:var(--vox-cyan); color:var(--vox-cyan); background:rgba(0,243,255,0.1); }
