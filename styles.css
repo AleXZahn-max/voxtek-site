@@ -602,11 +602,27 @@ footer { text-align: center; padding: 60px 20px; color: #444; font-size: 11px; b
 .msg-content { display: flex; flex-direction: column; gap: 2px; }
 .msg-name { font-size: 10px; color: #888; font-weight: bold; cursor: pointer; }
 .msg-name:hover { color: var(--vox-cyan); }
+/* Обычное сообщение */
 .msg-bubble { 
     padding: 10px 15px; border-radius: 8px; font-size: 14px; line-height: 1.4; word-wrap: break-word;
-    background: #151515; border: 1px solid #333; color: #ccc;
+    
+    /* 🔥 НОВЫЙ СТИЛЬ: */
+    background: rgba(20, 20, 25, 0.6); /* Полупрозрачный фон */
+    backdrop-filter: blur(5px);        /* Размытие того, что сзади */
+    -webkit-backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.1); /* Тонкая рамка */
+    color: #eee;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
-.msg-wrapper.me .msg-bubble { background: rgba(0,243,255,0.1); border-color: var(--vox-cyan); color: white; }
+
+/* Моё сообщение (Справа) */
+.msg-wrapper.me .msg-bubble { 
+    /* 🔥 НОВЫЙ СТИЛЬ: */
+    background: rgba(0, 243, 255, 0.15); /* Vox Cyan с прозрачностью */
+    border-color: var(--vox-cyan); 
+    color: white;
+    text-shadow: 0 0 5px rgba(0, 243, 255, 0.3);
+}
 
 /* Image Chat & Tools */
 .chat-img-btn { font-size: 20px; padding: 0 10px; background: none; border: none; color: #666; transition: 0.3s; }
@@ -1252,6 +1268,13 @@ body.defcon-lockdown .modal-overlay .vox-modal {
     border-left: 2px solid var(--vox-cyan); font-size: 12px; color: #ccc; 
 }
 
+/* Он держит и баннер, и аватарку вместе */
+.profile-header-wrapper {
+    position: relative;
+    width: 100%;
+    /* Нет overflow: hidden, чтобы аватарка могла свисать */
+}
+
 /* Область баннера (Верх) */
 .profile-banner-edit {
     width: 100%; 
@@ -1298,7 +1321,7 @@ body.defcon-lockdown .modal-overlay .vox-modal {
     background: #000;
     overflow: hidden;
     cursor: pointer;
-    z-index: 5;
+    z-index: 10;
     box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
     transition: 0.3s;
 }
@@ -1406,4 +1429,63 @@ body.defcon-lockdown .modal-overlay .vox-modal {
 @keyframes bounceCrown {
     0%, 100% { transform: translateY(0) rotate(10deg); }
     50% { transform: translateY(-3px) rotate(10deg); }
+}
+
+/* =========================================
+   CALL UI UPGRADES (Timer, Drag, Visualizer)
+   ========================================= */
+
+/* 1. ТАЙМЕР */
+#callTimer {
+    position: absolute; top: 30px; left: 50%; transform: translateX(-50%);
+    font-family: var(--font-code); font-weight: bold; font-size: 16px; letter-spacing: 2px;
+    color: var(--vox-cyan); background: rgba(0, 0, 0, 0.8);
+    padding: 8px 20px; border: 1px solid var(--vox-cyan); border-radius: 20px;
+    box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+    z-index: 10; display: none; /* Скрыт по умолчанию */
+}
+
+/* 2. ПЕРЕТАСКИВАЕМОЕ ЛОКАЛЬНОЕ ВИДЕО */
+#localVideo {
+    /* Добавляем курсор, чтобы было понятно, что можно тащить */
+    cursor: grab;
+    transition: box-shadow 0.3s, border-color 0.3s; /* Убираем transition для left/top, чтобы не лагало при перетаскивании */
+}
+#localVideo:active {
+    cursor: grabbing;
+    border-color: white;
+    box-shadow: 0 0 20px white;
+}
+
+/* 3. ВИЗУАЛИЗАТОР ГОЛОСА (Эффект на аватарке) */
+/* Мы будем менять scale и shadow через JS, но добавим плавность */
+.call-avatar-img {
+    transition: transform 0.05s ease-out, box-shadow 0.05s ease-out; /* Очень быстрая анимация для реакции на голос */
+    will-change: transform, box-shadow;
+}
+
+/* Панель управления (как договаривались, делаем капсулой) */
+.call-controls {
+    position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+    background: rgba(10, 10, 15, 0.85); backdrop-filter: blur(10px);
+    border: 1px solid #333; border-radius: 30px;
+    padding: 10px 30px; width: auto; height: auto;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    gap: 15px; transition: 0.3s;
+    z-index: 100 !important;
+}
+.call-controls:hover { border-color: var(--vox-cyan); box-shadow: 0 0 20px rgba(0, 243, 255, 0.15); }
+
+/* Стиль для отображения Био в карточке пользователя */
+.uc-bio-display {
+    font-size: 11px;
+    color: #888;
+    font-style: italic;
+    text-align: center;
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid #333;
+    word-wrap: break-word;
+    font-family: var(--font-code);
+    max-width: 100%;
 }
