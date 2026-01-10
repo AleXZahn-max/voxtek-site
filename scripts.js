@@ -5139,8 +5139,15 @@
                         if (data.isPlaying) {
                             this.video.play().catch(()=>{});
                             this.overlay.classList.add('hidden');
+                            document.querySelector('.cinema-screen-wrapper').classList.add('playing');
                         } else {
                             this.video.pause();
+                        }
+
+                        // Если URL изменился или пустой
+                        if (!data.url) {
+                            document.querySelector('.cinema-screen-wrapper').classList.remove('playing'); // Закрыть шторки
+                            this.overlay.classList.remove('hidden'); // Показать таблицу
                         }
 
                         if (!this.isOperator && Math.abs(this.video.currentTime - data.currentTime) > this.syncThreshold) {

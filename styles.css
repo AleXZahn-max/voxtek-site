@@ -1877,3 +1877,102 @@ body.theater-mode #broadcastContainer {
     color: white; padding: 5px 10px; border-radius: 15px; font-size: 11px;
 }
 @keyframes slideInLeft { from { transform: translateX(-20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+/* --- 1. BLAST SHUTTERS (Бронированные двери) --- */
+.cinema-shutters {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 20; pointer-events: none; display: flex;
+}
+.shutter {
+    width: 50%; height: 100%; background: #080808;
+    border-bottom: 2px solid var(--vox-cyan);
+    position: relative; transition: transform 1.5s cubic-bezier(0.77, 0, 0.175, 1);
+    background-image: repeating-linear-gradient(45deg, #0a0a0a 0, #0a0a0a 10px, #0f0f0f 10px, #0f0f0f 20px);
+    box-shadow: inset 0 0 50px rgba(0,0,0,0.8);
+}
+.shutter.left { border-right: 1px solid var(--vox-cyan); }
+.shutter.right { border-left: 1px solid var(--vox-cyan); }
+
+/* Логотип на дверях */
+.shutter-logo {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    font-size: 80px; font-weight: 900; color: #151515;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.05);
+}
+.shutter.left .shutter-logo { right: 20px; }
+.shutter.right .shutter-logo { left: 20px; }
+
+/* Состояние "Открыто" (добавляется JS) */
+.cinema-screen-wrapper.playing .shutter.left { transform: translateX(-100%); }
+.cinema-screen-wrapper.playing .shutter.right { transform: translateX(100%); }
+
+
+/* --- 2. VOX TEST PATTERN (Настроечная таблица) --- */
+.cinema-overlay {
+    /* Фон теперь не черный, а прозрачный, чтобы видеть таблицу */
+    background: #000; z-index: 5;
+}
+.tv-test-pattern {
+    width: 100%; height: 100%; display: flex; position: relative;
+    background: #111; overflow: hidden;
+}
+.color-bar { flex: 1; height: 100%; }
+.c1 { background: #000; }
+.c2 { background: #111; }
+.c3 { background: var(--vox-cyan-dim); }
+.c4 { background: var(--vox-blue); }
+
+.test-circle {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 150px; height: 150px; border: 5px solid white; border-radius: 50%;
+    display: flex; justify-content: center; align-items: center;
+    color: white; font-weight: bold; font-size: 12px; font-family: var(--font-code);
+    background: black; box-shadow: 0 0 0 1000px rgba(0,0,0,0.5);
+    animation: pulseTest 2s infinite; letter-spacing: 2px; text-align: center;
+}
+@keyframes pulseTest { 0% { border-color: #555; color: #555; } 50% { border-color: var(--vox-cyan); color: var(--vox-cyan); } 100% { border-color: #555; color: #555; } }
+
+
+/* --- 3. 3D AUDIENCE FLOOR (Зал в перспективе) --- */
+.cinema-hall {
+    /* Удаляем старый фон, делаем прозрачным для эффекта */
+    background: linear-gradient(to bottom, #000, #050505);
+    overflow: hidden; perspective: 1000px; /* Важно для 3D */
+    padding-bottom: 40px;
+}
+
+.perspective-floor {
+    transform: rotateX(40deg) scale(0.9); /* Наклон пола назад */
+    transform-origin: top center;
+    transition: transform 0.5s;
+}
+
+.seats-grid {
+    display: flex; justify-content: center; flex-wrap: wrap; gap: 20px;
+    max-height: 200px; padding: 20px;
+}
+
+/* Обновленный аватар зрителя (сидит в кресле) */
+.seat-user {
+    width: 50px; height: 50px; 
+    background: #000; border: 1px solid #333;
+    border-radius: 10px 10px 0 0; /* Форма спинки кресла */
+    position: relative; transition: 0.3s;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.8);
+    transform: translateZ(0); /* Для GPU ускорения */
+}
+.seat-user::after {
+    /* Ножка кресла */
+    content: ''; position: absolute; bottom: -5px; left: 5px; right: 5px; height: 5px;
+    background: #222; border-radius: 0 0 5px 5px;
+}
+.seat-user img { 
+    border-radius: 8px 8px 0 0; opacity: 0.7; 
+}
+.seat-user:hover {
+    transform: translateY(-10px) scale(1.1);
+    border-color: var(--vox-cyan);
+    box-shadow: 0 0 20px var(--vox-cyan);
+    z-index: 10;
+}
+.seat-user:hover img { opacity: 1; }
