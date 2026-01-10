@@ -1976,3 +1976,114 @@ body.theater-mode #broadcastContainer {
     z-index: 10;
 }
 .seat-user:hover img { opacity: 1; }
+
+/* =========================================
+   📱 MOBILE CINEMA OPTIMIZATION (Android/iOS)
+   ========================================= */
+@media (max-width: 768px) {
+
+    /* 1. Контейнер и Экран */
+    .cinema-container {
+        padding: 5px;
+        width: 100vw;
+        overflow-x: hidden;
+    }
+
+    .cinema-screen-wrapper {
+        aspect-ratio: 16/9; /* Стандартный формат для телефонов */
+        margin-bottom: 15px;
+        border-radius: 0; /* Убираем скругления для максимального размера */
+    }
+
+    /* 2. Шторки (Shutters) */
+    .shutter-logo {
+        font-size: 40px; /* Уменьшаем шрифт логотипа, чтобы влез */
+    }
+    
+    /* 3. Тестовая таблица */
+    .test-circle {
+        width: 100px; height: 100px; /* Уменьшаем круг */
+        font-size: 9px;
+        box-shadow: 0 0 0 500px rgba(0,0,0,0.8); /* Затемнение вокруг */
+    }
+
+    /* 4. Чат (Всегда виден, так как нет мыши) */
+    .cinema-chat-layer {
+        width: 80%;
+        bottom: 10px; left: 10px;
+        pointer-events: auto !important; /* Всегда активен */
+        opacity: 1 !important; /* Всегда виден */
+    }
+    
+    .c-chat-input-box {
+        opacity: 1 !important; /* Поле ввода всегда видно */
+        margin-top: 5px;
+    }
+    
+    #cinemaChatInput {
+        background: rgba(0, 0, 0, 0.8);
+        border: 1px solid var(--vox-cyan);
+        backdrop-filter: blur(5px);
+    }
+
+    /* 5. Реакции (Делаем кнопки крупнее для пальцев) */
+    .reaction-bar {
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+    .reaction-bar button {
+        width: 45px; height: 45px; /* Крупнее для тапа */
+        font-size: 20px;
+        background: #111;
+    }
+
+    /* 6. 🔥 ОТКЛЮЧАЕМ 3D ПОЛ НА МОБИЛЬНЫХ (Плоский вид) */
+    .cinema-hall {
+        perspective: none; /* Убираем перспективу */
+        background: #000;
+        padding-bottom: 80px; /* Место для скролла */
+    }
+
+    .perspective-floor {
+        transform: none !important; /* Убираем наклон */
+        width: 100%;
+    }
+
+    .seats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(50px, 1fr)); /* Адаптивная сетка */
+        gap: 10px;
+        padding: 10px;
+        max-height: none; /* Разрешаем залу растягиваться вниз */
+        overflow: visible;
+    }
+
+    /* Аватарки зрителей */
+    .seat-user {
+        width: 100%; /* Растягиваем на ячейку сетки */
+        height: auto;
+        aspect-ratio: 1/1; /* Квадратные */
+        box-shadow: none; /* Убираем тяжелые тени */
+        border-radius: 8px; /* Простые скругления */
+    }
+    
+    .seat-user::after { display: none; } /* Убираем "ножки" кресел для упрощения */
+
+    /* 7. Панель Админа (Если ты зашел с телефона) */
+    .cinema-controls {
+        width: 100%;
+        padding: 10px;
+    }
+    .cinema-controls .c-row {
+        flex-direction: column; /* Элементы друг под другом */
+        align-items: stretch;
+    }
+    .cinema-controls input[type="text"] {
+        font-size: 16px; /* Чтобы iOS не зумил при вводе */
+    }
+    .cinema-controls button {
+        padding: 15px; /* Удобно нажимать */
+        margin-top: 5px;
+    }
+}
