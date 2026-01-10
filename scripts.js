@@ -2408,14 +2408,18 @@
                     
                     document.getElementById('chatTitle').textContent = chatName.toUpperCase();
                     
-                    // Убираем бейдж (сбрасываем счетчик)
+                    // Убираем бейдж (сбрасываем счетчик визуально)
                     if (chatId !== 'global') {
                          const partnerId = chatId.replace(window.auth.currentUser.uid, '').replace('_', '');
                          if (this.unreadCounts[partnerId]) {
                              this.unreadCounts[partnerId] = 0;
-                             this.renderUsers(this.usersCache); // Перерисовываем, чтобы убрать кружок
+                             this.renderUsers(this.usersCache); 
                          }
+                         
+                         // 🔥 ДОБАВЛЕНО: Сообщаем базе данных, что мы прочитали
+                         if(window.CloudSystem) CloudSystem.markAsRead(chatId);
                     }
+                    // ... остальной код switchChat ...
 
                     // Закрываем мобильное меню
                     if(window.innerWidth < 768) {
@@ -2933,15 +2937,14 @@
 
                                     // Обновляем интерфейс
                                     if(window.MessengerUI) {
-                                        // 1. Запоминаем время активности (сортировка чатов вверх)
                                         const msgTime = data.createdAt ? data.createdAt.toMillis() : Date.now();
                                         MessengerUI.lastActiveTimes[partnerId] = msgTime;
                                         
-                                        // 2. Если сообщение от ДРУГОГО и мы НЕ в этом чате -> ставим цифру
-                                        if (data.uid !== myUid && MessengerUI.currentChat !== data.chatId) {
+                                        // 🔥 ИЗМЕНЕНО: Добавили проверку && !data.isRead
+                                        // Теперь счетчик растет только если сообщение реально не прочитано в базе
+                                        if (data.uid !== myUid && MessengerUI.currentChat !== data.chatId && !data.isRead) {
                                             MessengerUI.handleIncomingMessage(data.uid);
                                         } else {
-                                            // Иначе просто обновляем список (чтобы чат прыгнул вверх)
                                             MessengerUI.renderUsers(MessengerUI.usersCache);
                                         }
                                     }
@@ -2951,6 +2954,30 @@
                     });
                 },
                 
+                // 🔥 НОВАЯ ФУНКЦИЯ: Помечаем сообщения как прочитанные
+                async markAsRead(chatId) {
+                    const user = window.auth.currentUser;
+                    if (!user || chatId === 'global') return;
+
+                    // Ищем сообщения в этом чате, которые НЕ от меня и НЕ прочитаны
+                    const q = window.fbQuery(
+                        window.fbCol(window.db, "messages_private"),
+                        window.fbWhere("chatId", "==", chatId),
+                        window.fbWhere("isRead", "==", false)
+                    );
+
+                    const snapshot = await window.fbGetDocs(q);
+                    
+                    // Обновляем каждое сообщение (batch update было бы лучше, но так проще)
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        // Важно: помечаем прочитанными только чужие сообщения
+                        if (data.uid !== user.uid) {
+                            window.fbSet(doc.ref, { isRead: true }, { merge: true });
+                        }
+                    });
+                },
+
                 // Внутри window.CloudSystem добавь этот метод:
                 sendImage(input) {
                     const file = input.files[0];
@@ -3039,6 +3066,8 @@
                             isVerified: isVerified,
                             // isVip оставляем для совместимости со старыми сообщениями
                             isVip: (role === 'vip' || role === 'admin'), 
+
+                            isRead: false,
 
                             chatId: chatId,
                             createdAt: window.fbTime()
@@ -3331,7 +3360,6 @@
                             return;
                         }
 
-                        // 🔥 ОБНОВЛЕННЫЙ ЦИКЛ С НОВЫМИ РОЛЯМИ 🔥
                         snapshot.forEach((doc) => {
                             const data = doc.data();
                             const isMe = data.uid === window.auth.currentUser.uid;
@@ -3344,12 +3372,11 @@
                             const avatarUrl = data.avatar || `https://placehold.co/40x40/000000/00f3ff/png?text=${data.name ? data.name[0] : '?'}`;
                             const safeText = data.text ? data.text.replace(/'/g, "&#39;").replace(/"/g, "&quot;") : "";
                             
-                            // 🔥 Определяем Роль и Галочку
-                            // Поддержка старых сообщений (если нет role, но есть isVip)
+                            // Определяем Роль и Галочку
                             let role = data.role || (data.isVip ? 'vip' : 'user');
                             let isVerified = data.isVerified || false;
 
-                            // 2. Таймстамп (Время)
+                            // 2. Таймстамп
                             let timeStr = "";
                             if (data.createdAt) {
                                 const date = data.createdAt.toMillis ? new Date(data.createdAt.toMillis()) : new Date();
@@ -3358,69 +3385,70 @@
                                 timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                             }
 
-                            // 3. Сборка Имени и Значков
+                            // 3. Сборка Имени и Значков (ТУТ ИЗМЕНЕНИЯ ДЛЯ VIP)
                             let nameClass = "msg-name";
                             let badgesHtml = "";
 
-                            // Логика Ролей
                             if (role === 'admin') {
-                                nameClass = "admin-username"; // Красное имя
+                                nameClass = "admin-username"; 
                                 badgesHtml += `<span class="admin-badge" title="SYSTEM OVERLORD">ADMIN</span>`;
                             } else if (role === 'vip') {
-                                nameClass = "vip-username"; // Золотое имя
-                                badgesHtml += `<span style="font-size:9px; margin-left:3px;">★</span>`;
+                                nameClass = "vip-username"; 
+                                // 🔥 БЫЛО: Звездочка
+                                // 🔥 СТАЛО: Значок VIP (как у админа)
+                                badgesHtml += `<span class="vip-badge" title="Very Important Person">VIP</span>`;
                             }
 
-                            // Логика Галочки (Добавляется к любому статусу)
                             if (isVerified) {
                                 badgesHtml += `<span class="verified-badge" title="Verified Source">✔</span>`;
                             }
 
-                            // Финальный HTML имени
                             const nameHtml = `<span class="${nameClass}" style="font-size:11px;">${data.name}</span> ${badgesHtml} <span style="font-size:9px; color:#555; margin-left:5px;">${timeStr}</span>`;
 
-                            // 4. Сборка Аватарки (Разные стили контейнеров)
+                            // 4. Сборка Аватарки
                             let avatarHtml = "";
-                            
-                            // Если Админ или VIP — используем крутой контейнер
                             if (role === 'admin' || role === 'vip') {
-                                // Для админа можно добавить доп. класс в будущем, пока используем vip-style
                                 avatarHtml = `<div class="vip-avatar-container" style="width:35px; height:35px; cursor:pointer;" onclick="MessengerUI.openUserCard('${data.uid}')" title="${role.toUpperCase()} Citizen">
                                                 <img src="${avatarUrl}">
                                               </div>`;
                             } else {
-                                // Обычный юзер
                                 avatarHtml = `<div class="msg-avatar" onclick="MessengerUI.openUserCard('${data.uid}')" style="cursor:pointer;" title="View Profile">
                                                 <img src="${avatarUrl}">
                                               </div>`;
                             }
 
-                            // 5. Контент (Текст или Картинка)
-                            let contentHtml = '';
+                            // --- 🛡️ БЕЗОПАСНОЕ СОЗДАНИЕ КОНТЕНТА ---
+                            let msgElement;
+
                             if (data.type === 'image') {
-                                contentHtml = `<img src="${data.text}" class="msg-image" onclick="MessengerUI.openImage(this.src)">`;
+                                msgElement = document.createElement('img');
+                                msgElement.src = data.text; 
+                                msgElement.className = 'msg-image';
+                                msgElement.onclick = () => MessengerUI.openImage(data.text);
                             } else {
-                                contentHtml = `<div class="msg-bubble">${data.text}</div>`; 
+                                msgElement = document.createElement('div');
+                                msgElement.className = 'msg-bubble';
+                                msgElement.textContent = data.text; 
                             }
                             
-                            // 6. Финальная сборка сообщения
+                            // 5. Собираем HTML каркас
                             div.innerHTML = `
                                 ${avatarHtml}
                                 <div class="msg-content" 
                                      data-context-type="message"
                                      oncontextmenu="VMenu.show(event, 'message', {id: '${doc.id}', text: '${safeText}', uid: '${data.uid}'})">
                                     <div style="margin-bottom:2px;">${nameHtml}</div>
-                                    ${contentHtml} 
-                                </div>
+                                    </div>
                             `;
+                            
+                            // 6. Вручную вставляем безопасный контент
+                            div.querySelector('.msg-content').appendChild(msgElement);
                             
                             feed.appendChild(div);
 
-                            // Эффект расшифровки текста для чужих сообщений
                             if (!isMe && data.type !== 'image') {
-                                const bubble = div.querySelector('.msg-bubble');
-                                if(bubble) {
-                                    const scrambler = new ScrambleText(bubble);
+                                if(msgElement) {
+                                    const scrambler = new ScrambleText(msgElement);
                                     scrambler.setText(data.text);
                                 }
                             }
