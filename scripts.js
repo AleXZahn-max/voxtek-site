@@ -4926,7 +4926,8 @@
                 // Ambilight
                 canvas: document.getElementById('ambiCanvas'),
                 ctx: null,
-                ambiInterval: null,
+                ambiReq: null,
+                ambiFrame: 0,
 
                 // Chat & Sync
                 chatInput: document.getElementById('cinemaChatInput'),
@@ -5069,20 +5070,28 @@
                     window.fbSet(this.docRef, { 
                         url: url, 
                         currentTime: 0, 
-                        isPlaying: false 
+                        isPlaying: false,
+                        timestamp: window.fbTime()
                     }, { merge: true });
                     voxNotify("FILM MOUNTED. READY TO PLAY.", "success");
                 },
 
                 syncAction(action) {
                     const isPlay = action === 'play';
-                    window.fbSet(this.docRef, { isPlaying: isPlay, currentTime: this.video.currentTime }, { merge: true });
+                    window.fbSet(this.docRef, { 
+                        isPlaying: isPlay, 
+                        currentTime: this.video.currentTime,
+                        timestamp: window.fbTime()
+                    }, { merge: true });
                 },
 
                 syncSeek(val) {
                     if(!this.video.duration) return;
                     const time = (val / 100) * this.video.duration;
-                    window.fbSet(this.docRef, { currentTime: time }, { merge: true });
+                    window.fbSet(this.docRef, { 
+                        currentTime: time,
+                        timestamp: window.fbTime()
+                    }, { merge: true });
                 },
 
                 // --- LISTENERS ---
@@ -5102,24 +5111,83 @@
                         }
 
                         if (data.isPlaying) {
-                            this.video.play().catch(()=>{});
+                            if (this.video.paused) this.video.play().catch(()=>{});
                             this.overlay.classList.add('hidden');
                             document.querySelector('.cinema-screen-wrapper').classList.add('playing'); // Открыть шторки
                         } else {
-                            this.video.pause();
+                            if (!this.video.paused) this.video.pause();
                         }
 
-                        if (!this.isOperator && Math.abs(this.video.currentTime - data.currentTime) > this.syncThreshold) {
-                            this.video.currentTime = data.currentTime;
+                        // --- SMART DRIFT CORRECTION ---
+                        if (this.isOperator) return;
+
+                        // Calculate Server Time (Latency Compensation)
+                        let serverTime = data.currentTime;
+                        
+                        // Account for network delay and time elapsed since update
+                        if (data.isPlaying && data.timestamp) {
+                            const now = Date.now();
+                            const serverTs = data.timestamp.toMillis ? data.timestamp.toMillis() : now;
+                            const delta = (now - serverTs) / 1000;
+                            serverTime += delta;
+                        }
+
+                        const diff = serverTime - this.video.currentTime;
+                        const absDiff = Math.abs(diff);
+
+                        // 1. Dead Zone (< 0.5s)
+                        if (absDiff < 0.5) {
+                            // Perfect sync, restore rate
+                            if (this.video.playbackRate !== 1.0) {
+                                this.video.playbackRate = 1.0;
+                                console.log("Sync: Stabilized (1.0x)");
+                            }
+                            return;
+                        }
+
+                        // 3. Hard Sync (> 2.0s)
+                        if (absDiff > 2.0) {
+                            console.log(`Sync: Hard Seek (${diff.toFixed(2)}s)`);
+                            this.video.currentTime = serverTime;
+                            this.video.playbackRate = 1.0;
+                            return;
+                        }
+
+                        // 2. Soft Sync (0.5s - 2.0s)
+                        if (diff > 0) {
+                             // Behind: Speed up
+                             if (this.video.playbackRate !== 1.1) {
+                                 this.video.playbackRate = 1.1;
+                                 console.log("Sync: Speeding up (1.1x)");
+                             }
+                        } else {
+                             // Ahead: Slow down
+                             if (this.video.playbackRate !== 0.9) {
+                                 this.video.playbackRate = 0.9;
+                                 console.log("Sync: Slowing down (0.9x)");
+                             }
                         }
                     });
                 },
-
-                // ... (Ambilight, Chat, Reactions - оставляем как было в прошлых версиях) ...
                 
-                // --- AMBILIGHT ---
-                startAmbilight() { if (this.ambiInterval) clearInterval(this.ambiInterval); this.ambiInterval = setInterval(() => this.updateGlow(), 100); },
-                stopAmbilight() { if (this.ambiInterval) clearInterval(this.ambiInterval); },
+                // --- AMBILIGHT (OPTIMIZED) ---
+                startAmbilight() { 
+                    this.stopAmbilight();
+                    this.loopAmbilight();
+                },
+                stopAmbilight() { 
+                    if (this.ambiReq) cancelAnimationFrame(this.ambiReq);
+                    this.ambiReq = null;
+                },
+                loopAmbilight() {
+                    this.ambiReq = requestAnimationFrame(() => this.loopAmbilight());
+                    
+                    // Throttle: Update every 5th frame (~12fps) to save CPU
+                    this.ambiFrame++;
+                    if (this.ambiFrame % 5 !== 0) return;
+
+                    this.updateGlow();
+                },
                 updateGlow() {
                     if(this.video.paused || this.video.ended || !this.ctx) return;
                     this.ctx.drawImage(this.video, 0, 0, 50, 50);
