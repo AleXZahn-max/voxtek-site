@@ -4642,48 +4642,47 @@
             // Запуск после загрузки страницы
             window.addEventListener('load', runBootSequence);
 
-            // --- HOLOGRAPHIC TILT EFFECT (OPTIMIZED) ---
-            document.querySelectorAll('.tech-card, .review-item, .cctv-cam').forEach(card => {
-                let isAnimating = false; // Флаг, чтобы не перегружать процессор
-
-                card.addEventListener('mousemove', function(e) {
-                    if (!isAnimating) {
-                        window.requestAnimationFrame(() => {
-                            const rect = this.getBoundingClientRect();
-                            const x = e.clientX - rect.left;
-                            const y = e.clientY - rect.top;
-                            
-                            const centerX = rect.width / 2;
-                            const centerY = rect.height / 2;
-                            
-                            // Чуть увеличил делитель (20), чтобы эффект был плавнее и не таким резким
-                            const rotateX = (centerY - y) / 20; 
-                            const rotateY = (x - centerX) / 20;
-
-                            this.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
-                            
-                            // Градиент (самая тяжелая часть)
-                            this.style.background = `
-                                radial-gradient(
-                                    circle at ${x}px ${y}px, 
-                                    rgba(0, 243, 255, 0.1) 0%, 
-                                    rgba(5, 8, 12, 0.95) 80%
-                                )
-                            `;
-                            this.style.borderColor = "var(--vox-cyan)";
-                            
-                            isAnimating = false;
-                        });
-                        isAnimating = true;
-                    }
+            // --- HOLOGRAPHIC TILT EFFECT (REMASTERED) ---
+            document.querySelectorAll('.tech-card, .review-item').forEach(card => {
+                
+                // 1. Когда мышь заходит: Убираем плавность, чтобы карта "прилипла" к курсору
+                card.addEventListener('mouseenter', function() {
+                    this.style.transition = 'none';
+                    this.style.borderColor = 'var(--vox-cyan)';
                 });
 
-                // Сброс при уходе мыши
+                // 2. Когда мышь двигается: Вращаем карту
+                card.addEventListener('mousemove', function(e) {
+                    const rect = this.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    const centerX = rect.width / 2;
+                    const centerY = rect.height / 2;
+                    
+                    // Делитель (15) определяет силу наклона. Меньше = сильнее.
+                    const rotateX = (centerY - y) / 15; 
+                    const rotateY = (x - centerX) / 15;
+
+                    // Применяем вращение
+                    this.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.03)`;
+                    
+                    // Динамический свет (блик)
+                    this.style.background = `
+                        radial-gradient(
+                            circle at ${x}px ${y}px, 
+                            rgba(0, 243, 255, 0.15) 0%, 
+                            rgba(5, 8, 12, 0.95) 80%
+                        )
+                    `;
+                });
+
+                // 3. Когда мышь уходит: Включаем плавность и возвращаем на место
                 card.addEventListener('mouseleave', function() {
-                    // Сбрасываем стиль мгновенно
-                    this.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) scale(1)';
-                    this.style.background = 'var(--panel-bg)'; 
-                    this.style.borderColor = '#333';
+                    this.style.transition = 'all 0.5s ease'; // 🔥 Плавный возврат
+                    this.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) scale(1)'; // Сброс позиции
+                    this.style.background = 'var(--panel-bg)'; // Сброс фона
+                    this.style.borderColor = '#333'; // Сброс рамки
                 });
             });
 
