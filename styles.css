@@ -755,8 +755,18 @@ footer { text-align: center; padding: 60px 20px; color: #888; font-size: 11px; b
     transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex; flex-direction: column; gap: 5px;
 }
-.video-wrapper:hover .custom-video-controls,
-.video-wrapper.user-active .custom-video-controls { opacity: 1; transform: translateY(0); pointer-events: auto; }
+
+/* 1. Для ПК (устройств с мышью): показываем панель при наведении */
+@media (hover: hover) {
+    .video-wrapper:hover .custom-video-controls {
+        opacity: 1; transform: translateY(0); pointer-events: auto;
+    }
+}
+
+/* 2. Для ВСЕХ (включая мобильные): показываем, если JS добавил класс user-active */
+.video-wrapper.user-active .custom-video-controls {
+    opacity: 1; transform: translateY(0); pointer-events: auto;
+}
 
 .c-row { display: flex; align-items: center; gap: 10px; width: 100%; }
 .c-btn {

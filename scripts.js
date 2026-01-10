@@ -730,10 +730,17 @@
                     this.hideControlsTimer = setTimeout(() => {
                         // Проверяем, не держит ли юзер курсор на кнопках
                         const controls = document.querySelector('.custom-video-controls');
-                        if (!controls || !controls.matches(':hover')) {
-                            this.wrapper.classList.remove('user-active'); // Скрываем
+
+                        // Проверяем: есть ли мышь?
+                        const hasMouse = window.matchMedia('(hover: hover)').matches;
+
+                        // Если это ПК и мышь на кнопках — не скрываем. 
+                        // Если это телефон (нет мыши) — скрываем всегда по таймеру.
+                        if (!controls || !hasMouse || !controls.matches(':hover')) {
+                            this.wrapper.classList.remove('user-active'); // Hides controls
+                            
                             // Убираем курсор (только на ПК)
-                            if(!window.matchMedia('(pointer: coarse)').matches) {
+                            if(hasMouse) {
                                 this.video.style.cursor = 'none';
                             }
                         }
