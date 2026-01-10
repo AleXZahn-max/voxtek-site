@@ -1340,3 +1340,70 @@ body.defcon-lockdown .modal-overlay .vox-modal {
     width: 70px; height: 70px; border-radius: 50%; border: 3px solid #050505;
     position: absolute; bottom: -35px; left: 20px; z-index: 5; background: #000;
 }
+
+/* =========================================
+   15. VIP VISUAL DOMINANCE (NITRO STYLE)
+   ========================================= */
+
+/* 1. АНИМИРОВАННЫЙ НИКНЕЙМ (ЗОЛОТОЙ ГРАДИЕНТ) */
+.vip-username {
+    font-weight: 900 !important;
+    background: linear-gradient(90deg, #ffd700, #ffaa00, #fff, #ffd700);
+    background-size: 300% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shimmerText 3s infinite linear;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+    display: inline-block;
+}
+
+@keyframes shimmerText {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 100% 50%; }
+}
+
+/* 2. АВАТАРКА С ВРАЩАЮЩЕЙСЯ ОБВОДКОЙ */
+.vip-avatar-container {
+    position: relative;
+    display: inline-block;
+    padding: 3px; /* Отступ для рамки */
+    border-radius: 50%;
+    /* Градиентный фон, который будет вращаться */
+    background: linear-gradient(45deg, #ffd700, #ff00ff, #00f3ff, #ffd700);
+    background-size: 400% 400%;
+    animation: rgbBorder 3s ease infinite;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.3);
+}
+
+.vip-avatar-container img {
+    border-radius: 50%;
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: #000; /* Подложка, чтобы аватарка не сливалась */
+    position: relative;
+    z-index: 2;
+}
+
+@keyframes rgbBorder {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Маленький значок короны над аватаркой (опционально) */
+.vip-crown {
+    position: absolute;
+    top: -10px;
+    right: -5px;
+    font-size: 14px;
+    filter: drop-shadow(0 0 5px gold);
+    z-index: 5;
+    animation: bounceCrown 2s infinite;
+}
+
+@keyframes bounceCrown {
+    0%, 100% { transform: translateY(0) rotate(10deg); }
+    50% { transform: translateY(-3px) rotate(10deg); }
+}
