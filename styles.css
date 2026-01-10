@@ -2087,3 +2087,55 @@ body.theater-mode #broadcastContainer {
         margin-top: 5px;
     }
 }
+
+/* --- CINEMA VAULT STYLES --- */
+.cinema-lib-list {
+    max-height: 150px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #333;
+    padding: 5px;
+}
+
+.cinema-lib-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 10px;
+    background: #111;
+    margin-bottom: 2px;
+    transition: 0.2s;
+    border-left: 2px solid transparent;
+}
+
+.cinema-lib-item:hover {
+    background: #1a1a1a;
+    border-left-color: var(--vox-cyan);
+}
+
+.lib-name {
+    font-size: 11px;
+    color: #ccc;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 60%;
+}
+
+.lib-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.lib-btn {
+    background: transparent;
+    border: 1px solid #444;
+    color: var(--vox-cyan);
+    font-size: 9px;
+    padding: 2px 5px;
+    cursor: pointer;
+    font-family: var(--font-code);
+}
+.lib-btn:hover { background: var(--vox-cyan); color: black; }
+.lib-del { color: var(--alert-red); border-color: #500; }
+.lib-del:hover { background: var(--alert-red); color: white; }

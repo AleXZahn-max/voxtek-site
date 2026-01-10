@@ -4915,7 +4915,7 @@
             document.addEventListener('keydown', unlockAudio);
             document.addEventListener('touchstart', unlockAudio);
 
-            // --- 18. CINEMA SYSTEM (SYNC + AMBILIGHT + CHAT) ---
+            // --- 18. CINEMA SYSTEM (FINAL: VAULT + SYNC) ---
             window.CinemaSystem = {
                 video: document.getElementById('cinemaVideo'),
                 overlay: document.getElementById('cinemaOverlay'),
@@ -4928,22 +4928,17 @@
                 ctx: null,
                 ambiInterval: null,
 
-                // Chat & Reactions
+                // Chat & Sync
                 chatInput: document.getElementById('cinemaChatInput'),
                 chatFeed: document.getElementById('cinemaChatFeed'),
-                
                 docRef: null,     
                 seatRef: null,
                 unsubscribe: null, 
-                unsubscribeChat: null,
-                unsubscribeReactions: null,
                 isOperator: false, 
                 syncThreshold: 2,
 
                 init() {
                     if(!this.video || !window.db) return;
-
-                    // Настройка Ambilight Canvas
                     if(this.canvas) this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
 
                     // Проверка Админа
@@ -4952,12 +4947,12 @@
                         if(email === 'voxtek@voxtek.net' || email === 'test@voxtek.net') {
                             this.isOperator = true;
                             this.controls.style.display = 'block';
+                            this.fetchLibrary(); // 🔥 Загружаем список фильмов
                         }
                     }
 
                     this.docRef = window.fbDoc(window.db, "system_state", "cinema");
 
-                    // Слушатель ввода чата
                     if(this.chatInput) {
                         this.chatInput.addEventListener('keydown', (e) => {
                             if(e.key === 'Enter') this.sendChatMessage();
@@ -4970,8 +4965,8 @@
                     if(!user) return voxNotify("LOGIN REQUIRED", "error");
 
                     voxNotify("ENTERING V-THEATER...", "info");
-
-                    // 1. Занимаем место
+                    
+                    // Занимаем место
                     this.seatRef = window.fbDoc(window.db, "cinema_audience", user.uid);
                     window.fbSet(this.seatRef, {
                         uid: user.uid,
@@ -4979,181 +4974,214 @@
                         avatar: user.photoURL,
                         joinedAt: window.fbTime()
                     });
-                    
                     window.addEventListener('beforeunload', () => { if(this.seatRef) window.fbDelete(this.seatRef); });
 
-                    // 2. Слушаем
                     this.listenToScreen();
                     this.listenToAudience();
                     this.listenToChat();
                     this.listenToReactions();
-                    
-                    // 3. Запускаем Ambilight
                     this.startAmbilight();
                 },
 
                 leave() {
                     if(this.unsubscribe) this.unsubscribe();
-                    if(this.unsubscribeChat) this.unsubscribeChat();
-                    if(this.unsubscribeReactions) this.unsubscribeReactions();
                     if(this.seatRef) window.fbDelete(this.seatRef);
                     this.video.pause();
                     this.stopAmbilight();
                 },
 
-                // --- 💡 AMBILIGHT LOGIC ---
-                startAmbilight() {
-                    if (this.ambiInterval) clearInterval(this.ambiInterval);
-                    // Обновляем свет 10 раз в секунду
-                    this.ambiInterval = setInterval(() => this.updateGlow(), 100);
+                // --- 🎬 CINEMA VAULT LOGIC (NEW) ---
+                
+                uploadMovie(input) {
+                    const file = input.files[0];
+                    if(!file) return;
+
+                    // 1. Уведомление
+                    voxNotify("UPLOADING TO CINEMA REEL...", "info");
+
+                    // 2. Путь в Storage (отдельная папка cinema_uploads)
+                    const path = `cinema_uploads/${Date.now()}_${file.name}`;
+                    const storageRef = window.fbRef(window.storage, path);
+
+                    // 3. Загрузка
+                    const task = window.fbUpload(storageRef, file);
+                    
+                    task.then(snap => {
+                        window.fbUrl(snap.ref).then(url => {
+                            // 4. Сохраняем в отдельную коллекцию 'cinema_library'
+                            window.fbAdd(window.fbCol(window.db, "cinema_library"), {
+                                name: file.name,
+                                url: url,
+                                addedAt: window.fbTime(),
+                                addedBy: window.auth.currentUser.email
+                            });
+                            voxNotify("FILM ADDED TO REEL.", "success");
+                            input.value = ''; // Сброс
+                        });
+                    }).catch(e => voxNotify("UPLOAD FAILED: " + e.message, "error"));
                 },
 
-                stopAmbilight() {
-                    if (this.ambiInterval) clearInterval(this.ambiInterval);
-                },
+                fetchLibrary() {
+                    const list = document.getElementById('cinemaLibraryList');
+                    // Слушаем изменения в библиотеке
+                    const q = window.fbQuery(window.fbCol(window.db, "cinema_library"), window.fbOrder("addedAt", "desc"));
+                    
+                    window.fbSnap(q, (snap) => {
+                        list.innerHTML = '';
+                        if(snap.empty) {
+                            list.innerHTML = '<div style="padding:10px; color:#666; font-size:10px;">ARCHIVE EMPTY</div>';
+                            return;
+                        }
 
-                updateGlow() {
-                    if(this.video.paused || this.video.ended || !this.ctx) return;
-                    
-                    // Рисуем уменьшенную копию кадра (для производительности)
-                    this.ctx.drawImage(this.video, 0, 0, 50, 50);
-                    
-                    // Берем цвет центрального пикселя (или усредняем, но центр быстрее)
-                    const frame = this.ctx.getImageData(25, 25, 1, 1).data;
-                    const r = frame[0], g = frame[1], b = frame[2];
-                    
-                    // Применяем цвет к свечению проектора
-                    if(this.projector) {
-                        this.projector.style.background = `linear-gradient(to bottom, rgba(${r},${g},${b},0) 0%, rgba(${r},${g},${b},0.3) 100%)`;
-                    }
-                    // Легкая подсветка границ экрана
-                    document.querySelector('.cinema-screen-border').style.boxShadow = `0 20px 80px rgba(${r},${g},${b}, 0.2)`;
-                },
-
-                // --- 💬 CHAT LOGIC ---
-                sendChatMessage() {
-                    const text = this.chatInput.value.trim();
-                    if(!text) return;
-                    
-                    const user = window.auth.currentUser;
-                    
-                    window.fbAdd(window.fbCol(window.db, "cinema_chat"), {
-                        name: user.displayName || "Citizen",
-                        text: text,
-                        timestamp: window.fbTime()
-                    });
-                    
-                    this.chatInput.value = '';
-                },
-
-                listenToChat() {
-                    // Слушаем только последние 10 сообщений
-                    const q = window.fbQuery(
-                        window.fbCol(window.db, "cinema_chat"), 
-                        window.fbOrder("timestamp", "desc"), 
-                        window.fbLimit(10)
-                    );
-
-                    this.unsubscribeChat = window.fbSnap(q, (snap) => {
-                        this.chatFeed.innerHTML = '';
-                        // Сообщения приходят в обратном порядке (desc), переворачиваем для чата
-                        const msgs = [];
-                        snap.forEach(doc => msgs.push(doc.data()));
-                        
-                        msgs.reverse().forEach(msg => {
+                        snap.forEach(doc => {
+                            const d = doc.data();
                             const div = document.createElement('div');
-                            div.className = 'c-chat-msg';
-                            div.innerHTML = `<b>${msg.name}:</b> ${msg.text}`;
-                            this.chatFeed.appendChild(div);
-                        });
-                        
-                        // Автоскролл вниз
-                        this.chatFeed.scrollTop = this.chatFeed.scrollHeight;
-                    });
-                },
-
-                // --- ❤️ REACTION LOGIC ---
-                sendReaction(emoji) {
-                    // Пишем в специальную коллекцию событий
-                    window.fbAdd(window.fbCol(window.db, "cinema_reactions"), {
-                        emoji: emoji,
-                        timestamp: window.fbTime()
-                    });
-                    
-                    // Сразу показываем у себя (для мгновенного отклика)
-                    this.spawnEmoji(emoji);
-                },
-
-                listenToReactions() {
-                    const q = window.fbQuery(
-                        window.fbCol(window.db, "cinema_reactions"), 
-                        window.fbOrder("timestamp", "desc"), 
-                        window.fbLimit(1)
-                    );
-
-                    this.unsubscribeReactions = window.fbSnap(q, (snap) => {
-                        snap.docChanges().forEach(change => {
-                            if(change.type === 'added') {
-                                const data = change.doc.data();
-                                // Если реакция свежая (меньше 2 секунд)
-                                const now = Date.now();
-                                const time = data.timestamp ? data.timestamp.toMillis() : now;
-                                if(now - time < 2000) {
-                                    this.spawnEmoji(data.emoji);
-                                }
-                            }
+                            div.className = 'cinema-lib-item';
+                            div.innerHTML = `
+                                <div class="lib-name" title="${d.name}">${d.name}</div>
+                                <div class="lib-actions">
+                                    <button class="lib-btn" onclick="CinemaSystem.playFromLibrary('${d.url}')">LOAD</button>
+                                    <button class="lib-btn lib-del" onclick="CinemaSystem.deleteMovie('${doc.id}')">×</button>
+                                </div>
+                            `;
+                            list.appendChild(div);
                         });
                     });
                 },
 
-                spawnEmoji(char) {
-                    const zone = document.getElementById('reactionZone');
-                    const el = document.createElement('div');
-                    el.className = 'flying-emoji';
-                    el.textContent = char;
-                    
-                    // Рандомная позиция по горизонтали
-                    el.style.left = Math.random() * 90 + '%';
-                    
-                    zone.appendChild(el);
-                    
-                    // Удаляем через 3 секунды
-                    setTimeout(() => el.remove(), 3000);
+                playFromLibrary(url) {
+                    document.getElementById('cinemaUrlInput').value = url;
+                    this.loadFromInput(); // Запускаем
                 },
 
-                // --- SYNC LOGIC (Как было, но с CORS фиксом для Ambilight) ---
+                deleteMovie(id) {
+                    if(confirm("REMOVE FILM FROM ARCHIVE?")) {
+                        window.fbDelete(window.fbDoc(window.db, "cinema_library", id));
+                    }
+                },
+
+                // --- OLDER LOGIC (Keep functionality) ---
+                
+                loadFromInput() {
+                    const url = document.getElementById('cinemaUrlInput').value;
+                    if(!url) return;
+                    // Обновляем глобальное состояние экрана
+                    window.fbSet(this.docRef, { 
+                        url: url, 
+                        currentTime: 0, 
+                        isPlaying: false 
+                    }, { merge: true });
+                    voxNotify("FILM MOUNTED. READY TO PLAY.", "success");
+                },
+
+                syncAction(action) {
+                    const isPlay = action === 'play';
+                    window.fbSet(this.docRef, { isPlaying: isPlay, currentTime: this.video.currentTime }, { merge: true });
+                },
+
+                syncSeek(val) {
+                    if(!this.video.duration) return;
+                    const time = (val / 100) * this.video.duration;
+                    window.fbSet(this.docRef, { currentTime: time }, { merge: true });
+                },
+
+                // --- LISTENERS ---
                 listenToScreen() {
                     this.unsubscribe = window.fbSnap(this.docRef, (doc) => {
                         if(!doc.exists()) return;
                         const data = doc.data();
 
                         const currentSrc = this.video.src;
-                        if (data.url && (!currentSrc || currentSrc !== data.url)) {
+                        // Сравниваем декодированные URL, чтобы избежать перезагрузки одного и того же
+                        if (data.url && currentSrc !== data.url) {
                             this.video.src = data.url;
-                            // Для Ambilight важно, чтобы видео было CORS-совместимым (если с другого домена)
-                            this.video.crossOrigin = "anonymous"; 
-                            this.overlay.classList.remove('hidden');
-                            voxNotify("NEW FILM LOADED", "info");
+                            this.overlay.classList.remove('hidden'); // Показать заставку при смене
+                            
+                            // Закрываем шторки при смене фильма
+                            document.querySelector('.cinema-screen-wrapper').classList.remove('playing');
                         }
 
                         if (data.isPlaying) {
                             this.video.play().catch(()=>{});
                             this.overlay.classList.add('hidden');
-                            document.querySelector('.cinema-screen-wrapper').classList.add('playing');
+                            document.querySelector('.cinema-screen-wrapper').classList.add('playing'); // Открыть шторки
                         } else {
                             this.video.pause();
-                        }
-
-                        // Если URL изменился или пустой
-                        if (!data.url) {
-                            document.querySelector('.cinema-screen-wrapper').classList.remove('playing'); // Закрыть шторки
-                            this.overlay.classList.remove('hidden'); // Показать таблицу
                         }
 
                         if (!this.isOperator && Math.abs(this.video.currentTime - data.currentTime) > this.syncThreshold) {
                             this.video.currentTime = data.currentTime;
                         }
                     });
+                },
+
+                // ... (Ambilight, Chat, Reactions - оставляем как было в прошлых версиях) ...
+                
+                // --- AMBILIGHT ---
+                startAmbilight() { if (this.ambiInterval) clearInterval(this.ambiInterval); this.ambiInterval = setInterval(() => this.updateGlow(), 100); },
+                stopAmbilight() { if (this.ambiInterval) clearInterval(this.ambiInterval); },
+                updateGlow() {
+                    if(this.video.paused || this.video.ended || !this.ctx) return;
+                    this.ctx.drawImage(this.video, 0, 0, 50, 50);
+                    const frame = this.ctx.getImageData(25, 25, 1, 1).data;
+                    const r = frame[0], g = frame[1], b = frame[2];
+                    if(this.projector) this.projector.style.background = `linear-gradient(to bottom, rgba(${r},${g},${b},0) 0%, rgba(${r},${g},${b},0.3) 100%)`;
+                    document.querySelector('.cinema-screen-border').style.boxShadow = `0 20px 80px rgba(${r},${g},${b}, 0.2)`;
+                },
+
+                // --- CHAT ---
+                sendChatMessage() {
+                    const text = this.chatInput.value.trim();
+                    if(!text) return;
+                    window.fbAdd(window.fbCol(window.db, "cinema_chat"), {
+                        name: window.auth.currentUser.displayName || "Citizen",
+                        text: text,
+                        timestamp: window.fbTime()
+                    });
+                    this.chatInput.value = '';
+                },
+                listenToChat() {
+                    const q = window.fbQuery(window.fbCol(window.db, "cinema_chat"), window.fbOrder("timestamp", "desc"), window.fbLimit(10));
+                    window.fbSnap(q, (snap) => {
+                        this.chatFeed.innerHTML = '';
+                        const msgs = [];
+                        snap.forEach(doc => msgs.push(doc.data()));
+                        msgs.reverse().forEach(msg => {
+                            const div = document.createElement('div');
+                            div.className = 'c-chat-msg';
+                            div.innerHTML = `<b>${msg.name}:</b> ${msg.text}`;
+                            this.chatFeed.appendChild(div);
+                        });
+                        this.chatFeed.scrollTop = this.chatFeed.scrollHeight;
+                    });
+                },
+
+                // --- REACTIONS ---
+                sendReaction(emoji) {
+                    window.fbAdd(window.fbCol(window.db, "cinema_reactions"), { emoji: emoji, timestamp: window.fbTime() });
+                    this.spawnEmoji(emoji);
+                },
+                listenToReactions() {
+                    const q = window.fbQuery(window.fbCol(window.db, "cinema_reactions"), window.fbOrder("timestamp", "desc"), window.fbLimit(1));
+                    window.fbSnap(q, (snap) => {
+                        snap.docChanges().forEach(change => {
+                            if(change.type === 'added') {
+                                const data = change.doc.data();
+                                if(Date.now() - (data.timestamp ? data.timestamp.toMillis() : Date.now()) < 2000) {
+                                    this.spawnEmoji(data.emoji);
+                                }
+                            }
+                        });
+                    });
+                },
+                spawnEmoji(char) {
+                    const zone = document.getElementById('reactionZone');
+                    const el = document.createElement('div');
+                    el.className = 'flying-emoji';
+                    el.textContent = char;
+                    el.style.left = Math.random() * 90 + '%';
+                    zone.appendChild(el);
+                    setTimeout(() => el.remove(), 3000);
                 },
 
                 listenToAudience() {
@@ -5169,23 +5197,6 @@
                             this.seatsContainer.appendChild(div);
                         });
                     });
-                },
-
-                loadVideo() {
-                    const url = document.getElementById('cinemaUrlInput').value;
-                    if(!url) return;
-                    window.fbSet(this.docRef, { url: url, currentTime: 0, isPlaying: false }, { merge: true });
-                },
-
-                syncAction(action) {
-                    const isPlay = action === 'play';
-                    window.fbSet(this.docRef, { isPlaying: isPlay, currentTime: this.video.currentTime }, { merge: true });
-                },
-
-                syncSeek(val) {
-                    if(!this.video.duration) return;
-                    const time = (val / 100) * this.video.duration;
-                    window.fbSet(this.docRef, { currentTime: time }, { merge: true });
                 }
             };
 

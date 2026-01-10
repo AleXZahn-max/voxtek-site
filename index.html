@@ -508,15 +508,33 @@
             </div>
 
             <div id="cinemaControls" class="cinema-controls" style="display:none;">
-                <div style="color:var(--vox-cyan); font-size:10px; margin-bottom:5px;">/// OPERATOR CONTROLS ///</div>
-                <div class="c-row">
-                    <input type="text" id="cinemaUrlInput" class="form-input" placeholder="Video URL (.mp4)..." style="margin:0; height:30px; font-size:10px;">
-                    <button class="btn-tech" style="padding:5px 10px;" onclick="CinemaSystem.loadVideo()">LOAD</button>
+                <div style="color:var(--vox-cyan); font-size:10px; margin-bottom:5px; border-bottom:1px solid #333; padding-bottom:5px;">
+                    /// OPERATOR CONSOLE ///
                 </div>
-                <div class="c-row" style="margin-top:10px;">
+                
+                <div class="c-row">
+                    <input type="text" id="cinemaUrlInput" class="form-input" placeholder="Current Stream URL..." style="margin:0; height:30px; font-size:10px; flex:1;">
+                    <button class="btn-tech" style="padding:5px 10px;" onclick="CinemaSystem.loadFromInput()">FORCE LOAD</button>
+                </div>
+                
+                <div class="c-row" style="margin-top:10px; border-bottom:1px solid #333; padding-bottom:15px;">
                     <button class="btn-tech" onclick="CinemaSystem.syncAction('play')">PLAY</button>
                     <button class="btn-tech" onclick="CinemaSystem.syncAction('pause')">PAUSE</button>
                     <input type="range" id="cinemaSeek" class="vox-range" min="0" max="100" step="0.1" onchange="CinemaSystem.syncSeek(this.value)">
+                </div>
+
+                <div class="cinema-vault-section" style="margin-top:15px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <span style="color:#888; font-size:10px; font-weight:bold;">V-ARCHIVE REEL</span>
+                        <label class="btn-tech" style="padding:2px 10px; font-size:9px; cursor:pointer;">
+                            + UPLOAD MOVIE
+                            <input type="file" id="cinemaUploadInput" accept="video/mp4,video/webm" style="display:none;" onchange="CinemaSystem.uploadMovie(this)">
+                        </label>
+                    </div>
+                    
+                    <div id="cinemaLibraryList" class="cinema-lib-list">
+                        <div style="text-align:center; padding:10px; color:#444;">LOADING REEL...</div>
+                    </div>
                 </div>
             </div>
 
