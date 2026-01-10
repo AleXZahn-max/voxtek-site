@@ -117,19 +117,29 @@
                 }
             };
 
+            document.addEventListener('visibilitychange', () => {
+                if (window.StaticFX) {
+                    StaticFX.active = !document.hidden;
+                }
+            });
+
             // --- 11. ROUTER ---
             const Router = {
                 go(page) {
-                    document.querySelectorAll('.view-section')
-                        .forEach(v => v.classList.remove('active-view'));
+                    document.querySelectorAll('.view-section').forEach(v => {
+                        v.classList.remove('active-view');
+                        v.setAttribute('aria-hidden', 'true');
+                    });
 
                     const target = document.getElementById(`view-${page}`);
                     if (!target) return;
 
                     target.classList.add('active-view');
+                    target.setAttribute('aria-hidden', 'false');
 
-                    if (page === 'storage' && window.VaultSystem) {
-                        VaultSystem.init();
+                    if (page === 'video' && window.VideoSystem && !window.__videoInit) {
+                        VideoSystem.init();
+                        window.__videoInit = true;
                     }
                 }
             };
@@ -433,51 +443,75 @@
                 },
 
                 draw() {
-                    if (!this.canvas) return;
+                    if (!this.canvas || this.animationId) return;
+
                     const ctx = this.canvas.getContext('2d');
-                    const w = this.canvas.width;
-                    const h = this.canvas.height;
-                    
-                    let bufferLength, dataArray;
+
+                    // === resize ВНЕ цикла ===
+                    const resize = () => {
+                        this.canvas.width = this.canvas.clientWidth;
+                        this.canvas.height = this.canvas.clientHeight;
+                    };
+                    resize();
+
+                    if (!this._resizeBound) {
+                        window.addEventListener('resize', resize);
+                        this._resizeBound = true;
+                    }
+
+                    let lastFrame = 0;
+                    const FPS_LIMIT = 20;
+                    const FRAME_TIME = 1000 / FPS_LIMIT;
+
+                    let bufferLength = 32;
+                    let dataArray = null;
+
                     if (!this.useSimulation && this.analyser) {
                         bufferLength = this.analyser.frequencyBinCount;
                         dataArray = new Uint8Array(bufferLength);
-                    } else {
-                        bufferLength = 32;
                     }
 
-                    const drawFrame = () => {
-                        this.animationId = requestAnimationFrame(drawFrame);
-                        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; 
+                    const render = (ts) => {
+                        if (document.hidden || this.audio.paused) {
+                            this.animationId = null;
+                            return;
+                        }
+
+                        if (ts - lastFrame < FRAME_TIME) {
+                            this.animationId = requestAnimationFrame(render);
+                            return;
+                        }
+                        lastFrame = ts;
+
+                        const w = this.canvas.width;
+                        const h = this.canvas.height;
+
+                        ctx.fillStyle = 'rgba(0,0,0,0.25)';
                         ctx.fillRect(0, 0, w, h);
 
-                        const barWidth = (w / bufferLength) * 2.5;
-                        let barHeight;
+                        const barWidth = (w / bufferLength) * 1.8;
                         let x = 0;
-                        let isSilent = true;
 
-                        if (!this.useSimulation && this.analyser) {
+                        if (!this.useSimulation && dataArray) {
                             this.analyser.getByteFrequencyData(dataArray);
-                            for(let i=0; i<bufferLength; i++) {
-                                if(dataArray[i] > 0) isSilent = false;
-                            }
                         }
 
-                        for(let i = 0; i < bufferLength; i++) {
-                            if (!this.useSimulation && !isSilent) {
-                                barHeight = dataArray[i] / 2;
-                            } else if (!this.audio.paused) {
-                                barHeight = Math.random() * (h - 10);
-                            } else {
-                                barHeight = 2; 
-                            }
-                            ctx.fillStyle = `rgb(0, ${barHeight + 100}, 255)`; 
+                        for (let i = 0; i < bufferLength; i++) {
+                            const value = dataArray ? dataArray[i] : Math.random() * 120;
+                            const barHeight = Math.max(3, value * 0.6);
+
+                            ctx.fillStyle = `rgb(0, ${Math.min(255, barHeight + 80)}, 255)`;
                             ctx.fillRect(x, h - barHeight, barWidth, barHeight);
-                            x += barWidth + 1;
+
+                            x += barWidth + 2;
                         }
+
+                        this.animationId = requestAnimationFrame(render);
                     };
-                    drawFrame();
+
+                    this.animationId = requestAnimationFrame(render);
                 }
+
             };
             window.MusicSystem = MusicSystem;
             MusicSystem.init();
