@@ -4000,9 +4000,12 @@
 
                 // Проверяем, загрузился ли Firebase (fbCol)
                 if (window.fbCol && window.auth && window.db) {
-                    
                     systemLoaded = true; // Ставим флаг: "Система загружена"
 
+                    // 🔥 ФИКС: ПРИНУДИТЕЛЬНО ЗАКРЫВАЕМ ПАНЕЛЬ ПРИ СТАРТЕ
+                    const p = document.getElementById('adminPanel');
+                    if(p) p.style.display = 'none';
+                    
                     // 1. Запускаем авторизацию (проверку входа)
                     if(window.AuthSystem) AuthSystem.init();
                     if(window.DefconSystem) DefconSystem.init();
