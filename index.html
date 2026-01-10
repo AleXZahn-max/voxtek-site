@@ -155,8 +155,9 @@
                 <li><a href="#products" data-route="home">Tech</a></li>
                 <li><a href="#terminal" data-route="home">Terminal</a></li>
                 <li><a href="#" data-route="video" style="color:white;">BROADCAST</a></li>
-                <li><a href="#" data-route="messenger" style="color:var(--vox-cyan);">MESSENGER</a></li>
+                <li><a href="#" data-route="cinema" style="color:#ff003c;">THEATER</a></li>
                 <li><a href="#" data-route="storage" style="color:#aaa;">ARCHIVE</a></li>
+                <li><a href="#" data-route="messenger" style="color:var(--vox-cyan);">MESSENGER</a></li>
             </ul>
         </nav>
     </header>
@@ -392,7 +393,8 @@
                             </div>
                         </div>
                     </div>
-                </div> </div> </div> </div> <div id="view-video" class="view-section">
+                </div> </div> </div> </div>
+                <div id="view-video" class="view-section">
         <div class="section-header"><h2>BROADCAST STATION</h2></div>
         
         <div class="video-wrapper" id="broadcastContainer">
@@ -452,6 +454,65 @@
 
         <div style="text-align:center; color:#444; margin-top:10px; font-size:10px;">
             SECURE CHANNEL ESTABLISHED. CONTENT MONITORED BY VANGUARD.
+        </div>
+    </div>
+
+    <div id="view-cinema" class="view-section">
+        <div class="section-header"><h2>INDOCTRINATION THEATER</h2></div>
+        
+        <div class="cinema-container">
+            <div class="cinema-screen-wrapper">
+                <canvas id="ambiCanvas" style="display:none;"></canvas>
+                <div id="projectorGlow" class="projector-light"></div>
+                
+                <div class="cinema-screen-border">
+                    <video id="cinemaVideo" playsinline webkit-playsinline crossorigin="anonymous"></video>
+                    
+                    <div id="cinemaOverlay" class="cinema-overlay">
+                        <div class="waiting-text">WAITING FOR BROADCAST...</div>
+                    </div>
+
+                    <div id="cinemaChatOverlay" class="cinema-chat-layer">
+                        <div id="cinemaChatFeed" class="c-chat-feed"></div>
+                        <div class="c-chat-input-box">
+                            <input type="text" id="cinemaChatInput" placeholder="Discuss..." maxlength="50">
+                        </div>
+                    </div>
+
+                    <div id="reactionZone"></div>
+                </div>
+            </div>
+
+            <div class="reaction-bar">
+                <button onclick="CinemaSystem.sendReaction('❤')" title="LOVE">❤</button>
+                <button onclick="CinemaSystem.sendReaction('🔥')" title="FIRE">🔥</button>
+                <button onclick="CinemaSystem.sendReaction('💀')" title="DEATH">💀</button>
+                <button onclick="CinemaSystem.sendReaction('👁')" title="OBEY">👁</button>
+                <button onclick="CinemaSystem.sendReaction('⚡')" title="SHOCK">⚡</button>
+            </div>
+
+            <div id="cinemaControls" class="cinema-controls" style="display:none;">
+                <div style="color:var(--vox-cyan); font-size:10px; margin-bottom:5px;">/// OPERATOR CONTROLS ///</div>
+                <div class="c-row">
+                    <input type="text" id="cinemaUrlInput" class="form-input" placeholder="Video URL (.mp4)..." style="margin:0; height:30px; font-size:10px;">
+                    <button class="btn-tech" style="padding:5px 10px;" onclick="CinemaSystem.loadVideo()">LOAD</button>
+                </div>
+                <div class="c-row" style="margin-top:10px;">
+                    <button class="btn-tech" onclick="CinemaSystem.syncAction('play')">PLAY</button>
+                    <button class="btn-tech" onclick="CinemaSystem.syncAction('pause')">PAUSE</button>
+                    <input type="range" id="cinemaSeek" class="vox-range" min="0" max="100" step="0.1" onchange="CinemaSystem.syncSeek(this.value)">
+                </div>
+            </div>
+
+            <div class="cinema-hall">
+                <div class="hall-label">AUDIENCE PRESENCE</div>
+                <div id="cinemaSeats" class="seats-grid"></div>
+            </div>
+        </div>
+
+            <div style="text-align:center; margin-top:20px; color:#444; font-size:10px; font-family:var(--font-code);">
+                SYNC PROTOCOL V.4.0 // OBEY THE SCREEN
+            </div>
         </div>
     </div>
 

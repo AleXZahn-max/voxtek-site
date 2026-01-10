@@ -50,12 +50,17 @@ body {
         linear-gradient(var(--scan-line-color) 1px, transparent 1px),
         linear-gradient(90deg, var(--scan-line-color) 1px, transparent 1px);
     background-size: 30px 30px;
+    animation: gridMove 20s linear infinite;
     scrollbar-width: thin;
     scrollbar-color: var(--vox-cyan) #000;
     transition: all 0.5s ease;
     -webkit-user-select: none; user-select: none;
     position: relative;
     overscroll-behavior-y: none;
+}
+@keyframes gridMove {
+    0% { background-position: 0 0; }
+    100% { background-position: 30px 30px; }
 }
 
 /* =========================================
@@ -1677,3 +1682,198 @@ body.low-effects .hypno-spiral {
 .tech-card:hover {
     will-change: transform;
 }
+
+/* Затемнение всего, кроме видео */
+body.theater-mode::before {
+    content: '';
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 90; /* Ниже хедера, но выше контента */
+    pointer-events: none;
+    opacity: 0; transition: opacity 1s ease;
+}
+
+body.theater-mode::before { opacity: 1; pointer-events: auto; }
+
+/* Подсвечиваем видеоплеер */
+body.theater-mode #broadcastContainer {
+    z-index: 95;
+    box-shadow: 0 0 100px rgba(0, 243, 255, 0.2);
+    transform: scale(1.02);
+}
+
+/* Класс для мини-плеера */
+.video-wrapper.sticky-mode {
+    position: fixed !important;
+    bottom: 20px;
+    right: 20px;
+    width: 320px !important;
+    height: 180px !important;
+    z-index: 9999;
+    border: 2px solid var(--vox-cyan);
+    box-shadow: 0 0 30px rgba(0,0,0,0.8);
+    animation: popUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Прячем лишнее в мини-режиме */
+.video-wrapper.sticky-mode .video-controls-panel,
+.video-wrapper.sticky-mode .playlist-container {
+    display: none !important;
+}
+
+@keyframes popUp {
+    from { transform: scale(0) translateY(100%); }
+    to { transform: scale(1) translateY(0); }
+}
+
+/* --- CINEMA MODE --- */
+.cinema-container {
+    max-width: 1000px; margin: 0 auto; padding: 20px;
+    display: flex; flex-direction: column; gap: 20px;
+}
+
+/* Экран */
+.cinema-screen-wrapper {
+    position: relative; width: 100%; aspect-ratio: 21/9; /* Киношный формат */
+    perspective: 1000px; margin-bottom: 30px;
+}
+
+.cinema-screen-border {
+    width: 100%; height: 100%;
+    background: black;
+    border: 5px solid #111;
+    border-top: none;
+    box-shadow: 0 20px 50px rgba(0, 243, 255, 0.1);
+    transform: rotateX(2deg); /* Легкий наклон экрана */
+    position: relative; overflow: hidden;
+    border-radius: 0 0 50% 50% / 0 0 10% 10%; /* Изогнутый экран IMAX */
+}
+
+#cinemaVideo { width: 100%; height: 100%; object-fit: contain; }
+
+/* Свет от проектора */
+.projector-light {
+    position: absolute; top: -50%; left: 20%; right: 20%; height: 50%;
+    background: linear-gradient(to bottom, rgba(0, 243, 255, 0) 0%, rgba(0, 243, 255, 0.1) 100%);
+    filter: blur(20px); pointer-events: none; z-index: 10;
+    animation: projectorFlicker 0.1s infinite; opacity: 0;
+}
+.playing .projector-light { opacity: 1; }
+
+@keyframes projectorFlicker {
+    0% { opacity: 0.05; } 50% { opacity: 0.08; } 100% { opacity: 0.05; }
+}
+
+/* Заглушка, когда ничего не играет */
+.cinema-overlay {
+    position: absolute; top:0; left:0; width:100%; height:100%;
+    background: #000; display: flex; justify-content: center; align-items: center;
+    z-index: 5; transition: opacity 0.5s;
+}
+.cinema-overlay.hidden { opacity: 0; pointer-events: none; }
+.waiting-text {
+    color: #333; font-family: var(--font-code); font-size: 20px; 
+    letter-spacing: 5px; animation: pulseOp 2s infinite;
+}
+
+/* Зал и места */
+.cinema-hall {
+    background: #050505; border-top: 2px solid var(--alert-red);
+    padding: 20px; position: relative;
+    box-shadow: inset 0 10px 30px rgba(0,0,0,0.8);
+}
+.hall-label {
+    position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+    background: var(--alert-red); color: black; font-weight: bold;
+    font-size: 10px; padding: 2px 10px; letter-spacing: 2px;
+}
+
+.seats-grid {
+    display: flex; justify-content: center; flex-wrap: wrap; gap: 10px;
+    max-height: 150px; overflow-y: auto; padding-top: 10px;
+}
+
+/* Аватар зрителя */
+.seat-user {
+    width: 40px; height: 40px; border-radius: 5px; background: #222;
+    border: 1px solid #444; position: relative; overflow: hidden;
+    transition: 0.3s; cursor: pointer;
+}
+.seat-user img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(100%); }
+.seat-user:hover { transform: translateY(-5px); border-color: var(--vox-cyan); }
+.seat-user:hover img { filter: grayscale(0%); }
+
+.seat-user.admin { border-color: var(--alert-red); box-shadow: 0 0 10px var(--alert-red); }
+
+/* Панель управления */
+.cinema-controls {
+    background: #111; padding: 15px; border: 1px solid var(--vox-cyan); margin-bottom: 20px;
+}
+
+/* --- CINEMA UPGRADES --- */
+
+/* Ambilight Glow */
+.projector-light {
+    transition: background 0.2s ease; /* Плавная смена цвета */
+    opacity: 0.6; /* Яркость свечения */
+}
+
+/* Реакции (Кнопки) */
+.reaction-bar {
+    display: flex; justify-content: center; gap: 15px; margin-bottom: 10px;
+}
+.reaction-bar button {
+    background: #111; border: 1px solid #333; color: white; font-size: 20px;
+    width: 40px; height: 40px; border-radius: 50%; cursor: pointer;
+    transition: 0.2s; box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+.reaction-bar button:hover {
+    transform: scale(1.2); border-color: var(--vox-cyan); background: #222;
+}
+
+/* Летающие эмодзи */
+#reactionZone {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; overflow: hidden; z-index: 20;
+}
+.flying-emoji {
+    position: absolute; bottom: 0; font-size: 24px;
+    animation: flyUp 3s linear forwards; text-shadow: 0 0 5px black;
+}
+@keyframes flyUp {
+    0% { transform: translateY(0) scale(1); opacity: 1; }
+    100% { transform: translateY(-300px) scale(1.5); opacity: 0; }
+}
+
+/* Cinema Chat Overlay */
+.cinema-chat-layer {
+    position: absolute; bottom: 20px; left: 20px; width: 300px; max-height: 200px;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    pointer-events: none; /* Пропускает клики сквозь чат, если не наводишь */
+    z-index: 15;
+}
+.cinema-chat-layer:hover { pointer-events: auto; } /* Активируем при наведении */
+
+.c-chat-feed {
+    overflow-y: auto; display: flex; flex-direction: column; gap: 5px;
+    mask-image: linear-gradient(to top, black 80%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to top, black 80%, transparent 100%);
+    padding-bottom: 10px;
+}
+.c-chat-msg {
+    background: rgba(0, 0, 0, 0.6); padding: 4px 8px; border-radius: 4px;
+    color: #ddd; font-size: 11px; backdrop-filter: blur(2px);
+    animation: slideInLeft 0.2s; width: fit-content;
+}
+.c-chat-msg b { color: var(--vox-cyan); margin-right: 5px; }
+
+.c-chat-input-box {
+    pointer-events: auto; opacity: 0; transition: 0.3s;
+}
+.cinema-screen-wrapper:hover .c-chat-input-box { opacity: 1; }
+
+#cinemaChatInput {
+    width: 100%; background: rgba(0,0,0,0.8); border: 1px solid #444;
+    color: white; padding: 5px 10px; border-radius: 15px; font-size: 11px;
+}
+@keyframes slideInLeft { from { transform: translateX(-20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
