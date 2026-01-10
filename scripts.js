@@ -2415,23 +2415,37 @@
                         // Иначе по алфавиту
                         return a.name.localeCompare(b.name);
                     });
-
+                    
                     sortedUsers.forEach(user => {
                         const ids = [myUid, user.uid].sort();
                         const chatId = ids.join('_');
                         const isActive = this.currentChat === chatId;
                         const unread = this.unreadCounts[user.uid] || 0;
 
-                        // Сборка HTML
+                        // Данные
                         const name = user.name || user.email.split('@')[0];
-                        const avatar = user.avatar || `https://placehold.co/40x40/000000/00f3ff/png?text=${name[0]}`;
+                        const avatarSrc = user.avatar || `https://placehold.co/40x40/000000/00f3ff/png?text=${name[0]}`;
                         
-                        // Добавляем класс active и unread-badge если есть
+                        // 🔥 VIP ЛОГИКА: Классы для имени и аватарки
+                        const isVip = user.isVip || false;
+                        
+                        // Если VIP -> оборачиваем аватарку в контейнер с анимацией
+                        const avatarHTML = isVip 
+                            ? `<div class="vip-avatar-container" style="width:40px; height:40px;">
+                                 <img src="${avatarSrc}">
+                                 <div class="vip-crown">👑</div>
+                               </div>`
+                            : `<div class="c-avatar"><img src="${avatarSrc}"></div>`;
+
+                        // Если VIP -> добавляем класс никнейму
+                        const nameClass = isVip ? 'vip-username' : 'c-name';
+
+                        // Сборка HTML
                         html += `
                         <div class="contact-item ${isActive ? 'active' : ''}" onclick="MessengerUI.switchChat('${chatId}', '${name}')">
-                            <div class="c-avatar"><img src="${avatar}"></div>
+                            ${avatarHTML}
                             <div class="c-info">
-                                <div class="c-name">${name}</div>
+                                <div class="${nameClass}" style="font-size:14px;">${name}</div>
                                 <div class="c-status online">Citizen</div>
                             </div>
                             ${unread > 0 ? `<div class="unread-badge">${unread}</div>` : ''}
@@ -2510,12 +2524,17 @@
                         document.getElementById('pName').value = user.displayName || '';
                         document.getElementById('pAvatarPreview').src = user.photoURL || "favicon.ico";
                         
-                        // Пытаемся найти свой баннер в базе, чтобы показать его
+                        // Сбрасываем превью баннера (прячем), пока грузим реальный
+                        const bannerImg = document.getElementById('pBannerPreview');
+                        bannerImg.src = ""; 
+                        bannerImg.style.opacity = "0"; 
+
+                        // Пытаемся найти свой баннер в базе
                         window.fbGet(window.fbDoc(window.db, "users", user.uid)).then(doc => {
                             if(doc.exists() && doc.data().banner) {
-                                document.getElementById('pBannerPreview').src = doc.data().banner;
-                            } else {
-                                document.getElementById('pBannerPreview').src = ""; // Пусто
+                                bannerImg.src = doc.data().banner;
+                                // 🔥 ФИКС: Если баннер есть, показываем его
+                                bannerImg.style.opacity = "1"; 
                             }
                         });
                     }
@@ -2759,6 +2778,7 @@
                 },
                 
                 listenToUsers() {
+                    // 1. Слушаем список пользователей (как было)
                     const q = window.fbQuery(window.fbCol(window.db, "users"));
                     window.fbSnap(q, (snapshot) => {
                         const users = [];
@@ -2766,25 +2786,49 @@
                         MessengerUI.renderUsers(users);
                     });
                     
-                    // Listen for incoming private messages for notifications/sorting
+                    // 2. 🔥 ДОБАВЛЕНО: Глобальная прослушка сообщений (теперь работает!)
                     if (!window.auth.currentUser) return;
+
                     const qMsg = window.fbQuery(
                          window.fbCol(window.db, "messages_private"),
-                         window.fbWhere("uid", "!=", window.auth.currentUser.uid), // Messages NOT from me
-                         window.fbOrder("uid"), // Required for inequality filter
                          window.fbOrder("createdAt", "desc"),
-                         window.fbLimit(1)
+                         window.fbLimit(50) 
                     );
                     
-                    // Note: This is a simplified listener for the demo to catch "Any" new message
-                    // Ideally, we'd listen to the collection and filter client side or have a 'latest_messages' collection.
-                    // Here we will rely on the generic chatListener to handle active chat updates, 
-                    // and we implement a simple trick: 
-                    // When a user selects a chat, we are fine.
-                    // For background notifications, we would need a Cloud Function or complex queries.
-                    // SIMPLIFICATION FOR THIS SNIPPET:
-                    // We will just let the active chat update. Real background notifications require backend.
-                    // However, we can simulate sorting:
+                    window.fbSnap(qMsg, (snapshot) => {
+                        snapshot.docChanges().forEach((change) => {
+                            if (change.type === "added") {
+                                const data = change.doc.data();
+                                const myUid = window.auth.currentUser.uid;
+
+                                // Проверяем: касается ли сообщение меня?
+                                if (data.chatId && data.chatId.includes(myUid)) {
+                                    
+                                    // Вычисляем, кто собеседник
+                                    let partnerId = data.uid; 
+                                    if (data.uid === myUid) {
+                                        // Если писал я, то собеседник — это "второй" в ID чата
+                                        partnerId = data.chatId.replace(myUid, '').replace('_', '');
+                                    }
+
+                                    // Обновляем интерфейс
+                                    if(window.MessengerUI) {
+                                        // 1. Запоминаем время активности (сортировка чатов вверх)
+                                        const msgTime = data.createdAt ? data.createdAt.toMillis() : Date.now();
+                                        MessengerUI.lastActiveTimes[partnerId] = msgTime;
+                                        
+                                        // 2. Если сообщение от ДРУГОГО и мы НЕ в этом чате -> ставим цифру
+                                        if (data.uid !== myUid && MessengerUI.currentChat !== data.chatId) {
+                                            MessengerUI.handleIncomingMessage(data.uid);
+                                        } else {
+                                            // Иначе просто обновляем список (чтобы чат прыгнул вверх)
+                                            MessengerUI.renderUsers(MessengerUI.usersCache);
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    });
                 },
                 
                 // Внутри window.CloudSystem добавь этот метод:
@@ -2943,7 +2987,13 @@
                 previewBanner(input) {
                     if (input.files && input.files[0]) {
                         const reader = new FileReader();
-                        reader.onload = (e) => document.getElementById('pBannerPreview').src = e.target.result;
+                        reader.onload = (e) => {
+                            const img = document.getElementById('pBannerPreview');
+                            img.src = e.target.result;
+                            
+                            // 🔥 ФИКС: Делаем картинку видимой!
+                            img.style.opacity = '1'; 
+                        };
                         reader.readAsDataURL(input.files[0]);
                     }
                 },
@@ -3045,7 +3095,6 @@
                         const btn = document.createElement('button');
                         btn.id = "btnStartCall";
         
-                        // СТИЛИ КНОПКИ (Контейнер)
                         btn.style = `
                             width: 40px; height: 40px; 
                             border-radius: 50%; border: 2px solid var(--vox-cyan);
@@ -3055,37 +3104,32 @@
                             transition: all 0.3s ease; cursor: pointer; overflow: hidden;
                         `;
 
-                        // СОЗДАЕМ CANVAS
                         const cvs = document.createElement('canvas');
                         cvs.width = 40; 
                         cvs.height = 40;
                         const ctx = cvs.getContext('2d');
 
-                        // ФУНКЦИЯ ОТРИСОВКИ (Кибер-Трубка)
                         const drawIcon = (isActive) => {
-                            ctx.clearRect(0, 0, 40, 40); // Чистим холст
-                            const color = isActive ? '#000000' : '#00f3ff'; // При наведении черный, иначе циан
+                            ctx.clearRect(0, 0, 40, 40); 
+                            const color = isActive ? '#000000' : '#00f3ff';
             
                             ctx.save();
-                            ctx.translate(20, 20); // Центр
-                            ctx.rotate(-45 * Math.PI / 180); // Поворот
-                            ctx.translate(-20, -20); // Возврат
+                            ctx.translate(20, 20); 
+                            ctx.rotate(-45 * Math.PI / 180); 
+                            ctx.translate(-20, -20); 
 
                             ctx.beginPath();
                             ctx.lineWidth = 2.5;
                             ctx.strokeStyle = color;
                             ctx.fillStyle = color;
             
-                            // Рисуем трубку
                             ctx.moveTo(12, 10); ctx.lineTo(28, 10); ctx.lineTo(28, 16); ctx.lineTo(24, 16);
                             ctx.lineTo(24, 24); ctx.lineTo(28, 24);
                             ctx.lineTo(28, 30); ctx.lineTo(12, 30); ctx.lineTo(12, 24); ctx.lineTo(16, 24);
                             ctx.lineTo(16, 16); ctx.lineTo(12, 16);
                             ctx.closePath();
 
-                            if (isActive) {
-                                ctx.fill(); 
-                            } else {
+                            if (isActive) { ctx.fill(); } else {
                                 ctx.stroke(); 
                                 ctx.fillStyle = color;
                                 ctx.fillRect(18, 12, 4, 2); 
@@ -3117,7 +3161,6 @@
         
                         headerMain.appendChild(btn);
                     }
-                    // --- КОНЕЦ ЛОГИКИ КНОПКИ ---
 
                     if(this.chatListener) this.chatListener();
                     
@@ -3156,12 +3199,6 @@
                             return;
                         }
 
-                        snapshot.docChanges().forEach((change) => {
-                            if (change.type === "added") {
-                                const data = change.doc.data();
-                            }
-                        });
-
                         // 🔥 ИСПРАВЛЕННЫЙ ЦИКЛ 🔥
                         snapshot.forEach((doc) => {
                             const data = doc.data();
@@ -3170,11 +3207,26 @@
                             const div = document.createElement('div');
                             div.dataset.id = doc.id;
                             div.className = `msg-wrapper ${isMe ? 'me' : ''}`;
-                            
-                            // 1. Создаем переменные ДО использования
+
+                            // 1. Создаем переменные
                             const avatarUrl = data.avatar || `https://placehold.co/40x40/000000/00f3ff/png?text=${data.name ? data.name[0] : '?'}`;
                             const safeText = data.text ? data.text.replace(/'/g, "&#39;").replace(/"/g, "&quot;") : "";
-                            
+                            const isVip = data.isVip || false; 
+
+                            // VIP Styles
+                            const avatarHtml = isVip
+                                ? `<div class="vip-avatar-container" style="width:35px; height:35px; cursor:pointer;" onclick="MessengerUI.openUserCard('${data.uid}')" title="VIP Citizen">
+                                     <img src="${avatarUrl}">
+                                   </div>`
+                                : `<div class="msg-avatar" onclick="MessengerUI.openUserCard('${data.uid}')" style="cursor:pointer;" title="View Profile">
+                                     <img src="${avatarUrl}">
+                                   </div>`;
+
+                            const nameHtml = isVip 
+                                ? `<span class="vip-username" style="font-size:11px;">${data.name}</span> <span style="font-size:9px;">★</span>`
+                                : `<span class="msg-name">${data.name}</span>`;
+
+                            // Контент
                             let contentHtml = '';
                             if (data.type === 'image') {
                                 contentHtml = `<img src="${data.text}" class="msg-image" onclick="MessengerUI.openImage(this.src)">`;
@@ -3184,16 +3236,11 @@
                             
                             // 2. Вставляем HTML
                             div.innerHTML = `
-                                <div class="msg-avatar" onclick="MessengerUI.openUserCard('${data.uid}')" style="cursor:pointer;" title="View Profile">
-                                    <img src="${avatarUrl}">
-                                </div>
+                                ${avatarHtml}
                                 <div class="msg-content" 
                                      data-context-type="message"
                                      oncontextmenu="VMenu.show(event, 'message', {id: '${doc.id}', text: '${safeText}', uid: '${data.uid}'})">
-                                    <div class="msg-name">
-                                        ${data.name}
-                                        ${data.isVip ? '<span class="vip-badge">VIP</span>' : ''}
-                                        </div>
+                                    <div style="margin-bottom:2px;">${nameHtml}</div>
                                     ${contentHtml} 
                                 </div>
                             `;
@@ -3212,7 +3259,7 @@
                         feed.scrollTop = feed.scrollHeight;
                     });
                 }
-            };
+            },
 
             // Listen for typing input
             document.getElementById('msgInput').addEventListener('input', () => {
@@ -3929,7 +3976,7 @@
                             setTickerText(
                                 "SITE BLOCKING HAS BEEN INTRODUCED",
                                 "KEEP CALM, DO NOT PANIC",
-                                "WE ARE ALREADY WORKING ON THE SITUATIONN"
+                                "WE ARE ALREADY WORKING ON THE SITUATION"
                             );
 
                             const inp = document.getElementById('msgInput');
@@ -3959,55 +4006,6 @@
                     // 1. Запускаем авторизацию (проверку входа)
                     if(window.AuthSystem) AuthSystem.init();
                     if(window.DefconSystem) DefconSystem.init();
-                    
-                    // 2. Запускаем глобальный слушатель сообщений (ИСПРАВЛЕННЫЙ)
-                    if(window.auth.currentUser) {
-                         try {
-                             // 🔥 ИЗМЕНЕНИЕ: Снимаем фильтр по chatId, слушаем ВООБЩЕ ВСЁ
-                             const qAll = window.fbQuery(
-                                 window.fbCol(window.db, "messages_private"),
-                                 window.fbOrder("createdAt", "desc"),
-                                 window.fbLimit(50) 
-                             );
-                             
-                             window.fbSnap(qAll, (snapshot) => {
-                                snapshot.docChanges().forEach((change) => {
-                                    if (change.type === "added") {
-                                        const data = change.doc.data();
-                                        const myUid = window.auth.currentUser.uid;
-
-                                        // Проверяем: касается ли сообщение меня? (я отправил ИЛИ мне отправили)
-                                        if (data.chatId && data.chatId.includes(myUid)) {
-                                            
-                                            // Вычисляем, кто собеседник
-                                            let partnerId = data.uid; 
-                                            if (data.uid === myUid) {
-                                                // Если я писал, то собеседник — это "другая часть" ID чата
-                                                partnerId = data.chatId.replace(myUid, '').replace('_', '');
-                                            }
-
-                                            // Если объект MessengerUI еще не загрузился - ждем
-                                            if(window.MessengerUI) {
-                                                // 1. Запоминаем время активности (чтобы чат прыгнул вверх)
-                                                const msgTime = data.createdAt ? data.createdAt.toMillis() : Date.now();
-                                                MessengerUI.lastActiveTimes[partnerId] = msgTime;
-                                                
-                                                // 2. Если сообщение от ДРУГОГО и мы НЕ в этом чате -> ставим цифру
-                                                if (data.uid !== myUid && MessengerUI.currentChat !== data.chatId) {
-                                                    MessengerUI.handleIncomingMessage(data.uid);
-                                                } else {
-                                                    // Просто обновляем сортировку
-                                                    MessengerUI.renderUsers(MessengerUI.usersCache);
-                                                }
-                                            }
-                                        }
-                                    }
-                                });
-                             });
-                         } catch (e) { 
-                             console.log("Global listener error:", e); 
-                         }
-                    }
                     
                     // 🔥 ПРОВЕРКА РЕФЕРАЛЬНОЙ ССЫЛКИ НА СРОК ГОДНОСТИ 🔥
                     const urlParams = new URLSearchParams(window.location.search);
