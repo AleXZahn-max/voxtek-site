@@ -326,25 +326,35 @@
                         <button class="btn-tech" style="padding:10px 20px;" onclick="AuthSystem.send()">SEND</button>
                     </div>
 
-                    <div id="profileModal" class="profile-modal">
+                    <div id="profileModal" class="profile-modal" onclick="if(event.target === this) MessengerUI.closeProfile()">
                         <div class="p-card">
-                            
-                            <label class="profile-banner-edit">
-                                <img id="pBannerPreview" src="" onerror="this.style.opacity='0'"> <div class="banner-overlay-text">UPLOAD COVER</div>
-                                
-                                <input type="file" id="pBannerFile" accept="image/*" style="display:none;" onchange="CloudSystem.previewBanner(this)">
-                                
-                                <label class="profile-avatar-container" onclick="event.stopPropagation();"> <img id="pAvatarPreview" src="" onerror="this.src='https://placehold.co/100/000/00f3ff?text=?'">
+    
+                            <div class="profile-header-wrapper">
+        
+                                <label class="profile-banner-edit">
+                                    <img id="pBannerPreview" src="" onerror="this.style.opacity='0'"> 
+                                    <div class="banner-overlay-text">UPLOAD COVER</div>
+                                    <input type="file" id="pBannerFile" accept="image/*" style="display:none;" onchange="CloudSystem.previewBanner(this)">
+                                </label>
+
+                                <label class="profile-avatar-container"> 
+                                    <img id="pAvatarPreview" src="" onerror="this.src='https://placehold.co/100/000/00f3ff?text=?'">
                                     <div class="avatar-edit-icon">📷</div>
                                     <input type="file" id="pAvatarFile" accept="image/*" style="display:none;" onchange="CloudSystem.previewAvatar(this)">
                                 </label>
-                            </label>
 
+                            </div>
                             <div class="profile-body">
-                                
                                 <div>
                                     <label class="form-label">CITIZEN NAME</label>
                                     <input type="text" id="pName" class="form-input" style="margin-bottom:0; text-align:center; font-weight:bold; font-size:16px;" placeholder="ENTER NAME">
+                                </div>
+
+                                <div style="margin-top: 10px;">
+                                    <label class="form-label">BIOGRAPHY / STATUS</label>
+                                    <textarea id="pBio" class="form-input" rows="2" maxlength="60" 
+                                              style="resize:none; font-size:11px; margin-bottom:0;" 
+                                              placeholder="NO DATA..."></textarea>
                                 </div>
 
                                 <div class="invite-box" style="margin:0; border:none; padding:0;">
@@ -467,6 +477,8 @@
     </footer>
 
     <div id="callInterface" class="call-overlay">
+            <div id="callTimer">00:00</div>
+
         <div class="call-video-grid">
             <video id="remoteVideo" autoplay playsinline></video>
             
@@ -722,6 +734,8 @@
                     <div id="ucTrust">50%</div>
                 </div>
                 
+                <div id="ucBio" class="uc-bio-display">NO DATA</div>
+
                 <button class="btn-tech" style="width:100%; margin-top:15px; font-size:10px;" onclick="document.getElementById('userCardModal').classList.remove('active')">CLOSE</button>
             </div>
         </div>
