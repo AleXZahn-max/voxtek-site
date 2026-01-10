@@ -2485,6 +2485,9 @@
                     const banEl = document.getElementById('ucBanner');
                     const trustEl = document.getElementById('ucTrust');
                     const vipBadge = document.getElementById('ucVipBadge');
+                    
+                    // 🔥 ВАЖНО: Объявляем переменную здесь!
+                    const bioEl = document.getElementById('ucBio'); 
 
                     // Сброс данных пока грузится
                     modal.classList.add('active');
@@ -2492,6 +2495,12 @@
                     avEl.src = "https://placehold.co/100/000/fff?text=...";
                     banEl.style.display = 'none';
                     vipBadge.style.display = 'none';
+                    
+                    // Скрываем старое био при открытии, чтобы не мелькало
+                    if(bioEl) {
+                        bioEl.style.display = 'none'; 
+                        bioEl.textContent = '';
+                    }
 
                     try {
                         const doc = await window.fbGet(window.fbDoc(window.db, "users", targetUid));
@@ -2518,11 +2527,15 @@
                             } else {
                                 nameEl.style.color = 'white';
                             }
-                            if (data.bio) {
-                                bioEl.textContent = `"${data.bio}"`;
-                                bioEl.style.display = "block";
-                            } else {
-                                bioEl.style.display = "none";
+
+                            // 🔥 ЛОГИКА БИО (Теперь ошибки не будет, так как bioEl объявлен выше)
+                            if (bioEl) {
+                                if (data.bio) {
+                                    bioEl.textContent = `"${data.bio}"`;
+                                    bioEl.style.display = "block";
+                                } else {
+                                    bioEl.style.display = "none";
+                                }
                             }
                         }
                     } catch(e) {
