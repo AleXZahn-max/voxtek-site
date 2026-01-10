@@ -2468,15 +2468,11 @@
                     // Фильтруем себя из списка
                     let sortedUsers = [...users].filter(u => u.uid !== myUid);
                     
-                    // 🔥 СОРТИРОВКА: Сначала по времени активности (последнее сообщение), потом по имени
+                    // Сортировка: по времени активности
                     sortedUsers.sort((a, b) => {
                         const timeA = this.lastActiveTimes[a.uid] || 0;
                         const timeB = this.lastActiveTimes[b.uid] || 0;
-                        
-                        // Если есть разница во времени сообщений - кто свежее, тот выше
                         if (timeB !== timeA) return timeB - timeA;
-                        
-                        // Иначе по алфавиту
                         return a.name.localeCompare(b.name);
                     });
                     
@@ -2490,19 +2486,33 @@
                         const name = user.name || user.email.split('@')[0];
                         const avatarSrc = user.avatar || `https://placehold.co/40x40/000000/00f3ff/png?text=${name[0]}`;
                         
-                        // 🔥 VIP ЛОГИКА: Классы для имени и аватарки
-                        const isVip = user.isVip || false;
-                        
-                        // Если VIP -> оборачиваем аватарку в контейнер с анимацией
-                        const avatarHTML = isVip 
-                            ? `<div class="vip-avatar-container" style="width:40px; height:40px;">
-                                 <img src="${avatarSrc}">
-                                 <div class="vip-crown">👑</div>
-                               </div>`
-                            : `<div class="c-avatar"><img src="${avatarSrc}"></div>`;
+                        // 🔥 ОПРЕДЕЛЯЕМ РОЛЬ ДЛЯ СПИСКА КОНТАКТОВ 🔥
+                        // Приоритет: role (admin/vip) -> isVip (старое поле) -> user
+                        let role = user.role || (user.isVip ? 'vip' : 'user');
 
-                        // Если VIP -> добавляем класс никнейму
-                        const nameClass = isVip ? 'vip-username' : 'c-name';
+                        let avatarHTML = "";
+                        let nameClass = "c-name";
+
+                        // 1. АДМИН (Красный)
+                        if (role === 'admin') {
+                            nameClass = 'admin-username'; // Красный текст (из CSS)
+                            avatarHTML = `<div class="admin-avatar-container" style="width:40px; height:40px;">
+                                            <img src="${avatarSrc}">
+                                            </div>`;
+                        } 
+                        // 2. VIP (Золотой)
+                        else if (role === 'vip') {
+                            nameClass = 'vip-username'; // Золотой текст (из CSS)
+                            avatarHTML = `<div class="vip-avatar-container" style="width:40px; height:40px;">
+                                            <img src="${avatarSrc}">
+                                            <div class="vip-crown">👑</div>
+                                          </div>`;
+                        } 
+                        // 3. ОБЫЧНЫЙ (Белый/Серый)
+                        else {
+                            nameClass = 'c-name';
+                            avatarHTML = `<div class="c-avatar"><img src="${avatarSrc}"></div>`;
+                        }
 
                         // Сборка HTML
                         html += `
