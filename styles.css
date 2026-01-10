@@ -522,8 +522,35 @@ nav a:hover::after, nav a:focus::after { width:100%; }
     gap: 10px;
     box-sizing: border-box; /* Чтобы padding не ломал ширину */
 }
-.ticker-move { display: inline-block; animation: tick 30s infinite linear; will-change: transform; }
-@keyframes tick { 0% { transform: translateX(100vw); } 100% { transform: translateX(-100%); } }
+
+/* Добавляем стиль для новой обертки */
+.ticker-wrapper {
+    flex: 1; /* Занимает всё доступное место между иконками */
+    overflow: hidden; /* Скрывает текст, выходящий за границы */
+    position: relative;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent); /* Красивое затухание по краям (опционально) */
+    -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+}
+
+/* Обновляем стиль движущегося блока */
+.ticker-move { 
+    display: flex; /* Выстраиваем элементы в ряд */
+    width: max-content; /* Ширина равна длине всего текста (двух копий) */
+    animation: tick 20s linear infinite; /* Время круга (регулируйте скорость здесь) */
+    will-change: transform;
+    white-space: nowrap;
+}
+
+/* 🔥 НОВАЯ АНИМАЦИЯ (БЕСШОВНАЯ) */
+/* Мы сдвигаем ленту ровно на 50%, то есть на длину одной копии текста.
+   В этот момент Копия 2 встает ровно на место Копии 1, и анимация сбрасывается в 0 незаметно для глаза. */
+@keyframes tick { 
+    0% { transform: translateX(0); } 
+    100% { transform: translateX(-50%); } 
+}
 
 .ticker-side-icon {
     flex: 0 0 auto; width: 25px; height: 25px; border-radius: 50%; overflow: hidden;
