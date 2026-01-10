@@ -412,9 +412,9 @@ nav a:hover::after, nav a:focus::after { width:100%; }
 .products-grid { display: flex; justify-content: center; gap: 40px; flex-wrap: wrap; padding: 0 20px; }
 .tech-card {
     background: var(--panel-bg); border: 1px solid #333; padding: 40px; width: 350px; max-width: 100%;
-    position: relative; transition: 0.4s; clip-path: polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px);
+    position: relative; transition: border-color 0.3s; clip-path: polygon(20px 0, 100% 0, 100% calc(100% - 20px), calc(100% - 20px) 100%, 0 100%, 0 20px);
 }
-.tech-card:hover { border-color: var(--vox-cyan); transform: translateY(-10px); }
+.tech-card:hover { border-color: var(--vox-cyan); }
 .badge { position: absolute; top: 0; right: 0; background: var(--vox-blue); color: white; padding: 5px 15px; font-size: 10px; font-weight: bold; clip-path: polygon(0 0, 100% 0, 100% 100%, 10px 100%); }
 
 /* Reviews */
