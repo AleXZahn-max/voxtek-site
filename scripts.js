@@ -3678,7 +3678,7 @@
                     const admBtn = document.getElementById('adminToggleBtn');
                     if(admBtn) admBtn.style.display = 'none';
 
-                    CallSystem.monitorNetwork()
+                    CallSystem.monitorNetwork(); // Исправил опечатку (было CallSystem.monitorNetwork() без ;)
                     this.isCaller = true;
                     this.renderControls();
                     document.getElementById('callInterface').classList.add('active');
@@ -3688,7 +3688,7 @@
                     // Показываем заглушку, пока идет дозвон
                     this.updateRemoteAvatar(true, "DIALING...", null, "SEARCHING DATABASE...");
 
-                    // 1. Получаем данные того, КОМУ звоним (чтобы видеть аватарку сразу)
+                    // 1. Получаем данные того, КОМУ звоним
                     try {
                         const targetDoc = await window.fbGet(window.fbDoc(window.db, "users", targetUid));
                         if(targetDoc.exists()) {
@@ -3703,7 +3703,8 @@
                     try {
                         this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                         document.getElementById('localVideo').srcObject = this.localStream;
-                        document.getElementById('localVideo').muted = true;
+                        // document.getElementById('localVideo').muted = true; // Убрал, чтобы ты не глушил сам себя локально (хотя для эха лучше оставить true)
+                        document.getElementById('localVideo').muted = true; // Оставляем true, чтобы не слышать себя
                         document.getElementById('localVideo').style.display = 'block';
                     } catch(e) {
                         voxNotify("CAMERA/MIC ACCESS DENIED", "error");
@@ -3714,21 +3715,24 @@
                     this.peerConnection = new RTCPeerConnection(this.servers);
                     this.localStream.getTracks().forEach(track => this.peerConnection.addTrack(track, this.localStream));
 
+                    // --- 🔥 ВОТ ЭТОГО НЕ ХВАТАЛО! (ОТПРАВКА КАНДИДАТОВ) 🔥 ---
+                    this.peerConnection.onicecandidate = (event) => {
+                        if (event.candidate) {
+                            window.fbAdd(window.fbCol(window.db, `calls/${this.currentCallId}/callerCandidates`), event.candidate.toJSON());
+                        }
+                    };
+                    // -------------------------------------------------------
+
                     this.peerConnection.ontrack = (event) => {
                         const stream = event.streams[0];
                         document.getElementById('remoteVideo').srcObject = stream;
                         
-                        // 🔥 НОВАЯ ЛОГИКА: Проверяем, включено ли видео на самом деле
                         const vidTrack = stream.getVideoTracks()[0];
                         const isVideoActive = vidTrack && vidTrack.enabled && vidTrack.readyState === 'live';
                         
-                        // Если видео нет -> показываем аватарку. Если есть -> прячем.
                         this.updateRemoteAvatar(!isVideoActive);
-                        
-                        // Запускаем визуализатор
                         this.initVisualizer(stream);
 
-                        // Слушаем переключение камеры в реальном времени (без задержек базы данных)
                         if (vidTrack) {
                             vidTrack.onmute = () => this.updateRemoteAvatar(true, null, null, "CAMERA PAUSED");
                             vidTrack.onunmute = () => this.updateRemoteAvatar(false);
@@ -3746,21 +3750,20 @@
                     await window.fbSet(callDoc, {
                         offer: { sdp: offerDescription.sdp, type: offerDescription.type },
                         callerId: window.auth.currentUser.uid,
-                        callerName: myInfo.name,     // ОТПРАВЛЯЕМ ПРАВИЛЬНОЕ ИМЯ
-                        callerAvatar: myInfo.avatar, // И АВАТАР
-                        callerMuted: false,          // Статус камеры
+                        callerName: myInfo.name,
+                        callerAvatar: myInfo.avatar,
+                        callerMuted: false,
                         
                         calleeId: targetUid,
                         createdAt: window.fbTime(),
                         status: 'ringing'
                     });
 
-                    // Слушаем изменения
+                    // Слушаем изменения (Ответ)
                     this.unsubscribeCall = window.fbSnap(callDoc, (snapshot) => {
                         const data = snapshot.data();
                         if (!data) return;
 
-                        // Если ответили
                         if (!this.peerConnection.currentRemoteDescription && data.answer) {
                             this.stopRinging();
                             const answerDescription = new RTCSessionDescription(data.answer);
@@ -3769,13 +3772,11 @@
                             this.makeDraggable();
                             this.startTimer();
                             
-                            // Обновим аватар/имя, если они пришли в ответе
                             if(data.calleeName) {
                                 this.updateRemoteAvatar(false, data.calleeName, data.calleeAvatar);
                             }
                         }
                         
-                        // СЛЕЖКА ЗА КАМЕРОЙ СОБЕСЕДНИКА (Callee)
                         if (data.calleeMuted === true) {
                             this.updateRemoteAvatar(true, null, null, "CAMERA OFF");
                         } else if (data.status === 'connected') {
@@ -3787,6 +3788,7 @@
                         }
                     });
                     
+                    // Слушаем кандидатов от собеседника
                     this.unsubscribeCand = window.fbSnap(window.fbCol(window.db, `calls/${this.currentCallId}/calleeCandidates`), (snapshot) => {
                         snapshot.docChanges().forEach((change) => {
                             if (change.type === 'added') this.peerConnection.addIceCandidate(new RTCIceCandidate(change.doc.data()));
