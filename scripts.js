@@ -3254,14 +3254,14 @@
                         
                         // 1. Загрузка Аватарки (если есть)
                         if (avInput.files.length > 0) {
-                            const snap = await window.fbUpload(window.fbRef(window.storage, `avatars/${user.uid}_${Date.now()}`), avInput.files[0]);
+                            const snap = await window.fbUpload(window.fbRef(window.storage, `avatars/${user.uid}/${Date.now()}`), avInput.files[0]);
                             photoURL = await window.fbUrl(snap.ref);
                         }
 
                         // 2. Загрузка Баннера (если есть)
                         let bannerURL = null;
                         if (banInput.files.length > 0) {
-                            const snap = await window.fbUpload(window.fbRef(window.storage, `banners/${user.uid}_${Date.now()}`), banInput.files[0]);
+                            const snap = await window.fbUpload(window.fbRef(window.storage, `banners/${user.uid}/${Date.now()}`), banInput.files[0]);
                             bannerURL = await window.fbUrl(snap.ref);
                         }
 
