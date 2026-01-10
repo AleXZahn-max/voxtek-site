@@ -3271,7 +3271,7 @@
                 },
                 
                 loadChat(chatId) {
-                    // --- 1. КНОПКА ЗВОНКА (CANVAS VERSION) ---
+                    // --- 1. КНОПКА ЗВОНКА ---
                     const headerMain = document.querySelector('.chat-header'); 
                     const existingBtn = document.getElementById('btnStartCall');
                     if(existingBtn) existingBtn.remove();
@@ -3297,28 +3297,16 @@
                         const drawIcon = (isActive) => {
                             ctx.clearRect(0, 0, 40, 40); 
                             const color = isActive ? '#000000' : '#00f3ff';
-            
                             ctx.save();
-                            ctx.translate(20, 20); 
-                            ctx.rotate(-45 * Math.PI / 180); 
-                            ctx.translate(-20, -20); 
-
-                            ctx.beginPath();
-                            ctx.lineWidth = 2.5;
-                            ctx.strokeStyle = color;
-                            ctx.fillStyle = color;
-            
+                            ctx.translate(20, 20); ctx.rotate(-45 * Math.PI / 180); ctx.translate(-20, -20); 
+                            ctx.beginPath(); ctx.lineWidth = 2.5; ctx.strokeStyle = color; ctx.fillStyle = color;
                             ctx.moveTo(12, 10); ctx.lineTo(28, 10); ctx.lineTo(28, 16); ctx.lineTo(24, 16);
                             ctx.lineTo(24, 24); ctx.lineTo(28, 24);
                             ctx.lineTo(28, 30); ctx.lineTo(12, 30); ctx.lineTo(12, 24); ctx.lineTo(16, 24);
-                            ctx.lineTo(16, 16); ctx.lineTo(12, 16);
-                            ctx.closePath();
-
+                            ctx.lineTo(16, 16); ctx.lineTo(12, 16); ctx.closePath();
                             if (isActive) { ctx.fill(); } else {
-                                ctx.stroke(); 
-                                ctx.fillStyle = color;
-                                ctx.fillRect(18, 12, 4, 2); 
-                                ctx.fillRect(18, 26, 4, 2); 
+                                ctx.stroke(); ctx.fillStyle = color;
+                                ctx.fillRect(18, 12, 4, 2); ctx.fillRect(18, 26, 4, 2); 
                             }
                             ctx.restore();
                         };
@@ -3338,12 +3326,10 @@
                             btn.style.transform = "scale(1)";
                             drawIcon(false);
                         };
-
                         btn.onclick = () => {
                             const targetUid = chatId.replace(window.auth.currentUser.uid, '').replace('_', '');
                             CallSystem.initCall(targetUid);
                         };
-        
                         headerMain.appendChild(btn);
                     }
 
@@ -3356,16 +3342,9 @@
                     let q;
                     
                     if (chatId === 'global') {
-                         q = window.fbQuery(
-                            window.fbCol(window.db, colName), 
-                            window.fbOrder("createdAt", "asc")
-                        );
+                         q = window.fbQuery(window.fbCol(window.db, colName), window.fbOrder("createdAt", "asc"));
                     } else {
-                        q = window.fbQuery(
-                            window.fbCol(window.db, colName), 
-                            window.fbWhere("chatId", "==", chatId),
-                            window.fbOrder("createdAt", "asc")
-                        );
+                        q = window.fbQuery(window.fbCol(window.db, colName), window.fbWhere("chatId", "==", chatId), window.fbOrder("createdAt", "asc"));
                     }
                     
                     this.chatListener = window.fbSnap(q, (snapshot) => {
@@ -3374,106 +3353,112 @@
                         if (snapshot.empty) {
                             feed.innerHTML = `
                                 <div class="empty-chat-state">
-                                    <div class="empty-icon-box">
-                                        <div class="empty-icon">❌</div>
-                                    </div>
+                                    <div class="empty-icon-box"><div class="empty-icon">❌</div></div>
                                     <div class="empty-title">NO SIGNAL DETECTED</div>
                                     <div class="empty-sub">This channel is silent. Send encrypted data to begin transmission.</div>
-                                </div>
-                            `;
+                                </div>`;
                             return;
                         }
 
                         snapshot.forEach((doc) => {
-                            const data = doc.data();
-                            const isMe = data.uid === window.auth.currentUser.uid;
+                            const msgData = doc.data();
+                            const isMe = msgData.uid === window.auth.currentUser.uid;
                             
+                            // 🔥 LIVE UPDATE LOGIC: Ищем актуальные данные пользователя в кэше
+                            let currentUser = null;
+                            if (window.MessengerUI && window.MessengerUI.usersCache) {
+                                currentUser = window.MessengerUI.usersCache.find(u => u.uid === msgData.uid);
+                            }
+
+                            // Если нашли пользователя в базе, берем СВЕЖИЕ данные. Если нет — берем старые из сообщения.
+                            const finalAvatar = currentUser ? (currentUser.avatar || "favicon.ico") : (msgData.avatar || `https://placehold.co/40x40/000000/00f3ff/png?text=${msgData.name ? msgData.name[0] : '?'}`);
+                            const finalName = currentUser ? (currentUser.name || "Unknown") : (msgData.name || "Unknown");
+                            
+                            // Приоритет ролей: Admin -> VIP -> User
+                            let finalRole = 'user';
+                            if (currentUser) {
+                                finalRole = currentUser.role || (currentUser.isVip ? 'vip' : 'user');
+                            } else {
+                                finalRole = msgData.role || (msgData.isVip ? 'vip' : 'user');
+                            }
+
+                            const finalVerified = currentUser ? (currentUser.isVerified || false) : (msgData.isVerified || false);
+
+                            // --- СБОРКА HTML ---
                             const div = document.createElement('div');
                             div.dataset.id = doc.id;
                             div.className = `msg-wrapper ${isMe ? 'me' : ''}`;
 
-                            // 1. Создаем переменные
-                            const avatarUrl = data.avatar || `https://placehold.co/40x40/000000/00f3ff/png?text=${data.name ? data.name[0] : '?'}`;
-                            const safeText = data.text ? data.text.replace(/'/g, "&#39;").replace(/"/g, "&quot;") : "";
+                            const safeText = msgData.text ? msgData.text.replace(/'/g, "&#39;").replace(/"/g, "&quot;") : "";
                             
-                            // Определяем Роль и Галочку
-                            let role = data.role || (data.isVip ? 'vip' : 'user');
-                            let isVerified = data.isVerified || false;
-
-                            // 2. Таймстамп
+                            // Таймстамп
                             let timeStr = "";
-                            if (data.createdAt) {
-                                const date = data.createdAt.toMillis ? new Date(data.createdAt.toMillis()) : new Date();
+                            if (msgData.createdAt) {
+                                const date = msgData.createdAt.toMillis ? new Date(msgData.createdAt.toMillis()) : new Date();
                                 timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                             } else {
                                 timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                             }
 
-                            // 3. Сборка Имени и Значков (ТУТ ИЗМЕНЕНИЯ ДЛЯ VIP)
+                            // Имя и Значки
                             let nameClass = "msg-name";
                             let badgesHtml = "";
 
-                            if (role === 'admin') {
+                            if (finalRole === 'admin') {
                                 nameClass = "admin-username"; 
                                 badgesHtml += `<span class="admin-badge" title="SYSTEM OVERLORD">ADMIN</span>`;
-                            } else if (role === 'vip') {
+                            } else if (finalRole === 'vip') {
                                 nameClass = "vip-username"; 
-                                // 🔥 БЫЛО: Звездочка
-                                // 🔥 СТАЛО: Значок VIP (как у админа)
                                 badgesHtml += `<span class="vip-badge" title="Very Important Person">VIP</span>`;
                             }
 
-                            if (isVerified) {
+                            if (finalVerified) {
                                 badgesHtml += `<span class="verified-badge" title="Verified Source">✔</span>`;
                             }
 
-                            const nameHtml = `<span class="${nameClass}" style="font-size:11px;">${data.name}</span> ${badgesHtml} <span style="font-size:9px; color:#555; margin-left:5px;">${timeStr}</span>`;
+                            const nameHtml = `<span class="${nameClass}" style="font-size:11px;">${finalName}</span> ${badgesHtml} <span style="font-size:9px; color:#555; margin-left:5px;">${timeStr}</span>`;
 
-                            // 4. Сборка Аватарки
+                            // Аватарка
                             let avatarHtml = "";
-                            if (role === 'admin' || role === 'vip') {
-                                avatarHtml = `<div class="vip-avatar-container" style="width:35px; height:35px; cursor:pointer;" onclick="MessengerUI.openUserCard('${data.uid}')" title="${role.toUpperCase()} Citizen">
-                                                <img src="${avatarUrl}">
+                            if (finalRole === 'admin' || finalRole === 'vip') {
+                                avatarHtml = `<div class="vip-avatar-container" style="width:35px; height:35px; cursor:pointer;" onclick="MessengerUI.openUserCard('${msgData.uid}')" title="${finalRole.toUpperCase()} Citizen">
+                                                <img src="${finalAvatar}">
                                               </div>`;
                             } else {
-                                avatarHtml = `<div class="msg-avatar" onclick="MessengerUI.openUserCard('${data.uid}')" style="cursor:pointer;" title="View Profile">
-                                                <img src="${avatarUrl}">
+                                avatarHtml = `<div class="msg-avatar" onclick="MessengerUI.openUserCard('${msgData.uid}')" style="cursor:pointer;" title="View Profile">
+                                                <img src="${finalAvatar}">
                                               </div>`;
                             }
 
-                            // --- 🛡️ БЕЗОПАСНОЕ СОЗДАНИЕ КОНТЕНТА ---
+                            // Контент (Защищенный)
                             let msgElement;
-
-                            if (data.type === 'image') {
+                            if (msgData.type === 'image') {
                                 msgElement = document.createElement('img');
-                                msgElement.src = data.text; 
+                                msgElement.src = msgData.text; 
                                 msgElement.className = 'msg-image';
-                                msgElement.onclick = () => MessengerUI.openImage(data.text);
+                                msgElement.onclick = () => MessengerUI.openImage(msgData.text);
                             } else {
                                 msgElement = document.createElement('div');
                                 msgElement.className = 'msg-bubble';
-                                msgElement.textContent = data.text; 
+                                msgElement.textContent = msgData.text; 
                             }
                             
-                            // 5. Собираем HTML каркас
                             div.innerHTML = `
                                 ${avatarHtml}
                                 <div class="msg-content" 
                                      data-context-type="message"
-                                     oncontextmenu="VMenu.show(event, 'message', {id: '${doc.id}', text: '${safeText}', uid: '${data.uid}'})">
+                                     oncontextmenu="VMenu.show(event, 'message', {id: '${doc.id}', text: '${safeText}', uid: '${msgData.uid}'})">
                                     <div style="margin-bottom:2px;">${nameHtml}</div>
-                                    </div>
+                                </div>
                             `;
                             
-                            // 6. Вручную вставляем безопасный контент
                             div.querySelector('.msg-content').appendChild(msgElement);
-                            
                             feed.appendChild(div);
 
-                            if (!isMe && data.type !== 'image') {
+                            if (!isMe && msgData.type !== 'image') {
                                 if(msgElement) {
                                     const scrambler = new ScrambleText(msgElement);
-                                    scrambler.setText(data.text);
+                                    scrambler.setText(msgData.text);
                                 }
                             }
                         });
