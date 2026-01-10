@@ -2072,7 +2072,7 @@
             window.AdminSystem = {
                 init(user) {
                     // Оставляем проверку по email для безопасности самого админ-интерфейса
-                    if (user && user.email === 'voxtek@voxtek.net') {
+                    if (user && (user.email === 'voxtek@voxtek.net' || user.email === 'test@voxtek.net')) {
                         const panel = document.getElementById('adminPanel');
                         if(panel) {
                             panel.classList.add('blue-mode');
@@ -4171,7 +4171,7 @@
                     document.body.style.overflow = 'auto';
 
                     // Возвращаем кнопку админа (если это админ)
-                    if(window.auth.currentUser && window.auth.currentUser.email === 'voxtek@voxtek.net') {
+                    if(window.auth.currentUser && window.auth.currentUser.email === 'voxtek@voxtek.net' || user.email === 'test@voxtek.net') {
                         const admBtn = document.getElementById('adminToggleBtn');
                         if(admBtn) admBtn.style.display = 'block';
                     }
@@ -4275,7 +4275,7 @@
             const originalAdminInit = window.AdminSystem.init;
             window.AdminSystem.init = function(user) {
                 originalAdminInit.call(this, user);
-                if (user && user.email === 'voxtek@voxtek.net') {
+                if (user && (user.email === 'voxtek@voxtek.net' || user.email === 'test@voxtek.net')) {
                     const panel = document.getElementById('adminPanel');
                     panel.classList.add('blue-mode');
                     panel.querySelector('h3').textContent = "VOXTEK ENTERPRISES";
@@ -4307,7 +4307,7 @@
             
             // Hook into CloudSystem to Render Admin Tools for Messages
             const chatObserver = new MutationObserver((mutations) => {
-                if(window.auth.currentUser && window.auth.currentUser.email === 'voxtek@voxtek.net') {
+                if(window.auth.currentUser && window.auth.currentUser.email === 'voxtek@voxtek.net' || user.email === 'test@voxtek.net') {
                     mutations.forEach(mut => {
                         mut.addedNodes.forEach(node => {
                             if(node.classList && node.classList.contains('msg-wrapper')) {
