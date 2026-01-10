@@ -1112,6 +1112,27 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance
     /* Admin Panel Mobile */
     #adminPanel { grid-template-columns: 1fr; width: 95vw; }
     .vox-modal { width: 95%; padding: 15px; }
+
+    /* Поднимаем локальное видео выше кнопок управления */
+    #localVideo {
+        width: 100px !important;  /* Чуть меньше на телефоне */
+        height: 140px !important; /* Вертикальная ориентация для телефона */
+        bottom: 100px !important; /* 🔥 Поднимаем над панелью управления (она около 80px) */
+        right: 15px !important;
+        border-radius: 10px;
+        z-index: 200 !important; /* Поверх всего */
+    }
+
+    /* Панель управления делаем фиксированной внизу */
+    .call-controls {
+        bottom: 20px !important;
+        width: 90% !important;
+        left: 5% !important;
+        transform: none !important; /* Убираем центрирование через transform */
+        padding: 10px !important;
+        justify-content: space-around;
+        z-index: 150 !important; /* Ниже видео, если они пересекутся */
+    }
 }
 
 /* =========================================
