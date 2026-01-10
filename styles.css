@@ -1560,3 +1560,33 @@ body.defcon-lockdown .modal-overlay .vox-modal {
 
 .verify-btn { font-size:9px; padding:2px 5px; border:1px solid #333; background:black; color:#444; cursor:pointer; }
 .verify-btn.active { border-color:var(--vox-cyan); color:var(--vox-cyan); background:rgba(0,243,255,0.1); }
+
+/* --- СТИЛЬ АВАТАРКИ АДМИНА (КРАСНАЯ УГРОЗА) --- */
+.admin-avatar-container {
+    position: relative;
+    display: inline-block;
+    padding: 3px;
+    border-radius: 50%;
+    /* Красный градиент: Алый -> Темно-красный -> Бордовый */
+    background: linear-gradient(45deg, #ff0000, #ff4444, #8a0000, #ff0000);
+    background-size: 300% 300%;
+    animation: adminBorderPulse 2s infinite linear;
+    box-shadow: 0 0 15px rgba(255, 0, 0, 0.6);
+}
+
+.admin-avatar-container img {
+    border-radius: 50%;
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    position: relative;
+    z-index: 2;
+}
+
+/* Вращение красной рамки */
+@keyframes adminBorderPulse {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
