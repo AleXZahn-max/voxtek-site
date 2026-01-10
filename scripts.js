@@ -2978,28 +2978,40 @@
                     });
                 },
                 
-                // 🔥 НОВАЯ ФУНКЦИЯ: Помечаем сообщения как прочитанные
+                // 🔥 ИСПРАВЛЕННАЯ ФУНКЦИЯ: Помечаем прочитанным без сложных индексов
                 async markAsRead(chatId) {
                     const user = window.auth.currentUser;
                     if (!user || chatId === 'global') return;
 
-                    // Ищем сообщения в этом чате, которые НЕ от меня и НЕ прочитаны
+                    // 1. Запрашиваем последние сообщения чата (без фильтра isRead, чтобы не ломать индексы)
                     const q = window.fbQuery(
                         window.fbCol(window.db, "messages_private"),
                         window.fbWhere("chatId", "==", chatId),
-                        window.fbWhere("isRead", "==", false)
+                        window.fbOrder("createdAt", "desc"), // Берем самые новые
+                        window.fbLimit(20) // Проверяем последние 20, этого обычно достаточно
                     );
 
-                    const snapshot = await window.fbGetDocs(q);
-                    
-                    // Обновляем каждое сообщение (batch update было бы лучше, но так проще)
-                    snapshot.forEach(doc => {
-                        const data = doc.data();
-                        // Важно: помечаем прочитанными только чужие сообщения
-                        if (data.uid !== user.uid) {
-                            window.fbSet(doc.ref, { isRead: true }, { merge: true });
+                    try {
+                        const snapshot = await window.fbGetDocs(q);
+                        
+                        // 2. Фильтруем и обновляем вручную
+                        const updates = [];
+                        snapshot.forEach(doc => {
+                            const data = doc.data();
+                            // Если сообщение ЧУЖОЕ и НЕ ПРОЧИТАНО -> обновляем
+                            if (data.uid !== user.uid && data.isRead === false) {
+                                updates.push(window.fbSet(doc.ref, { isRead: true }, { merge: true }));
+                            }
+                        });
+
+                        // Ждем завершения всех обновлений
+                        if(updates.length > 0) {
+                            await Promise.all(updates);
+                            console.log(`[VOX] Marked ${updates.length} messages as read.`);
                         }
-                    });
+                    } catch(e) {
+                        console.error("MarkAsRead Error:", e);
+                    }
                 },
 
                 // Внутри window.CloudSystem добавь этот метод:
