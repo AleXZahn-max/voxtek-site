@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="VoxTek Enterprises - The future of secure technology.">
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     <title>VoxTek Enterprises | Submission is Safety</title>
@@ -117,11 +117,11 @@
         <div class="music-controls">
             <div class="range-wrap">
                 <span>VOL</span>
-                <input type="range" id="volumeControl" min="0" max="1" step="0.01" value="0.2">
+                <input type="range" id="volumeControl" aria-label="Music Volume" min="0" max="1" step="0.01" value="0.2">
             </div>
             <div class="range-wrap">
                 <span>SEEK</span>
-                <input type="range" id="seekControl" min="0" max="100" value="0">
+                <input type="range" id="seekControl" aria-label="Track Seek" min="0" max="100" value="0">
             </div>
             <div style="display:flex; justify-content:space-between; font-family:var(--font-code); font-size:10px;">
                 <span id="currentTime">00:00</span>
@@ -670,12 +670,12 @@
     <div id="idCardContainer" style="position: fixed; top: -9999px; left: -9999px;">
         <div id="idCardTemplate" class="id-card-wrapper">
             <div class="id-header">
-                <img src="vox-eye.gif" class="id-logo" onerror="this.src='favicon.ico'"> 
+                <img src="vox-eye.gif" class="id-logo" alt="VoxTek Logo" onerror="this.src='favicon.ico'"> 
                 <span>VOXTEK CITIZEN PASS</span>
             </div>
             <div class="id-body">
                 <div class="id-photo-box">
-                    <img id="idCardAvatar" src="" crossorigin="anonymous">
+                    <img id="idCardAvatar" src="" alt="Citizen Avatar" crossorigin="anonymous">
                     <div class="id-overlay"></div>
                 </div>
                 <div class="id-info">
