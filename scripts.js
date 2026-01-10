@@ -2037,12 +2037,15 @@
 // --- UPDATED: ADMIN SYSTEM (WITH BAN HAMMER) ---
             window.AdminSystem = {
                 init(user) {
+                    // Оставляем проверку по email для безопасности самого админ-интерфейса
                     if (user && user.email === 'voxtek@voxtek.net') {
-                        document.getElementById('adminToggleBtn').style.display = 'block';
+                        const panel = document.getElementById('adminPanel');
+                        if(panel) {
+                            panel.classList.add('blue-mode');
+                            document.getElementById('adminToggleBtn').style.display = 'block';
+                        }
                         voxNotify('ADMIN CLEARANCE GRANTED. WELCOME, VOX.', 'error');
                         this.loadUsers();
-                    } else {
-                        document.getElementById('adminToggleBtn').style.display = 'none';
                     }
                 },
                 
@@ -2150,12 +2153,11 @@
                     } catch(e) { voxNotify("ERROR: " + e.message, "error"); }
                 },
 
-                // --- НОВЫЙ ФУНКЦИОНАЛ: СПИСОК И БАН ---
+                // 1. ЗАГРУЗКА СПИСКА ПОЛЬЗОВАТЕЛЕЙ (С НОВЫМИ КНОПКАМИ)
                 loadUsers() {
                     const list = document.getElementById('adminUserList');
                     list.innerHTML = '<div style="padding:10px;text-align:center;color:#666">SCANNING DATABASE...</div>';
                     
-                    // Запрашиваем всех пользователей
                     const q = window.fbQuery(window.fbCol(window.db, "users"), window.fbOrder("lastSeen", "desc"));
                     
                     window.fbSnap(q, (snapshot) => {
@@ -2165,11 +2167,17 @@
                             const div = document.createElement('div');
                             div.className = 'admin-row';
                             
-                            // Если забанен — показываем кнопку АМНИСТИИ (Зеленая/Голубая)
-                            // Кнопка VIP (Золотая если уже VIP, серая если нет)
-                            const isVip = u.isVip || false;
-                            const vipBtn = `<button class="ban-btn" style="background:${isVip ? '#ffd700' : '#333'}; color:${isVip ? 'black' : '#888'};" 
-                                            onclick="AdminSystem.toggleVip('${u.uid}', ${!isVip})">VIP</button>`;
+                            // Определяем текущую роль
+                            // Поддержка старых аккаунтов: если нет role, но есть isVip -> считаем VIP
+                            let role = u.role || (u.isVip ? 'vip' : 'user');
+                            let isVerified = u.isVerified || false;
+
+                            // Кнопка Роли (Циклическая: User -> VIP -> Admin -> User)
+                            let roleColor = role === 'admin' ? 'var(--alert-red)' : (role === 'vip' ? '#ffd700' : '#666');
+                            let roleText = role.toUpperCase();
+                            
+                            // Кнопка Галочки
+                            let verifyStyle = isVerified ? 'color:var(--vox-cyan); border-color:var(--vox-cyan);' : 'color:#444; border-color:#333;';
 
                             const banStatus = u.isBanned 
                                 ? `<button class="ban-btn" style="background:var(--vox-cyan); color:black;" onclick="AdminSystem.unbanUser('${u.uid}')">AMNESTY</button>` 
@@ -2177,17 +2185,60 @@
                             
                             div.innerHTML = `
                                 <div style="display:flex;flex-direction:column;">
-                                    <span style="color:white;font-weight:bold;">${u.name} ${isVip ? '<span style="color:#ffd700">★</span>' : ''}</span>
+                                    <span style="color:white;font-weight:bold;">
+                                        ${u.name} 
+                                        ${role === 'vip' ? '<span style="color:#ffd700">★</span>' : ''}
+                                        ${role === 'admin' ? '<span style="color:red">☢</span>' : ''}
+                                        ${isVerified ? '<span style="color:#00f3ff">✔</span>' : ''}
+                                    </span>
                                     <span style="font-size:9px;">${u.email}</span>
                                 </div>
-                                <div style="display:flex; gap:5px;">
-                                    ${vipBtn}
+                                <div style="display:flex; gap:5px; align-items:center;">
+                                    
+                                    <button class="role-btn" style="color:${roleColor}; border-color:${roleColor}" 
+                                            onclick="AdminSystem.cycleRole('${u.uid}', '${role}')">
+                                        ${roleText}
+                                    </button>
+
+                                    <button class="verify-btn" style="${verifyStyle}" 
+                                            onclick="AdminSystem.toggleVerified('${u.uid}', ${!isVerified})">
+                                        ✔
+                                    </button>
+
                                     ${banStatus}
                                 </div>
                             `;
                             list.appendChild(div);
                         });
                     });
+                },
+
+                // 2. СМЕНА РОЛИ (User -> VIP -> Admin)
+                async cycleRole(uid, currentRole) {
+                    let newRole = 'user';
+                    if (currentRole === 'user') newRole = 'vip';
+                    else if (currentRole === 'vip') newRole = 'admin';
+                    else if (currentRole === 'admin') newRole = 'user';
+
+                    try {
+                        // isVip оставляем для совместимости, но основным делаем role
+                        await window.fbSet(window.fbDoc(window.db, "users", uid), { 
+                            role: newRole,
+                            isVip: (newRole === 'vip' || newRole === 'admin') // Админ тоже технически VIP
+                        }, { merge: true });
+                        
+                        voxNotify(`ROLE UPDATED: ${newRole.toUpperCase()}`, "success");
+                    } catch(e) { voxNotify("ERROR: " + e.message, "error"); }
+                },
+
+                // 3. СМЕНА ГАЛОЧКИ
+                async toggleVerified(uid, newState) {
+                    try {
+                        await window.fbSet(window.fbDoc(window.db, "users", uid), { 
+                            isVerified: newState 
+                        }, { merge: true });
+                        voxNotify(`VERIFIED STATUS: ${newState}`, "info");
+                    } catch(e) { voxNotify("ERROR: " + e.message, "error"); }
                 },
 
                 monitorCalls() {
@@ -2494,9 +2545,17 @@
                     nameEl.textContent = "Loading...";
                     avEl.src = "https://placehold.co/100/000/fff?text=...";
                     banEl.style.display = 'none';
-                    vipBadge.style.display = 'none';
                     
-                    // Скрываем старое био при открытии, чтобы не мелькало
+                    // Сбрасываем стили имени (чтобы цвет не остался от прошлого юзера)
+                    nameEl.style.color = 'white';
+                    
+                    // Скрываем бейдж по умолчанию
+                    vipBadge.style.display = 'none';
+                    vipBadge.textContent = '';
+                    vipBadge.style.background = '';
+                    vipBadge.style.boxShadow = '';
+                    
+                    // Скрываем старое био при открытии
                     if(bioEl) {
                         bioEl.style.display = 'none'; 
                         bioEl.textContent = '';
@@ -2506,6 +2565,9 @@
                         const doc = await window.fbGet(window.fbDoc(window.db, "users", targetUid));
                         if(doc.exists()) {
                             const data = doc.data();
+                            
+                            // Определяем роль (поддержка старых аккаунтов)
+                            const role = data.role || (data.isVip ? 'vip' : 'user');
                             
                             nameEl.textContent = data.name || "Unknown";
                             uidEl.textContent = "ID: " + targetUid.substr(0, 8);
@@ -2520,15 +2582,33 @@
                                 banEl.style.display = 'none';
                             }
 
-                            // VIP
-                            if(data.isVip) {
+                            // --- 🔥 ЛОГИКА РОЛЕЙ (ADMIN / VIP) ---
+                            if (role === 'admin') {
                                 vipBadge.style.display = 'inline-flex';
-                                nameEl.style.color = '#ffd700'; // Золотое имя
-                            } else {
-                                nameEl.style.color = 'white';
+                                vipBadge.style.background = 'var(--alert-red)';
+                                vipBadge.style.color = 'black';
+                                vipBadge.style.boxShadow = '0 0 10px var(--alert-red)';
+                                vipBadge.textContent = 'ADMIN';
+                                nameEl.style.color = 'var(--alert-red)'; // Имя тоже красное
+                            } 
+                            else if (role === 'vip') {
+                                vipBadge.style.display = 'inline-flex';
+                                vipBadge.style.background = 'linear-gradient(45deg, #ffd700, #ffaa00)';
+                                vipBadge.style.color = 'black';
+                                vipBadge.textContent = 'VIP';
+                                nameEl.style.color = '#ffd700'; // Имя золотое
+                            } 
+                            else {
+                                nameEl.style.color = 'white'; // Обычный юзер
                             }
 
-                            // 🔥 ЛОГИКА БИО (Теперь ошибки не будет, так как bioEl объявлен выше)
+                            // --- 🔥 ГАЛОЧКА (VERIFIED) ---
+                            if (data.isVerified) {
+                                // Добавляем галочку прямо в HTML имени (безопаснее через += innerHTML)
+                                nameEl.innerHTML += ` <span style="color:var(--vox-cyan); margin-left:5px; font-size:14px; text-shadow:0 0 5px var(--vox-cyan);" title="Verified Source">✔</span>`;
+                            }
+
+                            // --- ЛОГИКА БИО ---
                             if (bioEl) {
                                 if (data.bio) {
                                     bioEl.textContent = `"${data.bio}"`;
@@ -2938,8 +3018,12 @@
                     
                     // 🔥 ИСПРАВЛЕНИЕ ЗДЕСЬ: Сначала читаем данные пользователя из базы
                     window.fbGet(window.fbDoc(window.db, "users", user.uid)).then(doc => {
-                        const userData = doc.data() || {}; // <-- Теперь переменная userData существует!
+                        const userData = doc.data() || {}; 
                         
+                        // Определяем роль (поддержка старого isVip)
+                        const role = userData.role || (userData.isVip ? 'vip' : 'user');
+                        const isVerified = userData.isVerified || false;
+
                         let chatId = MessengerUI.currentChat;
                         let colName = chatId === 'global' ? "messages_global" : "messages_private";
                         
@@ -2949,7 +3033,13 @@
                             uid: user.uid,
                             name: user.displayName || user.email.split('@')[0],
                             avatar: user.photoURL,
-                            isVip: userData.isVip || false, // <-- Теперь это сработает, так как userData определена
+                            
+                            // 🔥 НОВЫЕ ПОЛЯ
+                            role: role, 
+                            isVerified: isVerified,
+                            // isVip оставляем для совместимости со старыми сообщениями
+                            isVip: (role === 'vip' || role === 'admin'), 
+
                             chatId: chatId,
                             createdAt: window.fbTime()
                         };
@@ -3241,7 +3331,7 @@
                             return;
                         }
 
-                        // 🔥 ИСПРАВЛЕННЫЙ ЦИКЛ 🔥
+                        // 🔥 ОБНОВЛЕННЫЙ ЦИКЛ С НОВЫМИ РОЛЯМИ 🔥
                         snapshot.forEach((doc) => {
                             const data = doc.data();
                             const isMe = data.uid === window.auth.currentUser.uid;
@@ -3253,33 +3343,59 @@
                             // 1. Создаем переменные
                             const avatarUrl = data.avatar || `https://placehold.co/40x40/000000/00f3ff/png?text=${data.name ? data.name[0] : '?'}`;
                             const safeText = data.text ? data.text.replace(/'/g, "&#39;").replace(/"/g, "&quot;") : "";
-                            const isVip = data.isVip || false; 
+                            
+                            // 🔥 Определяем Роль и Галочку
+                            // Поддержка старых сообщений (если нет role, но есть isVip)
+                            let role = data.role || (data.isVip ? 'vip' : 'user');
+                            let isVerified = data.isVerified || false;
 
-                            // 🔥 TIME LOGIC: Форматируем время 🔥
+                            // 2. Таймстамп (Время)
                             let timeStr = "";
                             if (data.createdAt) {
-                                // Берем время из базы или текущее, если еще не записалось
                                 const date = data.createdAt.toMillis ? new Date(data.createdAt.toMillis()) : new Date();
                                 timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                             } else {
                                 timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                             }
 
-                            // VIP Styles
-                            const avatarHtml = isVip
-                                ? `<div class="vip-avatar-container" style="width:35px; height:35px; cursor:pointer;" onclick="MessengerUI.openUserCard('${data.uid}')" title="VIP Citizen">
-                                     <img src="${avatarUrl}">
-                                   </div>`
-                                : `<div class="msg-avatar" onclick="MessengerUI.openUserCard('${data.uid}')" style="cursor:pointer;" title="View Profile">
-                                     <img src="${avatarUrl}">
-                                   </div>`;
+                            // 3. Сборка Имени и Значков
+                            let nameClass = "msg-name";
+                            let badgesHtml = "";
 
-                            // 🔥 Вставляем время рядом с именем 🔥
-                            const nameHtml = isVip 
-                                ? `<span class="vip-username" style="font-size:11px;">${data.name}</span> <span style="font-size:9px;">★</span> <span style="font-size:9px; color:#555; margin-left:5px;">${timeStr}</span>`
-                                : `<span class="msg-name">${data.name}</span> <span style="font-size:9px; color:#555; margin-left:5px;">${timeStr}</span>`;
+                            // Логика Ролей
+                            if (role === 'admin') {
+                                nameClass = "admin-username"; // Красное имя
+                                badgesHtml += `<span class="admin-badge" title="SYSTEM OVERLORD">ADMIN</span>`;
+                            } else if (role === 'vip') {
+                                nameClass = "vip-username"; // Золотое имя
+                                badgesHtml += `<span style="font-size:9px; margin-left:3px;">★</span>`;
+                            }
 
-                            // Контент
+                            // Логика Галочки (Добавляется к любому статусу)
+                            if (isVerified) {
+                                badgesHtml += `<span class="verified-badge" title="Verified Source">✔</span>`;
+                            }
+
+                            // Финальный HTML имени
+                            const nameHtml = `<span class="${nameClass}" style="font-size:11px;">${data.name}</span> ${badgesHtml} <span style="font-size:9px; color:#555; margin-left:5px;">${timeStr}</span>`;
+
+                            // 4. Сборка Аватарки (Разные стили контейнеров)
+                            let avatarHtml = "";
+                            
+                            // Если Админ или VIP — используем крутой контейнер
+                            if (role === 'admin' || role === 'vip') {
+                                // Для админа можно добавить доп. класс в будущем, пока используем vip-style
+                                avatarHtml = `<div class="vip-avatar-container" style="width:35px; height:35px; cursor:pointer;" onclick="MessengerUI.openUserCard('${data.uid}')" title="${role.toUpperCase()} Citizen">
+                                                <img src="${avatarUrl}">
+                                              </div>`;
+                            } else {
+                                // Обычный юзер
+                                avatarHtml = `<div class="msg-avatar" onclick="MessengerUI.openUserCard('${data.uid}')" style="cursor:pointer;" title="View Profile">
+                                                <img src="${avatarUrl}">
+                                              </div>`;
+                            }
+
+                            // 5. Контент (Текст или Картинка)
                             let contentHtml = '';
                             if (data.type === 'image') {
                                 contentHtml = `<img src="${data.text}" class="msg-image" onclick="MessengerUI.openImage(this.src)">`;
@@ -3287,7 +3403,7 @@
                                 contentHtml = `<div class="msg-bubble">${data.text}</div>`; 
                             }
                             
-                            // 2. Вставляем HTML
+                            // 6. Финальная сборка сообщения
                             div.innerHTML = `
                                 ${avatarHtml}
                                 <div class="msg-content" 
@@ -3300,6 +3416,7 @@
                             
                             feed.appendChild(div);
 
+                            // Эффект расшифровки текста для чужих сообщений
                             if (!isMe && data.type !== 'image') {
                                 const bubble = div.querySelector('.msg-bubble');
                                 if(bubble) {
