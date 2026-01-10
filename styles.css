@@ -25,6 +25,16 @@ html { scroll-behavior: smooth; }
         transition-duration: 0.01ms !important; 
         scroll-behavior: auto !important; 
     }
+    .crt-overlay,
+    .vignette,
+    .hypno-spiral,
+    .glitch-bar {
+        display: none !important;
+    }
+
+    body {
+        background-image: none;
+    }
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font-tech); }
@@ -67,8 +77,12 @@ body.theme-radio {
     --vox-blue: #330000;
     --bg-color: #1a0000;
     filter: contrast(1.5) sepia(1) hue-rotate(-50deg) saturate(3);
-    animation: worldShake 0.1s infinite;
+    animation: none;
     overflow: hidden !important;
+}
+
+body.theme-radio.alert {
+    animation: worldShake 0.1s infinite;
 }
 
 /* Частицы курсора (0 и 1) для theme-radio */
@@ -1610,4 +1624,46 @@ body.defcon-lockdown .modal-overlay .vox-modal {
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
+}
+
+body.low-effects * {
+    animation: none !important;
+    transition: none !important;
+}
+body.low-effects .crt-overlay,
+body.low-effects .vignette,
+body.low-effects .hypno-spiral {
+    display: none !important;
+}
+
+.glitch-text,
+.tech-card:hover,
+.btn-tech:hover {
+    will-change: transform;
+}
+
+@media (max-width: 480px) {
+    .id-card-wrapper {
+        width: 90vw;
+        height: auto;
+        flex-direction: column;
+        align-items: center;
+        padding: 20px;
+    }
+    .id-body {
+        flex-direction: column;
+        align-items: center;
+    }
+    .id-photo-box {
+        margin-bottom: 20px;
+    }
+    .id-info {
+        align-items: center;
+    }
+}
+
+.glitch-text,
+.btn-tech:hover,
+.tech-card:hover {
+    will-change: transform;
 }
