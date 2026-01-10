@@ -166,8 +166,16 @@
             // --- 1. SOUND ENGINE (SFX) ---
             const SoundFX = {
                 ctx: new (window.AudioContext || window.webkitAudioContext)(),
+                
                 playTone(freq, type, duration) {
-                    if (this.ctx.state === 'suspended') this.ctx.resume();
+                    // 🔥 ФИКС: Если контекст спит — будим его!
+                    if (this.ctx.state === 'suspended') {
+                        this.ctx.resume().catch(err => console.log("Audio resume failed:", err));
+                    }
+
+                    // Если всё равно не проснулся (нет жеста), выходим, чтобы не было ошибки
+                    if (this.ctx.state !== 'running') return;
+
                     const osc = this.ctx.createOscillator();
                     const gain = this.ctx.createGain();
                     osc.type = type;
@@ -179,6 +187,7 @@
                     osc.start();
                     osc.stop(this.ctx.currentTime + duration);
                 },
+                // ... (остальные методы hover, click и т.д. без изменений)
                 hover() { this.playTone(400, 'sine', 0.1); },
                 click() { this.playTone(800, 'square', 0.1); },
                 error() { this.playTone(150, 'sawtooth', 0.3); },
@@ -2509,6 +2518,12 @@
                             } else {
                                 nameEl.style.color = 'white';
                             }
+                            if (data.bio) {
+                                bioEl.textContent = `"${data.bio}"`;
+                                bioEl.style.display = "block";
+                            } else {
+                                bioEl.style.display = "none";
+                            }
                         }
                     } catch(e) {
                         console.error(e);
@@ -2516,25 +2531,37 @@
                     }
                 },
                 
-                // В функции openProfile() нужно добавить подгрузку текущего баннера для предпросмотра
                 openProfile() {
+                    // 🔥 ФИКС ДЛЯ МОБИЛЬНЫХ: Сворачиваем сайдбар контактов при открытии профиля
+                    document.getElementById('chatSidebar').classList.remove('open');
+
+                    // Открываем модальное окно
                     document.getElementById('profileModal').classList.add('active');
+                    
                     const user = window.auth.currentUser;
                     if(user) {
                         document.getElementById('pName').value = user.displayName || '';
                         document.getElementById('pAvatarPreview').src = user.photoURL || "favicon.ico";
                         
-                        // Сбрасываем превью баннера (прячем), пока грузим реальный
+                        // Сбрасываем превью
                         const bannerImg = document.getElementById('pBannerPreview');
                         bannerImg.src = ""; 
                         bannerImg.style.opacity = "0"; 
 
-                        // Пытаемся найти свой баннер в базе
+                        // Загружаем данные из базы (Баннер + Био)
                         window.fbGet(window.fbDoc(window.db, "users", user.uid)).then(doc => {
-                            if(doc.exists() && doc.data().banner) {
-                                bannerImg.src = doc.data().banner;
-                                // 🔥 ФИКС: Если баннер есть, показываем его
-                                bannerImg.style.opacity = "1"; 
+                            if(doc.exists()) {
+                                const data = doc.data();
+                                
+                                // Баннер
+                                if(data.banner) {
+                                    bannerImg.src = data.banner;
+                                    bannerImg.style.opacity = "1"; 
+                                }
+
+                                // Био (если мы его добавили в прошлом шаге)
+                                const bioField = document.getElementById('pBio');
+                                if(bioField) bioField.value = data.bio || "";
                             }
                         });
                     }
@@ -3003,6 +3030,7 @@
                     const name = document.getElementById('pName').value.trim();
                     const avInput = document.getElementById('pAvatarFile');
                     const banInput = document.getElementById('pBannerFile'); // Новый инпут
+                    const bio = document.getElementById('pBio').value.trim(); // 🔥 Читаем био
                     
                     const user = window.auth.currentUser;
                     if(!user) return;
@@ -3029,8 +3057,9 @@
                         await window.fbUpdateProfile(user, { displayName: name, photoURL: photoURL });
 
                         // 4. Обновление БД
-                        const updateData = { name: name, avatar: photoURL };
-                        if(bannerURL) updateData.banner = bannerURL; // Сохраняем баннер, если он обновился
+                        const updateData = { name: name, avatar: photoURL, bio: bio }; // 🔥 Добавили bio: bio
+                
+                        if(bannerURL) updateData.banner = bannerURL;
 
                         await window.fbSet(window.fbDoc(window.db, "users", user.uid), updateData, { merge: true });
 
@@ -3213,6 +3242,16 @@
                             const safeText = data.text ? data.text.replace(/'/g, "&#39;").replace(/"/g, "&quot;") : "";
                             const isVip = data.isVip || false; 
 
+                            // 🔥 TIME LOGIC: Форматируем время 🔥
+                            let timeStr = "";
+                            if (data.createdAt) {
+                                // Берем время из базы или текущее, если еще не записалось
+                                const date = data.createdAt.toMillis ? new Date(data.createdAt.toMillis()) : new Date();
+                                timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            } else {
+                                timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            }
+
                             // VIP Styles
                             const avatarHtml = isVip
                                 ? `<div class="vip-avatar-container" style="width:35px; height:35px; cursor:pointer;" onclick="MessengerUI.openUserCard('${data.uid}')" title="VIP Citizen">
@@ -3222,9 +3261,10 @@
                                      <img src="${avatarUrl}">
                                    </div>`;
 
+                            // 🔥 Вставляем время рядом с именем 🔥
                             const nameHtml = isVip 
-                                ? `<span class="vip-username" style="font-size:11px;">${data.name}</span> <span style="font-size:9px;">★</span>`
-                                : `<span class="msg-name">${data.name}</span>`;
+                                ? `<span class="vip-username" style="font-size:11px;">${data.name}</span> <span style="font-size:9px;">★</span> <span style="font-size:9px; color:#555; margin-left:5px;">${timeStr}</span>`
+                                : `<span class="msg-name">${data.name}</span> <span style="font-size:9px; color:#555; margin-left:5px;">${timeStr}</span>`;
 
                             // Контент
                             let contentHtml = '';
@@ -3258,7 +3298,7 @@
 
                         feed.scrollTop = feed.scrollHeight;
                     });
-                }
+                },
             },
 
             // Listen for typing input
@@ -3342,6 +3382,11 @@
                 unsubscribeCand: null,
                 unsubscribeGlobal: null,
                 isCaller: false, // Флаг: я звоню или мне звонят?
+                callStartTime: null,
+                timerInterval: null,
+                audioCtx: null,
+                analyser: null,
+                visFrame: null,
                 
                 servers: {
                     iceServers: [
@@ -3481,14 +3526,23 @@
                     this.localStream.getTracks().forEach(track => this.peerConnection.addTrack(track, this.localStream));
 
                     this.peerConnection.ontrack = (event) => {
-                        document.getElementById('remoteVideo').srcObject = event.streams[0];
-                        // Видео пошло? Скрываем аватарку, если камера не выключена удаленно
-                         this.updateRemoteAvatar(false);
-                    };
+                        const stream = event.streams[0];
+                        document.getElementById('remoteVideo').srcObject = stream;
+                        
+                        // 🔥 НОВАЯ ЛОГИКА: Проверяем, включено ли видео на самом деле
+                        const vidTrack = stream.getVideoTracks()[0];
+                        const isVideoActive = vidTrack && vidTrack.enabled && vidTrack.readyState === 'live';
+                        
+                        // Если видео нет -> показываем аватарку. Если есть -> прячем.
+                        this.updateRemoteAvatar(!isVideoActive);
+                        
+                        // Запускаем визуализатор
+                        this.initVisualizer(stream);
 
-                    this.peerConnection.onicecandidate = (event) => {
-                        if (event.candidate && this.currentCallId) {
-                            window.fbAdd(window.fbCol(window.db, `calls/${this.currentCallId}/callerCandidates`), event.candidate.toJSON());
+                        // Слушаем переключение камеры в реальном времени (без задержек базы данных)
+                        if (vidTrack) {
+                            vidTrack.onmute = () => this.updateRemoteAvatar(true, null, null, "CAMERA PAUSED");
+                            vidTrack.onunmute = () => this.updateRemoteAvatar(false);
                         }
                     };
 
@@ -3523,6 +3577,8 @@
                             const answerDescription = new RTCSessionDescription(data.answer);
                             this.peerConnection.setRemoteDescription(answerDescription);
                             document.getElementById('callStatusText').textContent = "CONNECTED. SIGNAL SECURE.";
+                            this.makeDraggable();
+                            this.startTimer();
                             
                             // Обновим аватар/имя, если они пришли в ответе
                             if(data.calleeName) {
@@ -3603,6 +3659,7 @@
                     this.stopRinging();
                     document.getElementById('incomingCallModal').classList.remove('active');
                     document.getElementById('callInterface').classList.add('active');
+                    this.makeDraggable();
                     this.renderControls();
                     
                     const callId = this.currentCallId;
@@ -3628,6 +3685,8 @@
                     this.peerConnection.ontrack = (event) => {
                          document.getElementById('remoteVideo').srcObject = event.streams[0];
                          this.updateRemoteAvatar(false);
+
+                         this.initVisualizer(event.streams[0]);
                     };
                     this.peerConnection.onicecandidate = (event) => {
                         if (event.candidate) window.fbAdd(window.fbCol(window.db, `calls/${callId}/calleeCandidates`), event.candidate.toJSON());
@@ -3698,30 +3757,240 @@
                     voxNotify("TRANSMISSION TERMINATED", "info");
                 },
 
-                cleanup() {
+                // --- 1. ЛОГИКА ТАЙМЕРА ---
+                startTimer() {
+                    this.stopTimer(); // Сброс
+                    this.callStartTime = Date.now();
+                    const el = document.getElementById('callTimer');
+                    el.style.display = 'block';
+                    el.textContent = "00:00";
+                    
+                    this.timerInterval = setInterval(() => {
+                        const now = Date.now();
+                        const diff = Math.floor((now - this.callStartTime) / 1000);
+                        const m = Math.floor(diff / 60);
+                        const s = diff % 60;
+                        el.textContent = `${m < 10 ? '0'+m : m}:${s < 10 ? '0'+s : s}`;
+                    }, 1000);
+                },
 
-                    // 🔥 UNLOCK: ВОЗВРАЩАЕМ СКРОЛЛ
+                stopTimer() {
+                    if (this.timerInterval) clearInterval(this.timerInterval);
+                    document.getElementById('callTimer').style.display = 'none';
+                },
+
+                // --- 2. ЛОГИКА ДРАГ-Н-ДРОП (ПЛАВНАЯ С ГРАНИЦАМИ) ---
+                makeDraggable() {
+                    const el = document.getElementById('localVideo');
+                    if (!el) return;
+
+                    // Если уже инициализировали, не дублируем логику
+                    if (el.dataset.dragInit === "true") return; 
+                    el.dataset.dragInit = "true";
+
+                    // Настройки физики
+                    const smoothFactor = 0.15; // 0.1 = очень плавно (сильное отставание), 0.3 = быстро
+                    
+                    // Переменные состояния
+                    let isDown = false;
+                    let mouseX = 0, mouseY = 0;   // Где курсор сейчас
+                    let dragOffsetX = 0, dragOffsetY = 0; // Смещение хвата
+                    
+                    // Координаты элемента (Текущие и Целевые)
+                    // Сначала берем текущую позицию CSS
+                    const rect = el.getBoundingClientRect();
+                    let currentX = rect.left;
+                    let currentY = rect.top;
+                    let targetX = rect.left;
+                    let targetY = rect.top;
+
+                    // Устанавливаем стили для абсолютного позиционирования
+                    el.style.bottom = 'auto'; 
+                    el.style.right = 'auto';
+                    el.style.left = currentX + 'px';
+                    el.style.top = currentY + 'px';
+                    el.style.willChange = "left, top"; // Оптимизация для браузера
+
+                    const onMouseDown = (e) => {
+                        isDown = true;
+                        el.style.cursor = 'grabbing';
+                        
+                        const r = el.getBoundingClientRect();
+                        dragOffsetX = e.clientX - r.left;
+                        dragOffsetY = e.clientY - r.top;
+                        
+                        // Обновляем цель сразу, чтобы не было скачка
+                        targetX = r.left;
+                        targetY = r.top;
+                    };
+
+                    const onMouseMove = (e) => {
+                        if (!isDown) return;
+                        e.preventDefault();
+                        // Мы просто обновляем ЦЕЛЬ, куда окно "хочет" полететь
+                        targetX = e.clientX - dragOffsetX;
+                        targetY = e.clientY - dragOffsetY;
+                    };
+
+                    const onMouseUp = () => {
+                        isDown = false;
+                        el.style.cursor = 'grab';
+                    };
+
+                    // ГЛАВНЫЙ ЦИКЛ АНИМАЦИИ (PHYSICS LOOP)
+                    const animate = () => {
+                        if (!document.getElementById('callInterface').classList.contains('active')) {
+                            // Если звонок кончился, останавливаем цикл, чтобы не грузить CPU
+                            requestAnimationFrame(animate); 
+                            return; 
+                        }
+
+                        // 1. Ограничение границами экрана (Boundaries)
+                        const winW = window.innerWidth;
+                        const winH = window.innerHeight;
+                        const elW = el.offsetWidth;
+                        const elH = el.offsetHeight;
+
+                        // Не даем целевой точке выйти за пределы
+                        // Math.max(0, ...) - не левее/выше 0
+                        // Math.min(..., win - el) - не правее/ниже края экрана
+                        let boundedTargetX = Math.max(10, Math.min(targetX, winW - elW - 10)); // 10px отступа
+                        let boundedTargetY = Math.max(10, Math.min(targetY, winH - elH - 10));
+
+                        // 2. Интерполяция (Плавное движение)
+                        // Формула: Текущее = Текущее + (Цель - Текущее) * Скорость
+                        currentX += (boundedTargetX - currentX) * smoothFactor;
+                        currentY += (boundedTargetY - currentY) * smoothFactor;
+
+                        // 3. Применение стилей
+                        // Округляем до сотых для плавности, но без субпиксельного мыла
+                        el.style.left = currentX.toFixed(2) + 'px';
+                        el.style.top = currentY.toFixed(2) + 'px';
+
+                        requestAnimationFrame(animate);
+                    };
+
+                    // Вешаем слушатели
+                    el.addEventListener('mousedown', onMouseDown);
+                    window.addEventListener('mousemove', onMouseMove);
+                    window.addEventListener('mouseup', onMouseUp);
+                    
+                    // Запускаем физику
+                    animate();
+                },
+
+                // --- 3. АУДИО ВИЗУАЛИЗАТОР (PULSE EFFECT) ---
+                initVisualizer(stream) {
+                    // Проверяем, есть ли аудио дорожка
+                    if(!stream.getAudioTracks().length) return;
+
+                    // Создаем контекст (если нет)
+                    if (!this.audioCtx) {
+                        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+                    
+                    // 🔥 ФИКС: Оживляем аудио-движок, если он "уснул" (политика автовоспроизведения)
+                    if (this.audioCtx.state === 'suspended') {
+                        this.audioCtx.resume();
+                    }
+
+                    // Чтобы не создавать дублирующиеся подключения
+                    if (this.analyser) return; 
+
+                    try {
+                        const source = this.audioCtx.createMediaStreamSource(stream);
+                        this.analyser = this.audioCtx.createAnalyser();
+                        this.analyser.fftSize = 64; 
+                        this.analyser.smoothingTimeConstant = 0.5; // Чтобы пульсация была плавнее
+                        source.connect(this.analyser);
+                    } catch(e) {
+                        console.log("Visualizer connect error:", e);
+                        return;
+                    }
+
+                    const dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+                    const avatar = document.getElementById('remoteAvatar');
+
+                    const loop = () => {
+                        // Если звонок закончился или аватарка спрятана — не тратим ресурсы
+                        if(!this.analyser || !document.getElementById('callInterface').classList.contains('active')) return;
+                        
+                        this.analyser.getByteFrequencyData(dataArray);
+                        
+                        let sum = 0;
+                        for(let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+                        const average = sum / dataArray.length;
+
+                        // Эффект пульсации
+                        if (average > 5) { // Чуть снизил порог чувствительности
+                            const scale = 1 + (average / 400); // Было 500, сделал чуть заметнее
+                            const glow = Math.floor(average / 3);
+                            
+                            avatar.style.transform = `scale(${scale})`;
+                            avatar.style.boxShadow = `0 0 ${glow}px var(--vox-cyan)`;
+                            avatar.style.borderColor = "#fff";
+                        } else {
+                            avatar.style.transform = `scale(1)`;
+                            avatar.style.boxShadow = `0 0 30px rgba(0, 243, 255, 0.2)`;
+                            avatar.style.borderColor = "var(--vox-cyan)";
+                        }
+
+                        this.visFrame = requestAnimationFrame(loop);
+                    };
+                    loop();
+                },
+
+                cleanup() {
+                    // --- 1. ВОССТАНОВЛЕНИЕ ИНТЕРФЕЙСА ---
+                    // Разблокируем скролл страницы
                     document.body.style.overflow = 'auto';
 
-                    // 🔥 ВОЗВРАЩАЕМ КНОПКУ (ТОЛЬКО ЕСЛИ ТЫ АДМИН)
+                    // Возвращаем кнопку админа (если это админ)
                     if(window.auth.currentUser && window.auth.currentUser.email === 'voxtek@voxtek.net') {
                         const admBtn = document.getElementById('adminToggleBtn');
                         if(admBtn) admBtn.style.display = 'block';
                     }
 
+                    // --- 2. ОСТАНОВКА НОВЫХ ФУНКЦИЙ ---
+                    // Выключаем таймер
+                    this.stopTimer();
+
+                    // Выключаем визуализатор голоса (чтобы не грузил процессор)
+                    if(this.visFrame) cancelAnimationFrame(this.visFrame);
+                    
+                    if(this.audioCtx) {
+                        // Закрываем аудио-контекст, если он был открыт
+                        try { this.audioCtx.close(); } catch(e) {}
+                        this.audioCtx = null;
+                    }
+                    this.analyser = null;
+
+                    // Сбрасываем стиль аватарки (чтобы не осталась "раздутой")
+                    const av = document.getElementById('remoteAvatar');
+                    if(av) { 
+                        av.style.transform = 'scale(1)'; 
+                        av.style.boxShadow = ''; 
+                        av.style.borderColor = ''; 
+                    }
+
+                    // --- 3. СТАНДАРТНАЯ ОЧИСТКА ЗВОНКА ---
                     this.stopRinging();
+
                     if (this.localStream) {
                         this.localStream.getTracks().forEach(track => track.stop());
                         this.localStream = null;
                     }
+
                     if (this.peerConnection) {
                         this.peerConnection.close();
                         this.peerConnection = null;
                     }
+
                     if (this.unsubscribeCall) this.unsubscribeCall();
                     if (this.unsubscribeCand) this.unsubscribeCand();
                     this.currentCallId = null;
                     
+                    // --- 4. СБРОС UI ---
                     document.getElementById('callInterface').classList.remove('active');
                     document.getElementById('incomingCallModal').classList.remove('active');
                     document.getElementById('remoteVideo').srcObject = null;
@@ -4005,7 +4274,7 @@
                     // 🔥 ФИКС: ПРИНУДИТЕЛЬНО ЗАКРЫВАЕМ ПАНЕЛЬ ПРИ СТАРТЕ
                     const p = document.getElementById('adminPanel');
                     if(p) p.style.display = 'none';
-                    
+
                     // 1. Запускаем авторизацию (проверку входа)
                     if(window.AuthSystem) AuthSystem.init();
                     if(window.DefconSystem) DefconSystem.init();
@@ -4182,40 +4451,47 @@
             // Запуск после загрузки страницы
             window.addEventListener('load', runBootSequence);
 
-            // --- HOLOGRAPHIC TILT EFFECT ---
+            // --- HOLOGRAPHIC TILT EFFECT (OPTIMIZED) ---
             document.querySelectorAll('.tech-card, .review-item, .cctv-cam').forEach(card => {
-                card.addEventListener('mousemove', function(e) {
-                    const rect = this.getBoundingClientRect();
-                    // Вычисляем координаты мыши внутри карточки
-                    const x = e.clientX - rect.left;
-                    const y = e.clientY - rect.top;
-                    
-                    // Вычисляем центр
-                    const centerX = rect.width / 2;
-                    const centerY = rect.height / 2;
-                    
-                    // Угол поворота (делим на 10 или 20, чтобы не было слишком резко)
-                    const rotateX = (centerY - y) / 10; 
-                    const rotateY = (x - centerX) / 10;
+                let isAnimating = false; // Флаг, чтобы не перегружать процессор
 
-                    // Применяем 3D трансформацию
-                    this.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
-                    
-                    // Добавляем красивый блик
-                    this.style.background = `
-                        radial-gradient(
-                            circle at ${x}px ${y}px, 
-                            rgba(0, 243, 255, 0.1) 0%, 
-                            rgba(5, 8, 12, 0.95) 80%
-                        )
-                    `;
-                    this.style.borderColor = "var(--vox-cyan)";
+                card.addEventListener('mousemove', function(e) {
+                    if (!isAnimating) {
+                        window.requestAnimationFrame(() => {
+                            const rect = this.getBoundingClientRect();
+                            const x = e.clientX - rect.left;
+                            const y = e.clientY - rect.top;
+                            
+                            const centerX = rect.width / 2;
+                            const centerY = rect.height / 2;
+                            
+                            // Чуть увеличил делитель (20), чтобы эффект был плавнее и не таким резким
+                            const rotateX = (centerY - y) / 20; 
+                            const rotateY = (x - centerX) / 20;
+
+                            this.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
+                            
+                            // Градиент (самая тяжелая часть)
+                            this.style.background = `
+                                radial-gradient(
+                                    circle at ${x}px ${y}px, 
+                                    rgba(0, 243, 255, 0.1) 0%, 
+                                    rgba(5, 8, 12, 0.95) 80%
+                                )
+                            `;
+                            this.style.borderColor = "var(--vox-cyan)";
+                            
+                            isAnimating = false;
+                        });
+                        isAnimating = true;
+                    }
                 });
 
                 // Сброс при уходе мыши
                 card.addEventListener('mouseleave', function() {
+                    // Сбрасываем стиль мгновенно
                     this.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) scale(1)';
-                    this.style.background = 'var(--panel-bg)'; // Возвращаем родной фон
+                    this.style.background = 'var(--panel-bg)'; 
                     this.style.borderColor = '#333';
                 });
             });
@@ -4340,6 +4616,31 @@
                     SoundFX.playTone(800, 'sine', 0.2);
                 }
             };
+
+            // --- AUDIO UNLOCKER (ANTI-AUTOPLAY POLICY) ---
+            const unlockAudio = () => {
+                // 1. Будим SoundFX
+                if (window.SoundFX && window.SoundFX.ctx && window.SoundFX.ctx.state === 'suspended') {
+                    window.SoundFX.ctx.resume().then(() => {
+                        console.log("SoundFX Context Resumed");
+                    });
+                }
+
+                // 2. Будим MusicSystem (если есть)
+                if (window.MusicSystem && window.MusicSystem.audioCtx && window.MusicSystem.audioCtx.state === 'suspended') {
+                    window.MusicSystem.audioCtx.resume();
+                }
+
+                // Убираем слушатели после первого срабатывания (одного раза достаточно)
+                document.removeEventListener('click', unlockAudio);
+                document.removeEventListener('keydown', unlockAudio);
+                document.removeEventListener('touchstart', unlockAudio);
+            };
+
+            // Слушаем любые первые взаимодействия
+            document.addEventListener('click', unlockAudio);
+            document.addEventListener('keydown', unlockAudio);
+            document.addEventListener('touchstart', unlockAudio);
 
             // Запускаем
             setTimeout(initMiniMatrix, 500);
