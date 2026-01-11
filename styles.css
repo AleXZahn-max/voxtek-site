@@ -806,12 +806,6 @@ footer { text-align: center; padding: 60px 20px; color: #888; font-size: 11px; b
     pointer-events: auto;
 }
 
-/* 2. Показываем, если просто навели мышку на видео (на всякий случай) */
-.video-wrapper:hover .custom-video-controls {
-    opacity: 1;
-    pointer-events: auto;
-}
-
 /* 3. Когда пауза — панель видна всегда */
 .video-wrapper.paused .custom-video-controls {
     opacity: 1;
@@ -822,7 +816,6 @@ footer { text-align: center; padding: 60px 20px; color: #888; font-size: 11px; b
 /* 1. Для ПК: показываем при наведении (сохраняя центрирование!) */
 @media (hover: hover) {
     .video-wrapper:hover .custom-video-controls {
-        opacity: 1;
         pointer-events: auto;
         transform: translateX(-50%); /* <--- ВАЖНО: Держим центр */
     }
