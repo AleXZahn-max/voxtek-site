@@ -13,6 +13,8 @@
     --font-tech: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     --font-code: 'Courier New', monospace;
     --scan-line-color: rgba(0, 243, 255, 0.03);
+    --grid-glow: 0px; /* Будем менять это через JS */
+    --grid-opacity: 0.03;
 }
 
 html { scroll-behavior: smooth; }
@@ -42,20 +44,25 @@ html { scroll-behavior: smooth; }
 button, a, input, .sq, .tech-card, .logo-container, input[type="range"] { cursor: pointer; }
 input[type="text"] { cursor: text; }
 
-body { 
-    background-color: var(--bg-color); 
-    color: var(--text-main); 
-    overflow-x: hidden; width: 100vw; min-height: 100vh;
+body {
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    font-family: var(--font-tech);
+    margin: 0;
+    overflow-x: hidden;
+    
+    /* Обновленный фон с динамической сеткой */
     background-image: 
         linear-gradient(var(--scan-line-color) 1px, transparent 1px),
         linear-gradient(90deg, var(--scan-line-color) 1px, transparent 1px);
-    background-size: 30px 30px;
-    scrollbar-width: thin;
-    scrollbar-color: var(--vox-cyan) #000;
-    transition: all 0.5s ease;
-    -webkit-user-select: none; user-select: none;
-    position: relative;
-    overscroll-behavior-y: none;
+    background-size: 50px 50px;
+    background-attachment: fixed;
+
+    /* 🔥 ВОТ ЭТА МАГИЯ: */
+    /* Фильтр будет использовать значение --grid-glow, которое прилетает из JS */
+    filter: drop-shadow(0 0 var(--grid-glow) var(--vox-cyan));
+    
+    transition: background-color 0.3s ease, background-size 0.1s ease;
 }
 
 /* =========================================

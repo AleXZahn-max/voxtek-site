@@ -444,111 +444,76 @@
 
                 draw() {
                     if (!this.canvas || this.animationId) return;
-
                     const ctx = this.canvas.getContext('2d');
-                    const root = document.documentElement; // Для управления CSS переменными
+                    const root = document.documentElement;
 
-                    // === 1. Обработка ресайза (чтобы канвас не мылился) ===
-                    const resize = () => {
-                        this.canvas.width = this.canvas.clientWidth;
-                        this.canvas.height = this.canvas.clientHeight;
-                    };
-                    resize(); // Вызываем один раз при старте
+                    let bufferLength = this.analyser ? this.analyser.frequencyBinCount : 32;
+                    let dataArray = new Uint8Array(bufferLength);
 
-                    if (!this._resizeBound) {
-                        window.addEventListener('resize', resize);
-                        this._resizeBound = true;
-                    }
-
-                    let lastFrame = 0;
-                    const FPS_LIMIT = 30; // Ограничиваем 30 FPS для стиля "ретро" и экономии CPU
-                    const FRAME_TIME = 1000 / FPS_LIMIT;
-
-                    let bufferLength = 32;
-                    let dataArray = null;
-
-                    // Если AudioContext активен, настраиваем буфер
-                    if (!this.useSimulation && this.analyser) {
-                        bufferLength = this.analyser.frequencyBinCount; // Обычно 32, так как fftSize = 64
-                        dataArray = new Uint8Array(bufferLength);
-                    }
-
-                    // === ГЛАВНЫЙ ЦИКЛ ОТРИСОВКИ ===
-                    const render = (ts) => {
-                        // Если вкладка скрыта или музыка на паузе — останавливаем рендер для экономии
-                        if (document.hidden || this.audio.paused) {
+                    const render = () => {
+                        if (this.audio.paused) {
                             this.animationId = null;
-                            // Сбрасываем яркость сетки в дефолт при паузе
                             root.style.setProperty('--scan-line-color', 'rgba(0, 243, 255, 0.03)');
+                            root.style.setProperty('--grid-glow', '0px');
                             return;
                         }
 
-                        // Контроль FPS
-                        if (ts - lastFrame < FRAME_TIME) {
-                            this.animationId = requestAnimationFrame(render);
-                            return;
-                        }
-                        lastFrame = ts;
+                        this.animationId = requestAnimationFrame(render);
+                        this.analyser.getByteFrequencyData(dataArray);
 
+                        // --- ВИЗУАЛИЗАТОР (Канвас в плеере) ---
                         const w = this.canvas.width;
                         const h = this.canvas.height;
-
-                        // Очистка канваса (полупрозрачный след для плавности)
-                        ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; // Хвосты у столбиков
                         ctx.fillRect(0, 0, w, h);
 
-                        // Получаем данные о частотах
-                        if (!this.useSimulation && dataArray) {
-                            this.analyser.getByteFrequencyData(dataArray);
-                        }
-
-                        // --- ЛОГИКА 1: ВИЗУАЛИЗАТОР В ПЛЕЕРЕ (Столбики) ---
-                        const barWidth = (w / bufferLength) * 1.5;
+                        let sum = 0;
+                        const barWidth = (w / bufferLength) * 2.5;
                         let x = 0;
-                        let sum = 0; // Сумма громкости для расчета средней энергии
 
                         for (let i = 0; i < bufferLength; i++) {
-                            // Данные: либо реальные, либо симуляция (random)
-                            const value = dataArray ? dataArray[i] : (Math.random() * 50) + 50;
-                            
-                            // Собираем общую громкость
-                            sum += value;
+                            const val = dataArray[i];
+                            sum += val;
 
-                            // Рисуем столбик
-                            const barHeight = Math.max(2, (value / 255) * h); // Нормализация высоты
-
-                            // Цвет столбика (Vox Cyan с градиентом)
-                            ctx.fillStyle = `rgb(0, ${Math.min(255, value + 100)}, 255)`;
-                            ctx.fillRect(x, h - barHeight, barWidth, barHeight);
-
-                            x += barWidth + 2;
+                            const barHeight = (val / 255) * h;
+                            // Градиент столбиков
+                            ctx.fillStyle = `hsl(${180 + val/4}, 100%, 50%)`;
+                            ctx.fillRect(x, h - barHeight, barWidth - 1, barHeight);
+                            x += barWidth;
                         }
 
-                        // --- ЛОГИКА 2: РЕАКТИВНАЯ СЕТКА (AUDIO REACTIVE GRID) ---
+                        // --- 🔥 УЛУЧШЕННЫЙ AUDIO REACTIVE GRID 🔥 ---
+                        const average = sum / bufferLength;
                         
-                        // Вычисляем среднюю громкость (энергию трека)
-                        const average = sum / bufferLength; // 0..255
-
-                        // Рассчитываем прозрачность (Alpha) для сетки
-                        // База 0.03 (чтобы сетку было видно всегда) + Энергия басов
-                        // Делим на 600, чтобы не слепило, а мягко пульсировало
-                        const intensity = 0.03 + (average / 600); 
+                        // "Чувствительность": возводим в степень, чтобы слабые звуки не влияли, 
+                        // а сильные (басы) давали мощный эффект.
+                        const boost = Math.pow(average / 180, 2) * 5; 
                         
-                        // Применяем к CSS переменной (это меняет фон body)
-                        root.style.setProperty('--scan-line-color', `rgba(0, 243, 255, ${intensity})`);
+                        // 1. Яркость линий (от 0.03 до 0.4)
+                        const opacity = Math.min(0.4, 0.03 + (average / 500));
+                        
+                        // 2. Свечение (Glow) - создает эффект неонового тумана
+                        const glow = Math.min(15, (average / 20)); 
 
-                        // (Бонус) Пульсация логотипа
-                        const logo = document.querySelector('.vox-logo-svg');
-                        if(logo) {
-                            const scale = 1 + (average / 1500); // Очень легкое увеличение
-                            logo.style.transform = `scale(${scale})`;
+                        // 3. Динамический масштаб (Сетка чуть "дергается" на басах)
+                        const gridSize = 50 + (average / 50);
+
+                        // Применяем эффекты к документу
+                        root.style.setProperty('--scan-line-color', `rgba(0, 243, 255, ${opacity})`);
+                        root.style.setProperty('--grid-glow', `${glow}px`);
+                        
+                        // Двигаем сетку (эффект вибрации)
+                        document.body.style.backgroundSize = `${gridSize}px ${gridSize}px`;
+                        
+                        // Добавляем свечение всему телу сайта при сильном басе
+                        if (average > 100) {
+                            document.body.style.boxShadow = `inset 0 0 ${glow * 5}px rgba(0, 243, 255, ${opacity / 2})`;
+                        } else {
+                            document.body.style.boxShadow = 'none';
                         }
-
-                        // Зацикливаем
-                        this.animationId = requestAnimationFrame(render);
                     };
 
-                    this.animationId = requestAnimationFrame(render);
+                    render();
                 }
 
             };
