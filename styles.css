@@ -294,15 +294,42 @@ body.defcon-lockdown::after {
 
 /* Notifications */
 #notification-area { position: fixed; top: 80px; right: 20px; z-index: 10000; display: flex; flex-direction: column; gap: 10px; pointer-events: none; max-width: 90vw; }
+
 .vox-toast {
     background: rgba(0, 0, 0, 0.95); border-left: 4px solid var(--vox-cyan); padding: 15px 25px;
     color: white; font-family: var(--font-code); font-size: 13px; min-width: 300px; max-width: 100%;
-    box-shadow: 0 0 20px var(--vox-cyan-dim); transform: translateX(100%);
-    animation: slideIn 0.3s forwards; pointer-events: auto; position: relative;
+    box-shadow: 0 0 20px var(--vox-cyan-dim); 
+    
+    /* Начальное состояние */
+    transform: translateX(100%); 
+    opacity: 0; /* Чтобы не мелькало */
+    
+    animation: slideIn 0.3s forwards; 
+    pointer-events: auto; position: relative;
+    
+    /* Интерактивность */
+    cursor: grab; 
+    transition: transform 0.1s linear, opacity 0.1s linear; /* Быстрая реакция на перетаскивание */
+    touch-action: none; /* Важно для мобильных */
 }
+
+.vox-toast.grabbing { cursor: grabbing; transition: none; } /* Когда тянем - отключаем плавность CSS */
+
 .vox-toast.error { border-left-color: var(--alert-red); }
-@keyframes slideIn { to { transform: translateX(0); } }
-@keyframes blink { 50% { opacity: 0; } }
+
+/* Анимации */
+@keyframes slideIn { 
+    to { transform: translateX(0); opacity: 1; } 
+}
+
+@keyframes slideOut {
+    0% { transform: translateX(0); opacity: 1; }
+    100% { transform: translateX(100%); opacity: 0; }
+}
+
+.vox-toast.hiding {
+    animation: slideOut 0.4s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+}
 
 /* =========================================
    5. UI COMPONENTS (Buttons, Inputs, etc)

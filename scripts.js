@@ -446,13 +446,14 @@
                     if (!this.canvas || this.animationId) return;
 
                     const ctx = this.canvas.getContext('2d');
+                    const root = document.documentElement; // Для управления CSS переменными
 
-                    // === resize ВНЕ цикла ===
+                    // === 1. Обработка ресайза (чтобы канвас не мылился) ===
                     const resize = () => {
                         this.canvas.width = this.canvas.clientWidth;
                         this.canvas.height = this.canvas.clientHeight;
                     };
-                    resize();
+                    resize(); // Вызываем один раз при старте
 
                     if (!this._resizeBound) {
                         window.addEventListener('resize', resize);
@@ -460,23 +461,29 @@
                     }
 
                     let lastFrame = 0;
-                    const FPS_LIMIT = 20;
+                    const FPS_LIMIT = 30; // Ограничиваем 30 FPS для стиля "ретро" и экономии CPU
                     const FRAME_TIME = 1000 / FPS_LIMIT;
 
                     let bufferLength = 32;
                     let dataArray = null;
 
+                    // Если AudioContext активен, настраиваем буфер
                     if (!this.useSimulation && this.analyser) {
-                        bufferLength = this.analyser.frequencyBinCount;
+                        bufferLength = this.analyser.frequencyBinCount; // Обычно 32, так как fftSize = 64
                         dataArray = new Uint8Array(bufferLength);
                     }
 
+                    // === ГЛАВНЫЙ ЦИКЛ ОТРИСОВКИ ===
                     const render = (ts) => {
+                        // Если вкладка скрыта или музыка на паузе — останавливаем рендер для экономии
                         if (document.hidden || this.audio.paused) {
                             this.animationId = null;
+                            // Сбрасываем яркость сетки в дефолт при паузе
+                            root.style.setProperty('--scan-line-color', 'rgba(0, 243, 255, 0.03)');
                             return;
                         }
 
+                        // Контроль FPS
                         if (ts - lastFrame < FRAME_TIME) {
                             this.animationId = requestAnimationFrame(render);
                             return;
@@ -486,26 +493,58 @@
                         const w = this.canvas.width;
                         const h = this.canvas.height;
 
-                        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+                        // Очистка канваса (полупрозрачный след для плавности)
+                        ctx.fillStyle = 'rgba(0,0,0,0.5)';
                         ctx.fillRect(0, 0, w, h);
 
-                        const barWidth = (w / bufferLength) * 1.8;
-                        let x = 0;
-
+                        // Получаем данные о частотах
                         if (!this.useSimulation && dataArray) {
                             this.analyser.getByteFrequencyData(dataArray);
                         }
 
-                        for (let i = 0; i < bufferLength; i++) {
-                            const value = dataArray ? dataArray[i] : Math.random() * 120;
-                            const barHeight = Math.max(3, value * 0.6);
+                        // --- ЛОГИКА 1: ВИЗУАЛИЗАТОР В ПЛЕЕРЕ (Столбики) ---
+                        const barWidth = (w / bufferLength) * 1.5;
+                        let x = 0;
+                        let sum = 0; // Сумма громкости для расчета средней энергии
 
-                            ctx.fillStyle = `rgb(0, ${Math.min(255, barHeight + 80)}, 255)`;
+                        for (let i = 0; i < bufferLength; i++) {
+                            // Данные: либо реальные, либо симуляция (random)
+                            const value = dataArray ? dataArray[i] : (Math.random() * 50) + 50;
+                            
+                            // Собираем общую громкость
+                            sum += value;
+
+                            // Рисуем столбик
+                            const barHeight = Math.max(2, (value / 255) * h); // Нормализация высоты
+
+                            // Цвет столбика (Vox Cyan с градиентом)
+                            ctx.fillStyle = `rgb(0, ${Math.min(255, value + 100)}, 255)`;
                             ctx.fillRect(x, h - barHeight, barWidth, barHeight);
 
                             x += barWidth + 2;
                         }
 
+                        // --- ЛОГИКА 2: РЕАКТИВНАЯ СЕТКА (AUDIO REACTIVE GRID) ---
+                        
+                        // Вычисляем среднюю громкость (энергию трека)
+                        const average = sum / bufferLength; // 0..255
+
+                        // Рассчитываем прозрачность (Alpha) для сетки
+                        // База 0.03 (чтобы сетку было видно всегда) + Энергия басов
+                        // Делим на 600, чтобы не слепило, а мягко пульсировало
+                        const intensity = 0.03 + (average / 600); 
+                        
+                        // Применяем к CSS переменной (это меняет фон body)
+                        root.style.setProperty('--scan-line-color', `rgba(0, 243, 255, ${intensity})`);
+
+                        // (Бонус) Пульсация логотипа
+                        const logo = document.querySelector('.vox-logo-svg');
+                        if(logo) {
+                            const scale = 1 + (average / 1500); // Очень легкое увеличение
+                            logo.style.transform = `scale(${scale})`;
+                        }
+
+                        // Зацикливаем
                         this.animationId = requestAnimationFrame(render);
                     };
 
@@ -1101,7 +1140,7 @@
                 console.log(`%c BROWSER THEME: ${color} `, `background: ${color}; color: black; font-weight: bold;`);
             };
 
-            // --- NOTIFICATIONS ---
+            // --- NOTIFICATIONS (WITH SWIPE TO DISMISS) ---
             const voxNotify = (msg, type = 'info') => {
                 const area = document.getElementById('notification-area');
                 if (!area) return;
@@ -1109,29 +1148,90 @@
                 const toast = document.createElement('div');
                 toast.className = `vox-toast ${type === 'error' ? 'error' : ''}`;
                 
-                const header = document.createElement('div');
-                header.style.fontWeight = 'bold';
-                header.style.marginBottom = '5px';
-                header.textContent = '/// SYSTEM NOTIFICATION ///';
+                // Контент
+                toast.innerHTML = `
+                    <div style="font-weight:bold; margin-bottom:5px;">/// SYSTEM NOTIFICATION ///</div>
+                    <div>${msg}</div>
+                `;
                 
-                const message = document.createElement('div');
-                message.textContent = msg; 
-                
-                toast.appendChild(header);
-                toast.appendChild(message);
                 area.appendChild(toast);
-                SoundFX.click();
                 
+                // Звук
+                if(window.SoundFX) {
+                    type === 'error' ? window.SoundFX.error() : window.SoundFX.click();
+                }
+                
+                // Эффект вспышки экрана (Red для ошибок, Cyan для инфо)
                 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
                 if(!prefersReducedMotion) {
                     document.body.style.boxShadow = `inset 0 0 50px ${type === 'error' ? 'red' : 'var(--vox-cyan)'}`;
                     setTimeout(() => document.body.style.boxShadow = 'none', 150);
                 }
 
-                setTimeout(() => {
-                    toast.style.transform = 'translateX(120%)';
-                    setTimeout(() => { if(toast.parentNode) toast.parentNode.removeChild(toast); }, 300);
-                }, 3000);
+                // --- ЛОГИКА ЗАКРЫТИЯ ---
+                let isClosed = false;
+                
+                const closeToast = () => {
+                    if(isClosed) return;
+                    isClosed = true;
+                    toast.classList.add('hiding'); // Запускаем CSS анимацию slideOut
+                    setTimeout(() => { if(toast.parentNode) toast.remove(); }, 400); // Удаляем после анимации
+                };
+
+                // Авто-закрытие через 4 секунды
+                const autoTimer = setTimeout(closeToast, 4000);
+
+                // --- ЛОГИКА SWIPE / DRAG ---
+                let isDragging = false;
+                let startX = 0;
+                let currentX = 0;
+
+                const startDrag = (clientX) => {
+                    isDragging = true;
+                    startX = clientX;
+                    toast.classList.add('grabbing'); // Меняем курсор
+                    clearTimeout(autoTimer); // Отменяем авто-закрытие, пока держим
+                };
+
+                const moveDrag = (clientX) => {
+                    if(!isDragging || isClosed) return;
+                    const delta = clientX - startX;
+                    
+                    // Тянем только вправо (на выход)
+                    if(delta > 0) {
+                        currentX = delta;
+                        toast.style.transform = `translateX(${delta}px)`;
+                        toast.style.opacity = `${1 - (delta / 300)}`; // Исчезает при перетаскивании
+                    }
+                };
+
+                const endDrag = () => {
+                    if(!isDragging) return;
+                    isDragging = false;
+                    toast.classList.remove('grabbing');
+
+                    // Если утащили больше чем на 100px -> закрываем
+                    if (currentX > 100) {
+                        closeToast();
+                    } else {
+                        // Иначе возвращаем на место (пружина)
+                        toast.style.transform = '';
+                        toast.style.opacity = '';
+                        // Перезапускаем таймер авто-закрытия
+                        setTimeout(closeToast, 3000);
+                    }
+                    currentX = 0;
+                };
+
+                // Мышь
+                toast.addEventListener('mousedown', (e) => startDrag(e.clientX));
+                window.addEventListener('mousemove', (e) => moveDrag(e.clientX));
+                window.addEventListener('mouseup', endDrag);
+
+                // Сенсор (Мобилки)
+                toast.addEventListener('touchstart', (e) => startDrag(e.touches[0].clientX), {passive: true});
+                window.addEventListener('touchmove', (e) => moveDrag(e.touches[0].clientX), {passive: true});
+                window.addEventListener('touchend', endDrag);
             };
 
             // --- 3. EASTER EGG ---
