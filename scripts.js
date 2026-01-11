@@ -239,13 +239,12 @@
                 isDragging: false,
 
                 openMenu() {
-                    const modal = document.getElementById('musicModal');
-                    if (modal) {
-                        modal.classList.add('active');
-                        // Звук клика для атмосферы
+                    // Используем this.menu, так как мы уже нашли этот элемент выше
+                    if (this.menu) {
+                        this.menu.classList.add('open'); // В CSS у тебя класс .open
                         if(window.SoundFX) window.SoundFX.click();
                     } else {
-                        console.error("Music Modal not found!");
+                        console.error("Music Menu element not found!");
                     }
                 },
 
