@@ -123,7 +123,7 @@
                 }
             });
 
-            // --- 11. ROUTER (UPDATED) ---
+            // --- 11. ROUTER ---
             const Router = {
                 go(page) {
                     document.querySelectorAll('.view-section').forEach(v => {
@@ -137,19 +137,9 @@
                     target.classList.add('active-view');
                     target.setAttribute('aria-hidden', 'false');
 
-                    // Инициализация видео
                     if (page === 'video' && window.VideoSystem && !window.__videoInit) {
                         VideoSystem.init();
                         window.__videoInit = true;
-                    }
-
-                    // 🔥 ЛОГИКА КИНОТЕАТРА 🔥
-                    if (page === 'cinema') {
-                        if(window.CinemaSystem) CinemaSystem.init();
-                        if(window.CinemaSystem) CinemaSystem.join();
-                    } else {
-                        // Если ушли со страницы кинотеатра — отключаемся
-                        if(window.CinemaSystem) CinemaSystem.leave();
                     }
                 }
             };
@@ -398,13 +388,6 @@
 
                 playCurrent() {
                     if(this.currentIndex < 0 || this.currentIndex >= this.playlist.length) return;
-
-                    // 🔥 НОВОЕ: Если играет видео — ставим его на паузу
-                    if (window.VideoSystem && window.VideoSystem.video && !window.VideoSystem.video.paused) {
-                        window.VideoSystem.togglePlay();
-
-                    }
-
                     this.loadTrack(this.currentIndex);
                     this.startAudioContext();
                     this.audio.play().then(() => {
@@ -560,227 +543,209 @@
                 isLooping: false,
                 
                 init() {
-                        StaticFX.init();
+                    StaticFX.init();
+                    
+                    // ЗАЩИТА: Если нет главных элементов, не запускаемся
+                    if(!this.wrapper || !this.video) {
+                        console.warn("VideoSystem: Wrapper or Video element missing in HTML");
+                        return;
+                    }
 
-                        // ЗАЩИТА: Если нет главных элементов, не запускаемся
-                        if (!this.wrapper || !this.video) {
-                            console.warn("VideoSystem: Wrapper or Video element missing in HTML");
-                            return;
-                        }
+                    // 1. Drag & Drop
+                    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                        this.wrapper.addEventListener(eventName, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
+                    });
+                    this.wrapper.addEventListener('drop', (e) => { this.handleFiles(e.dataTransfer.files); });
 
-                        // 1. Drag & Drop
-                        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                            this.wrapper.addEventListener(eventName, (e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                            }, false);
-                        });
-                        this.wrapper.addEventListener('drop', (e) => {
-                            this.handleFiles(e.dataTransfer.files);
-                        });
-
-                        // 2. Загрузка файла через кнопку
-                        if (this.input) {
-                            this.input.addEventListener('change', (e) => {
-                                const files = Array.from(e.target.files);
-                                if (files.length > 0) {
-                                    if (confirm("UPLOAD TO CLOUD ARCHIVE? (Private Storage)")) {
-                                        files.forEach(file => CloudSystem.uploadMedia(file, 'video'));
-                                    } else {
-                                        this.handleFiles(e.target.files);
-                                    }
+                    // 2. Загрузка файла через кнопку
+                    if(this.input) {
+                        this.input.addEventListener('change', (e) => {
+                            const files = Array.from(e.target.files);
+                            if (files.length > 0) {
+                                if (confirm("UPLOAD TO CLOUD ARCHIVE? (Private Storage)")) {
+                                    files.forEach(file => CloudSystem.uploadMedia(file, 'video'));
+                                } else {
+                                    this.handleFiles(e.target.files);
                                 }
-                            });
-                        }
-
-                        // --- КНОПКИ УПРАВЛЕНИЯ (С ПРОВЕРКАМИ) ---
-
-                        // Play / Pause
-                        if (this.playBtn) this.playBtn.addEventListener('click', () => this.togglePlay());
-                        this.video.addEventListener('click', () => this.togglePlay());
-
-                        // Stop
-                        if (this.stopBtn) {
-                            this.stopBtn.addEventListener('click', () => {
-                                this.video.pause();
-                                this.video.currentTime = 0;
-                                if (this.playBtn) this.playBtn.textContent = "► PLAY";
-                                if (this.statusTag) this.statusTag.textContent = "SIGNAL STATUS: STANDBY";
-                                StaticFX.toggle(true);
-                                if (this.placeholder) this.placeholder.style.display = 'block';
-                            });
-                        }
-
-                        // Fullscreen + Авто-поворот экрана
-                        if (this.fullBtn) {
-                            this.fullBtn.addEventListener('click', async () => {
-                                try {
-                                    if (!document.fullscreenElement) {
-                                        // 1. Входим в фулскрин
-                                        if (this.wrapper.requestFullscreen) await this.wrapper.requestFullscreen();
-                                        else if (this.wrapper.webkitRequestFullscreen) await this.wrapper.webkitRequestFullscreen();
-
-                                        // 2. Пытаемся повернуть экран горизонтально (Android)
-                                        if (screen.orientation && screen.orientation.lock) {
-                                            screen.orientation.lock('landscape').catch(err => console.log("Rotation locked by OS"));
-                                        }
-                                    } else {
-                                        // 3. Выходим из фулскрина
-                                        if (document.exitFullscreen) await document.exitFullscreen();
-                                        else if (document.webkitExitFullscreen) await document.webkitExitFullscreen();
-
-                                        // 4. Возвращаем вертикальный режим (или разблокируем)
-                                        if (screen.orientation && screen.orientation.unlock) {
-                                            screen.orientation.unlock();
-                                        }
-                                    }
-                                } catch (e) {
-                                    console.error(e);
-                                }
-                            });
-                        }
-
-                        // Picture-in-Picture
-                        if (this.pipBtn) {
-                            this.pipBtn.addEventListener('click', async () => {
-                                try {
-                                    if (document.pictureInPictureElement) await document.exitPictureInPicture();
-                                    else if (document.pictureInPictureEnabled && this.video.src) await this.video.requestPictureInPicture();
-                                } catch (e) {
-                                    console.error(e);
-                                }
-                            });
-                        }
-
-                        // Скорость
-                        if (this.speedSel) {
-                            this.speedSel.addEventListener('change', (e) => {
-                                this.video.playbackRate = parseFloat(e.target.value);
-                                voxNotify(`SPEED: ${e.target.value}x`, 'info');
-                            });
-                        }
-
-                        // --- 3. FORCED VIEW LISTENER ---
-                        if (window.db) {
-                            window.fbSnap(window.fbDoc(window.db, "system_state", "broadcast"), (doc) => {
-                                const data = doc.data();
-                                if (data && data.active && data.timestamp) {
-                                    const now = Date.now();
-                                    const cmdTime = data.timestamp.toMillis ? data.timestamp.toMillis() : now;
-                                    if (now - cmdTime < 30000) {
-                                        Router.go('video');
-                                        this.video.src = data.url;
-                                        this.video.play().then(() => {
-                                            voxNotify("MANDATORY BROADCAST INITIATED", "error");
-                                        }).catch(() => {
-                                            alert("PRIORITY MESSAGE RECEIVED. CLICK TO PLAY.");
-                                            this.video.play();
-                                        });
-                                        this.statusTag.textContent = "OVERRIDE BY VOXTEK";
-                                        this.statusTag.style.background = "var(--alert-red)";
-                                        this.stopBtn.style.display = 'none';
-                                    }
-                                }
-                            });
-                        }
-
-                        // Loop (Повтор)
-                        if (this.loopBtn) {
-                            this.loopBtn.addEventListener('click', () => {
-                                this.isLooping = !this.isLooping;
-                                this.video.loop = this.isLooping;
-                                this.loopBtn.style.color = this.isLooping ? "var(--vox-cyan)" : "#666";
-                                this.loopBtn.style.borderColor = this.isLooping ? "var(--vox-cyan)" : "#444";
-                                voxNotify(this.isLooping ? "LOOP: ON" : "LOOP: OFF", "info");
-                            });
-                        }
-
-                        // Громкость
-                        if (this.vol) this.vol.addEventListener('input', (e) => {
-                            this.video.volume = e.target.value;
-                        });
-
-                        // --- ПРОГРЕСС БАР ---
-                        this.video.addEventListener('timeupdate', () => {
-                            if (!this.isDragging && this.video.duration && this.progress) {
-                                const pct = (this.video.currentTime / this.video.duration) * 100;
-                                this.progress.value = pct;
-                                if (this.timeDisplay) this.timeDisplay.textContent = `${this.fmt(this.video.currentTime)} / ${this.fmt(this.video.duration)}`;
                             }
                         });
+                    }
 
-                        if (this.progress) {
-                            this.progress.addEventListener('input', (e) => {
-                                this.isDragging = true;
-                                if (this.video.duration && this.timeDisplay) {
-                                    const time = (e.target.value / 100) * this.video.duration;
-                                    this.timeDisplay.textContent = `${this.fmt(time)} / ${this.fmt(this.video.duration)}`;
-                                }
-                            });
-                            this.progress.addEventListener('change', (e) => {
-                                if (this.video.duration) this.video.currentTime = (e.target.value / 100) * this.video.duration;
-                                this.isDragging = false;
-                            });
-                        }
-
-                        this.video.addEventListener('ended', () => {
-                            document.body.classList.remove('theater-mode');
-                            if (!this.isLooping) this.playNext();
+                    // --- КНОПКИ УПРАВЛЕНИЯ (С ПРОВЕРКАМИ) ---
+                    
+                    // Play / Pause
+                    if(this.playBtn) this.playBtn.addEventListener('click', () => this.togglePlay());
+                    this.video.addEventListener('click', () => this.togglePlay());
+                    
+                    // Stop
+                    if(this.stopBtn) {
+                        this.stopBtn.addEventListener('click', () => {
+                            this.video.pause();
+                            this.video.currentTime = 0;
+                            if(this.playBtn) this.playBtn.textContent = "► PLAY";
+                            if(this.statusTag) this.statusTag.textContent = "SIGNAL STATUS: STANDBY";
+                            StaticFX.toggle(true);
+                            if(this.placeholder) this.placeholder.style.display = 'block';
                         });
+                    }
 
-                        // --- 1.2.1 НОВАЯ ЛОГИКА ИНТЕРФЕЙСА (Скрытие кнопок) ---
-                        
-                        const updateUIState = () => {
-                            this.wrapper.classList.add('user-active'); // Показываем панель
-                            this.video.style.cursor = 'default';
-
-                            // Сбрасываем старый таймер
-                            if (this.hideControlsTimer) clearTimeout(this.hideControlsTimer);
-
-                            // Если видео на ПАУЗЕ -> Выходим (панель останется висеть)
-                            if (this.video.paused) return;
-
-                            // Если видео ИГРАЕТ -> Запускаем таймер на 5 секунд
-                            this.hideControlsTimer = setTimeout(() => {
-                                const controls = document.querySelector('.custom-video-controls');
-                                const hasMouse = window.matchMedia('(hover: hover)').matches;
-
-                                // Если это ПК и мышь на кнопках — не скрываем. 
-                                // Если это телефон (нет мыши) — скрываем всегда по таймеру.
-                                if (!controls || !hasMouse || !controls.matches(':hover')) {
-                                    this.wrapper.classList.remove('user-active'); // Hides controls
-                                    if (hasMouse) {
-                                        this.video.style.cursor = 'none';
+                    // Fullscreen + Авто-поворот экрана
+                    if(this.fullBtn) {
+                        this.fullBtn.addEventListener('click', async () => {
+                            try {
+                                if (!document.fullscreenElement) {
+                                    // 1. Входим в фулскрин
+                                    if(this.wrapper.requestFullscreen) await this.wrapper.requestFullscreen();
+                                    else if(this.wrapper.webkitRequestFullscreen) await this.wrapper.webkitRequestFullscreen();
+                                    
+                                    // 2. Пытаемся повернуть экран горизонтально (Android)
+                                    if (screen.orientation && screen.orientation.lock) {
+                                        screen.orientation.lock('landscape').catch(err => console.log("Rotation locked by OS"));
+                                    }
+                                } else {
+                                    // 3. Выходим из фулскрина
+                                    if(document.exitFullscreen) await document.exitFullscreen();
+                                    else if(document.webkitExitFullscreen) await document.webkitExitFullscreen();
+                                    
+                                    // 4. Возвращаем вертикальный режим (или разблокируем)
+                                    if (screen.orientation && screen.orientation.unlock) {
+                                        screen.orientation.unlock();
                                     }
                                 }
-                            }, 5000);
-                        };
+                            } catch(e) { console.error(e); }
+                        });
+                    }
 
-                        // ВАЖНО: Добавляем слушатели событий, чтобы updateUIState работал!
-                        this.wrapper.addEventListener('mousemove', updateUIState);
-                        this.wrapper.addEventListener('touchstart', updateUIState);
-                        this.wrapper.addEventListener('click', updateUIState);
+                    // Picture-in-Picture
+                    if(this.pipBtn) {
+                        this.pipBtn.addEventListener('click', async () => {
+                            try {
+                                if (document.pictureInPictureElement) await document.exitPictureInPicture();
+                                else if (document.pictureInPictureEnabled && this.video.src) await this.video.requestPictureInPicture();
+                            } catch(e) { console.error(e); }
+                        });
+                    }
 
+                    // Скорость
+                    if(this.speedSel) {
+                        this.speedSel.addEventListener('change', (e) => {
+                            this.video.playbackRate = parseFloat(e.target.value);
+                            voxNotify(`SPEED: ${e.target.value}x`, 'info');
+                        });
+                    }
 
-                        // --- STICKY PLAYER OBSERVER (СЛЕДИЛКА) ---
-                        // Этот код должен быть ВНЕ updateUIState, чтобы запускаться один раз
-                        
-                        const sentinel = document.createElement('div');
-                        sentinel.id = 'videoSentinel';
-                        // Вставляем невидимый элемент ПЕРЕД плеером
-                        this.wrapper.parentElement.insertBefore(sentinel, this.wrapper);
+                    // --- 3. FORCED VIEW LISTENER (ВНУТРИ VideoSystem.init) ---
+                    // Слушаем специальный документ в базе
+                    if(window.db) {
+                        window.fbSnap(window.fbDoc(window.db, "system_state", "broadcast"), (doc) => {
+                            const data = doc.data();
+                            // Проверяем, свежий ли приказ (не старее 10 секунд), чтобы не срабатывал при каждом входе
+                            if (data && data.active && data.timestamp) {
+                                const now = Date.now();
+                                const cmdTime = data.timestamp.toMillis ? data.timestamp.toMillis() : now; // Защита от null
+                                
+                                // Если приказ был дан менее 30 секунд назад - выполняем
+                                if (now - cmdTime < 30000) {
+                                    // 1. Принудительно открываем вкладку Видео
+                                    Router.go('video');
+                                    
+                                    // 2. Включаем видео
+                                    this.video.src = data.url;
+                                    this.video.play().then(() => {
+                                        voxNotify("MANDATORY BROADCAST INITIATED", "error");
+                                    }).catch(() => {
+                                        // Если браузер заблокировал звук, показываем кнопку
+                                        alert("PRIORITY MESSAGE RECEIVED. CLICK TO PLAY.");
+                                        this.video.play();
+                                    });
 
-                        const observer = new IntersectionObserver((entries) => {
-                            // Если "следилка" ушла за экран (isIntersecting = false) И видео играет
-                            if (!entries[0].isIntersecting && !this.video.paused) {
-                                this.wrapper.classList.add('sticky-mode');
-                            } else {
-                                // Если мы вернулись к "следилке" (прокрутили вверх)
-                                this.wrapper.classList.remove('sticky-mode');
+                                    // 3. Блокируем плеер (визуально)
+                                    this.statusTag.textContent = "OVERRIDE BY VOXTEK";
+                                    this.statusTag.style.background = "var(--alert-red)";
+                                    
+                                    // Очищаем локальное управление, чтобы не мешали
+                                    this.stopBtn.style.display = 'none';
+                                }
                             }
-                        }, { threshold: 0 });
+                        });
+                    }
 
-                        observer.observe(sentinel);
+                    // Loop (Повтор)
+                    if(this.loopBtn) {
+                        this.loopBtn.addEventListener('click', () => {
+                            this.isLooping = !this.isLooping;
+                            this.video.loop = this.isLooping;
+                            this.loopBtn.style.color = this.isLooping ? "var(--vox-cyan)" : "#666";
+                            this.loopBtn.style.borderColor = this.isLooping ? "var(--vox-cyan)" : "#444";
+                            voxNotify(this.isLooping ? "LOOP: ON" : "LOOP: OFF", "info");
+                        });
+                    }
+
+                    // Громкость
+                    if(this.vol) this.vol.addEventListener('input', (e) => { this.video.volume = e.target.value; });
+                    
+                    // --- ПРОГРЕСС БАР (ИСПРАВЛЕНИЕ ОШИБКИ) ---
+                    // Обновляем ползунок, когда видео играет
+                    this.video.addEventListener('timeupdate', () => {
+                        if(!this.isDragging && this.video.duration && this.progress) {
+                            const pct = (this.video.currentTime / this.video.duration) * 100;
+                            this.progress.value = pct;
+                            if(this.timeDisplay) this.timeDisplay.textContent = `${this.fmt(this.video.currentTime)} / ${this.fmt(this.video.duration)}`;
+                        }
+                    });
+
+                    // Если ползунок есть - добавляем управление
+                    if(this.progress) {
+                        this.progress.addEventListener('input', (e) => {
+                            this.isDragging = true;
+                            if(this.video.duration && this.timeDisplay) {
+                                const time = (e.target.value / 100) * this.video.duration;
+                                this.timeDisplay.textContent = `${this.fmt(time)} / ${this.fmt(this.video.duration)}`;
+                            }
+                        });
+                        this.progress.addEventListener('change', (e) => {
+                            if(this.video.duration) this.video.currentTime = (e.target.value / 100) * this.video.duration;
+                            this.isDragging = false;
+                        });
+                    }
+                    
+                    // Когда видео кончилось
+                    this.video.addEventListener('ended', () => {
+                        if(!this.isLooping) this.playNext();
+                    });
+                    
+                    // --- 1.2.1 НОВАЯ ЛОГИКА ИНТЕРФЕЙСА (ВСТАВИТЬ СЮДА) ---
+
+                const updateUIState = () => {
+                    this.wrapper.classList.add('user-active'); // Показываем панель
+                    this.video.style.cursor = 'default';
+                    
+                    // Сбрасываем старый таймер
+                    if(this.hideControlsTimer) clearTimeout(this.hideControlsTimer);
+
+                    // Если видео на ПАУЗЕ -> Выходим (панель останется висеть вечно)
+                    if(this.video.paused) return;
+
+                    // Если видео ИГРАЕТ -> Запускаем таймер на 5 секунд
+                    this.hideControlsTimer = setTimeout(() => {
+                        // Проверяем, не держит ли юзер курсор на кнопках
+                        const controls = document.querySelector('.custom-video-controls');
+
+                        // Проверяем: есть ли мышь?
+                        const hasMouse = window.matchMedia('(hover: hover)').matches;
+
+                        // Если это ПК и мышь на кнопках — не скрываем. 
+                        // Если это телефон (нет мыши) — скрываем всегда по таймеру.
+                        if (!controls || !hasMouse || !controls.matches(':hover')) {
+                            this.wrapper.classList.remove('user-active'); // Hides controls
+                            
+                            // Убираем курсор (только на ПК)
+                            if(hasMouse) {
+                                this.video.style.cursor = 'none';
+                            }
+                        }
+                    }, 5000);
+                };
 
                 // 1. Слушаем любые взаимодействия (движение, касание, клик)
                 this.wrapper.addEventListener('mousemove', updateUIState);
@@ -928,20 +893,13 @@
                 togglePlay() {
                     if(!this.video.src) return;
                     if(this.video.paused) {
-                        // 🔥 НОВОЕ: Если играет музыка — ставим на паузу
-                        if (window.MusicSystem && window.MusicSystem.audio && !window.MusicSystem.audio.paused) {
-                            window.MusicSystem.audio.pause();
-                            document.getElementById('playPauseBtn').textContent = "RESUME STREAM";
-                        }
                         this.video.play();
-                        document.body.classList.add('theater-mode');
                         if(this.playBtn) this.playBtn.textContent = "|| PAUSE";
                         if(this.statusTag) this.statusTag.style.background = "var(--vox-cyan)";
                         StaticFX.toggle(false);
                         if(this.placeholder) this.placeholder.style.display = 'none';
                     } else {
                         this.video.pause();
-                        document.body.classList.remove('theater-mode');
                         if(this.playBtn) this.playBtn.textContent = "► PLAY";
                         if(this.statusTag) {
                             this.statusTag.textContent = "PAUSED";
@@ -949,7 +907,7 @@
                         }
                     }
                 },
-                
+
                 fmt(s) { const m = Math.floor(s / 60); const sec = Math.floor(s % 60); return `${m<10?'0'+m:m}:${sec<10?'0'+sec:sec}`; }
             };
             window.VideoSystem = VideoSystem;
@@ -4914,291 +4872,6 @@
             document.addEventListener('click', unlockAudio);
             document.addEventListener('keydown', unlockAudio);
             document.addEventListener('touchstart', unlockAudio);
-
-            // --- 18. CINEMA SYSTEM (FINAL: VAULT + SYNC) ---
-            window.CinemaSystem = {
-                video: document.getElementById('cinemaVideo'),
-                overlay: document.getElementById('cinemaOverlay'),
-                controls: document.getElementById('cinemaControls'),
-                seatsContainer: document.getElementById('cinemaSeats'),
-                projector: document.getElementById('projectorGlow'),
-                
-                // Ambilight
-                canvas: document.getElementById('ambiCanvas'),
-                ctx: null,
-                ambiInterval: null,
-
-                // Chat & Sync
-                chatInput: document.getElementById('cinemaChatInput'),
-                chatFeed: document.getElementById('cinemaChatFeed'),
-                docRef: null,     
-                seatRef: null,
-                unsubscribe: null, 
-                isOperator: false, 
-                syncThreshold: 2,
-
-                init() {
-                    if(!this.video || !window.db) return;
-                    if(this.canvas) this.ctx = this.canvas.getContext('2d', { willReadFrequently: true });
-
-                    // Проверка Админа
-                    if(window.auth.currentUser) {
-                        const email = window.auth.currentUser.email;
-                        if(email === 'voxtek@voxtek.net' || email === 'test@voxtek.net') {
-                            this.isOperator = true;
-                            this.controls.style.display = 'block';
-                            this.fetchLibrary(); // 🔥 Загружаем список фильмов
-                        }
-                    }
-
-                    this.docRef = window.fbDoc(window.db, "system_state", "cinema");
-
-                    if(this.chatInput) {
-                        this.chatInput.addEventListener('keydown', (e) => {
-                            if(e.key === 'Enter') this.sendChatMessage();
-                        });
-                    }
-                },
-
-                join() {
-                    const user = window.auth.currentUser;
-                    if(!user) return voxNotify("LOGIN REQUIRED", "error");
-
-                    voxNotify("ENTERING V-THEATER...", "info");
-                    
-                    // Занимаем место
-                    this.seatRef = window.fbDoc(window.db, "cinema_audience", user.uid);
-                    window.fbSet(this.seatRef, {
-                        uid: user.uid,
-                        name: user.displayName,
-                        avatar: user.photoURL,
-                        joinedAt: window.fbTime()
-                    });
-                    window.addEventListener('beforeunload', () => { if(this.seatRef) window.fbDelete(this.seatRef); });
-
-                    this.listenToScreen();
-                    this.listenToAudience();
-                    this.listenToChat();
-                    this.listenToReactions();
-                    this.startAmbilight();
-                },
-
-                leave() {
-                    if(this.unsubscribe) this.unsubscribe();
-                    if(this.seatRef) window.fbDelete(this.seatRef);
-                    this.video.pause();
-                    this.stopAmbilight();
-                },
-
-                // --- 🎬 CINEMA VAULT LOGIC (NEW) ---
-                
-                uploadMovie(input) {
-                    const file = input.files[0];
-                    if(!file) return;
-
-                    // 1. Уведомление
-                    voxNotify("UPLOADING TO CINEMA REEL...", "info");
-
-                    // 2. Путь в Storage (отдельная папка cinema_uploads)
-                    const path = `cinema_uploads/${Date.now()}_${file.name}`;
-                    const storageRef = window.fbRef(window.storage, path);
-
-                    // 3. Загрузка
-                    const task = window.fbUpload(storageRef, file);
-                    
-                    task.then(snap => {
-                        window.fbUrl(snap.ref).then(url => {
-                            // 4. Сохраняем в отдельную коллекцию 'cinema_library'
-                            window.fbAdd(window.fbCol(window.db, "cinema_library"), {
-                                name: file.name,
-                                url: url,
-                                addedAt: window.fbTime(),
-                                addedBy: window.auth.currentUser.email
-                            });
-                            voxNotify("FILM ADDED TO REEL.", "success");
-                            input.value = ''; // Сброс
-                        });
-                    }).catch(e => voxNotify("UPLOAD FAILED: " + e.message, "error"));
-                },
-
-                fetchLibrary() {
-                    const list = document.getElementById('cinemaLibraryList');
-                    // Слушаем изменения в библиотеке
-                    const q = window.fbQuery(window.fbCol(window.db, "cinema_library"), window.fbOrder("addedAt", "desc"));
-                    
-                    window.fbSnap(q, (snap) => {
-                        list.innerHTML = '';
-                        if(snap.empty) {
-                            list.innerHTML = '<div style="padding:10px; color:#666; font-size:10px;">ARCHIVE EMPTY</div>';
-                            return;
-                        }
-
-                        snap.forEach(doc => {
-                            const d = doc.data();
-                            const div = document.createElement('div');
-                            div.className = 'cinema-lib-item';
-                            div.innerHTML = `
-                                <div class="lib-name" title="${d.name}">${d.name}</div>
-                                <div class="lib-actions">
-                                    <button class="lib-btn" onclick="CinemaSystem.playFromLibrary('${d.url}')">LOAD</button>
-                                    <button class="lib-btn lib-del" onclick="CinemaSystem.deleteMovie('${doc.id}')">×</button>
-                                </div>
-                            `;
-                            list.appendChild(div);
-                        });
-                    });
-                },
-
-                playFromLibrary(url) {
-                    document.getElementById('cinemaUrlInput').value = url;
-                    this.loadFromInput(); // Запускаем
-                },
-
-                deleteMovie(id) {
-                    if(confirm("REMOVE FILM FROM ARCHIVE?")) {
-                        window.fbDelete(window.fbDoc(window.db, "cinema_library", id));
-                    }
-                },
-
-                // --- OLDER LOGIC (Keep functionality) ---
-                
-                loadFromInput() {
-                    const url = document.getElementById('cinemaUrlInput').value;
-                    if(!url) return;
-                    // Обновляем глобальное состояние экрана
-                    window.fbSet(this.docRef, { 
-                        url: url, 
-                        currentTime: 0, 
-                        isPlaying: false 
-                    }, { merge: true });
-                    voxNotify("FILM MOUNTED. READY TO PLAY.", "success");
-                },
-
-                syncAction(action) {
-                    const isPlay = action === 'play';
-                    window.fbSet(this.docRef, { isPlaying: isPlay, currentTime: this.video.currentTime }, { merge: true });
-                },
-
-                syncSeek(val) {
-                    if(!this.video.duration) return;
-                    const time = (val / 100) * this.video.duration;
-                    window.fbSet(this.docRef, { currentTime: time }, { merge: true });
-                },
-
-                // --- LISTENERS ---
-                listenToScreen() {
-                    this.unsubscribe = window.fbSnap(this.docRef, (doc) => {
-                        if(!doc.exists()) return;
-                        const data = doc.data();
-
-                        const currentSrc = this.video.src;
-                        // Сравниваем декодированные URL, чтобы избежать перезагрузки одного и того же
-                        if (data.url && currentSrc !== data.url) {
-                            this.video.src = data.url;
-                            this.overlay.classList.remove('hidden'); // Показать заставку при смене
-                            
-                            // Закрываем шторки при смене фильма
-                            document.querySelector('.cinema-screen-wrapper').classList.remove('playing');
-                        }
-
-                        if (data.isPlaying) {
-                            this.video.play().catch(()=>{});
-                            this.overlay.classList.add('hidden');
-                            document.querySelector('.cinema-screen-wrapper').classList.add('playing'); // Открыть шторки
-                        } else {
-                            this.video.pause();
-                        }
-
-                        if (!this.isOperator && Math.abs(this.video.currentTime - data.currentTime) > this.syncThreshold) {
-                            this.video.currentTime = data.currentTime;
-                        }
-                    });
-                },
-
-                // ... (Ambilight, Chat, Reactions - оставляем как было в прошлых версиях) ...
-                
-                // --- AMBILIGHT ---
-                startAmbilight() { if (this.ambiInterval) clearInterval(this.ambiInterval); this.ambiInterval = setInterval(() => this.updateGlow(), 100); },
-                stopAmbilight() { if (this.ambiInterval) clearInterval(this.ambiInterval); },
-                updateGlow() {
-                    if(this.video.paused || this.video.ended || !this.ctx) return;
-                    this.ctx.drawImage(this.video, 0, 0, 50, 50);
-                    const frame = this.ctx.getImageData(25, 25, 1, 1).data;
-                    const r = frame[0], g = frame[1], b = frame[2];
-                    if(this.projector) this.projector.style.background = `linear-gradient(to bottom, rgba(${r},${g},${b},0) 0%, rgba(${r},${g},${b},0.3) 100%)`;
-                    document.querySelector('.cinema-screen-border').style.boxShadow = `0 20px 80px rgba(${r},${g},${b}, 0.2)`;
-                },
-
-                // --- CHAT ---
-                sendChatMessage() {
-                    const text = this.chatInput.value.trim();
-                    if(!text) return;
-                    window.fbAdd(window.fbCol(window.db, "cinema_chat"), {
-                        name: window.auth.currentUser.displayName || "Citizen",
-                        text: text,
-                        timestamp: window.fbTime()
-                    });
-                    this.chatInput.value = '';
-                },
-                listenToChat() {
-                    const q = window.fbQuery(window.fbCol(window.db, "cinema_chat"), window.fbOrder("timestamp", "desc"), window.fbLimit(10));
-                    window.fbSnap(q, (snap) => {
-                        this.chatFeed.innerHTML = '';
-                        const msgs = [];
-                        snap.forEach(doc => msgs.push(doc.data()));
-                        msgs.reverse().forEach(msg => {
-                            const div = document.createElement('div');
-                            div.className = 'c-chat-msg';
-                            div.innerHTML = `<b>${msg.name}:</b> ${msg.text}`;
-                            this.chatFeed.appendChild(div);
-                        });
-                        this.chatFeed.scrollTop = this.chatFeed.scrollHeight;
-                    });
-                },
-
-                // --- REACTIONS ---
-                sendReaction(emoji) {
-                    window.fbAdd(window.fbCol(window.db, "cinema_reactions"), { emoji: emoji, timestamp: window.fbTime() });
-                    this.spawnEmoji(emoji);
-                },
-                listenToReactions() {
-                    const q = window.fbQuery(window.fbCol(window.db, "cinema_reactions"), window.fbOrder("timestamp", "desc"), window.fbLimit(1));
-                    window.fbSnap(q, (snap) => {
-                        snap.docChanges().forEach(change => {
-                            if(change.type === 'added') {
-                                const data = change.doc.data();
-                                if(Date.now() - (data.timestamp ? data.timestamp.toMillis() : Date.now()) < 2000) {
-                                    this.spawnEmoji(data.emoji);
-                                }
-                            }
-                        });
-                    });
-                },
-                spawnEmoji(char) {
-                    const zone = document.getElementById('reactionZone');
-                    const el = document.createElement('div');
-                    el.className = 'flying-emoji';
-                    el.textContent = char;
-                    el.style.left = Math.random() * 90 + '%';
-                    zone.appendChild(el);
-                    setTimeout(() => el.remove(), 3000);
-                },
-
-                listenToAudience() {
-                    const q = window.fbQuery(window.fbCol(window.db, "cinema_audience"));
-                    window.fbSnap(q, (snap) => {
-                        this.seatsContainer.innerHTML = '';
-                        snap.forEach(doc => {
-                            const u = doc.data();
-                            const div = document.createElement('div');
-                            div.className = 'seat-user';
-                            div.innerHTML = `<img src="${u.avatar || 'favicon.ico'}" title="${u.name}">`;
-                            div.onclick = () => MessengerUI.openUserCard(u.uid);
-                            this.seatsContainer.appendChild(div);
-                        });
-                    });
-                }
-            };
 
             // Запускаем
             setTimeout(initMiniMatrix, 500);
