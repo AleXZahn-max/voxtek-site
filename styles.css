@@ -812,22 +812,27 @@ footer { text-align: center; padding: 60px 20px; color: #888; font-size: 11px; b
     pointer-events: auto;
 }
 
-/* 3. Когда видео на паузе — панель всегда видна (чтобы было удобно) */
+/* 3. Когда пауза — панель видна всегда */
 .video-wrapper.paused .custom-video-controls {
     opacity: 1;
     pointer-events: auto;
+    transform: translateX(-50%);
 }
 
-/* 1. Для ПК (устройств с мышью): показываем панель при наведении */
+/* 1. Для ПК: показываем при наведении (сохраняя центрирование!) */
 @media (hover: hover) {
     .video-wrapper:hover .custom-video-controls {
-        opacity: 1; transform: translateY(0); pointer-events: auto;
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateX(-50%); /* <--- ВАЖНО: Держим центр */
     }
 }
 
-/* 2. Для ВСЕХ (включая мобильные): показываем, если JS добавил класс user-active */
+/* 2. Для ВСЕХ: показываем, если мышь двигается (сохраняя центрирование!) */
 .video-wrapper.user-active .custom-video-controls {
-    opacity: 1; transform: translateY(0); pointer-events: auto;
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(-50%); /* <--- ВАЖНО: Держим центр */
 }
 
 .c-row { display: flex; align-items: center; gap: 10px; width: 100%; }
