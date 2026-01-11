@@ -304,21 +304,10 @@ body.defcon-lockdown::after {
     color: white; font-family: var(--font-code); font-size: 13px; min-width: 300px; max-width: 100%;
     box-shadow: 0 0 20px var(--vox-cyan-dim); transform: translateX(100%);
     animation: slideIn 0.3s forwards; pointer-events: auto; position: relative;
-    cursor: grab; transition: transform 0.1s linear; touch-action: none;
 }
 .vox-toast.error { border-left-color: var(--alert-red); }
 @keyframes slideIn { to { transform: translateX(0); } }
 @keyframes blink { 50% { opacity: 0; } }
-@keyframes slideOut {
-    0% { transform: translateX(0); opacity: 1; }
-    100% { transform: translateX(100%); opacity: 0; }
-}
-.vox-toast.hiding {
-    animation: slideOut 0.4s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
-}
-.vox-toast:active {
-    cursor: grabbing;
-}
 
 /* =========================================
    5. UI COMPONENTS (Buttons, Inputs, etc)
@@ -1751,62 +1740,24 @@ body.theater-mode #broadcastContainer {
 
 .cinema-screen-border {
     width: 100%; height: 100%;
-    background: #000;
-    border: none; /* Убираем старую рамку */
-    border-left: 2px solid #222;
-    border-right: 2px solid #222;
-    
-    /* Эффект изогнутого экрана */
-    box-shadow: 
-        inset 0 0 100px rgba(0,0,0,0.9), /* Глубина внутри */
-        0 20px 50px rgba(0, 243, 255, 0.05); /* Легкое свечение снизу */
-        
-    border-radius: 10px; /* Небольшое скругление */
+    background: black;
+    border: 5px solid #111;
+    border-top: none;
+    box-shadow: 0 20px 50px rgba(0, 243, 255, 0.1);
+    transform: rotateX(2deg); /* Легкий наклон экрана */
     position: relative; overflow: hidden;
-}
-
-/* Блик на экране (стекло) */
-.cinema-screen-border::after {
-    content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 50%);
-    pointer-events: none; z-index: 10;
+    border-radius: 0 0 50% 50% / 0 0 10% 10%; /* Изогнутый экран IMAX */
 }
 
 #cinemaVideo { width: 100%; height: 100%; object-fit: contain; }
 
-/* --- ОБЪЕМНЫЙ СВЕТ ПРОЕКТОРА --- */
+/* Свет от проектора */
 .projector-light {
-    position: absolute; 
-    top: -40%; left: 10%; right: 10%; height: 60%; /* Луч идет сверху */
-    background: linear-gradient(to bottom, rgba(0, 243, 255, 0.15) 0%, transparent 100%);
-    filter: blur(10px); 
-    pointer-events: none; z-index: 2;
-    transform-origin: top center;
-    transform: perspective(500px) rotateX(20deg);
-    opacity: 0; transition: opacity 1s;
-    
-    /* Маска, чтобы луч был трапецией */
-    clip-path: polygon(20% 0, 80% 0, 100% 100%, 0% 100%);
+    position: absolute; top: -50%; left: 20%; right: 20%; height: 50%;
+    background: linear-gradient(to bottom, rgba(0, 243, 255, 0) 0%, rgba(0, 243, 255, 0.1) 100%);
+    filter: blur(20px); pointer-events: none; z-index: 10;
+    animation: projectorFlicker 0.1s infinite; opacity: 0;
 }
-
-/* Добавляем "шум" (пыль) через фоновую картинку CSS */
-.projector-light::before {
-    content: ''; position: absolute; top:0; left:0; width:100%; height:100%;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.5'/%3E%3C/svg%3E");
-    background-size: 200px 200px;
-    opacity: 0.3;
-    mix-blend-mode: overlay;
-    animation: dustMotes 20s linear infinite;
-}
-
-@keyframes dustMotes {
-    0% { background-position: 0 0; }
-    100% { background-position: 0 1000px; }
-}
-
-/* Включаем луч только когда играет видео (класс playing на обертке) */
-.cinema-screen-wrapper.playing .projector-light { opacity: 1; }
-
 .playing .projector-light { opacity: 1; }
 
 @keyframes projectorFlicker {
@@ -1842,86 +1793,21 @@ body.theater-mode #broadcastContainer {
     max-height: 150px; overflow-y: auto; padding-top: 10px;
 }
 
-/* --- ГОЛОГРАФИЧЕСКИЕ ЗРИТЕЛИ --- */
+/* Аватар зрителя */
 .seat-user {
-    /* Делаем их похожими на проекцию */
-    opacity: 0.8;
-    filter: sepia(100%) hue-rotate(190deg) saturate(300%) drop-shadow(0 0 5px var(--vox-cyan));
-    transition: 0.3s;
-    position: relative;
-    mix-blend-mode: screen; /* Смешивание для эффекта света */
+    width: 40px; height: 40px; border-radius: 5px; background: #222;
+    border: 1px solid #444; position: relative; overflow: hidden;
+    transition: 0.3s; cursor: pointer;
 }
-
-/* Эффект сканирования (полоска бежит вверх) */
-.seat-user::after {
-    content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    background: linear-gradient(to bottom, transparent 50%, rgba(0, 243, 255, 0.2) 50%, transparent 55%);
-    background-size: 100% 200%;
-    animation: holoScan 3s linear infinite;
-    pointer-events: none;
-}
-
-@keyframes holoScan {
-    0% { background-position: 0% 200%; }
-    100% { background-position: 0% -100%; }
-}
-
-/* При наведении голограмма становится четкой */
-.seat-user:hover {
-    filter: none; opacity: 1; transform: scale(1.2) translateY(-10px); z-index: 10;
-    mix-blend-mode: normal;
-    box-shadow: 0 0 20px var(--vox-cyan);
-}
-
 .seat-user img { width: 100%; height: 100%; object-fit: cover; filter: grayscale(100%); }
 .seat-user:hover { transform: translateY(-5px); border-color: var(--vox-cyan); }
 .seat-user:hover img { filter: grayscale(0%); }
 
 .seat-user.admin { border-color: var(--alert-red); box-shadow: 0 0 10px var(--alert-red); }
 
-/* --- НОВЫЙ ДИЗАЙН ПАНЕЛИ ОПЕРАТОРА --- */
+/* Панель управления */
 .cinema-controls {
-    /* Фон: стекло с сеткой */
-    background: rgba(10, 15, 20, 0.9) !important;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    
-    /* Границы и форма */
-    border: 1px solid var(--vox-cyan);
-    border-radius: 0; /* Убираем скругление для строгости */
-    clip-path: polygon(
-        20px 0, 100% 0, 
-        100% calc(100% - 20px), calc(100% - 20px) 100%, 
-        0 100%, 0 20px
-    ); /* Срезанные углы в стиле Sci-Fi */
-    
-    padding: 25px !important;
-    box-shadow: 0 0 30px rgba(0, 243, 255, 0.05), inset 0 0 50px rgba(0,0,0,0.8);
-    position: relative;
-    overflow: hidden;
-}
-
-/* Декоративная линия сверху */
-.cinema-controls::before {
-    content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 2px;
-    background: linear-gradient(90deg, transparent, var(--vox-cyan), transparent);
-    animation: scanHorizontal 4s ease-in-out infinite;
-}
-
-@keyframes scanHorizontal {
-    0% { transform: translateX(-100%); }
-    100% { transform: translateX(100%); }
-}
-
-/* Улучшение инпутов внутри панели */
-.cinema-controls .form-input {
-    background: rgba(0, 0, 0, 0.5);
-    border: 1px solid #333;
-    transition: 0.3s;
-}
-.cinema-controls .form-input:focus {
-    border-color: var(--vox-cyan);
-    box-shadow: 0 0 15px rgba(0, 243, 255, 0.1);
+    background: #111; padding: 15px; border: 1px solid var(--vox-cyan); margin-bottom: 20px;
 }
 
 /* --- CINEMA UPGRADES --- */
@@ -2202,40 +2088,38 @@ body.theater-mode #broadcastContainer {
     }
 }
 
-/* Контейнер списка */
+/* --- CINEMA VAULT STYLES --- */
 .cinema-lib-list {
-    background: transparent;
-    border: none;
-    padding: 10px 0;
-    gap: 8px;
-    display: flex;
-    flex-direction: column;
+    max-height: 150px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid #333;
+    padding: 5px;
 }
 
-/* Элемент списка (Кассета) */
 .cinema-lib-item {
-    background: linear-gradient(90deg, #0a0a0a, #111);
-    border: 1px solid #333;
-    border-left: 4px solid #444; /* Корешок кассеты */
-    padding: 12px 15px;
-    margin-bottom: 5px;
-    display: flex; justify-content: space-between; align-items: center;
-    transition: all 0.2s ease;
-    clip-path: polygon(0 0, 100% 0, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 10px;
+    background: #111;
+    margin-bottom: 2px;
+    transition: 0.2s;
+    border-left: 2px solid transparent;
 }
 
 .cinema-lib-item:hover {
-    transform: translateX(5px);
+    background: #1a1a1a;
     border-left-color: var(--vox-cyan);
-    box-shadow: -5px 0 15px rgba(0, 243, 255, 0.1);
-    background: linear-gradient(90deg, #111, #1a1a1a);
 }
 
 .lib-name {
-    font-family: var(--font-code);
-    font-size: 12px;
+    font-size: 11px;
     color: #ccc;
-    letter-spacing: 1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 60%;
 }
 
 .lib-actions {
@@ -2243,59 +2127,15 @@ body.theater-mode #broadcastContainer {
     gap: 5px;
 }
 
-/* Кнопки LOAD/DELETE внутри кассеты */
 .lib-btn {
-    font-size: 10px; 
-    padding: 4px 8px; 
-    border-radius: 2px;
-    text-transform: uppercase;
+    background: transparent;
+    border: 1px solid #444;
+    color: var(--vox-cyan);
+    font-size: 9px;
+    padding: 2px 5px;
+    cursor: pointer;
+    font-family: var(--font-code);
 }
-
 .lib-btn:hover { background: var(--vox-cyan); color: black; }
 .lib-del { color: var(--alert-red); border-color: #500; }
 .lib-del:hover { background: var(--alert-red); color: white; }
-
-/* --- FIX FOR LOCKDOWN SCREEN --- */
-#vaultGrid {
-    display: flex !important; /* Принудительно разворачиваем сетку */
-    flex-direction: column;
-    min-height: 300px; 
-    width: 100%;
-}
-
-.vault-lockdown {
-    display: flex !important;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    background: rgba(20, 0, 0, 0.95); /* Красный фон */
-    border: 2px dashed red;
-    padding: 40px;
-    margin-top: 20px;
-    width: 100%;
-    color: red;
-    text-align: center;
-    z-index: 100;
-    animation: pulseBorder 2s infinite;
-}
-
-.lockdown-icon {
-    font-size: 60px; color: var(--alert-red); margin-bottom: 20px;
-    text-shadow: 0 0 20px var(--alert-red);
-}
-
-.lockdown-title {
-    font-size: 24px; font-weight: 900; color: var(--alert-red);
-    letter-spacing: 5px; margin-bottom: 10px;
-    animation: glitchText 3s infinite;
-}
-
-.lockdown-desc {
-    color: #888; font-family: var(--font-code); font-size: 11px; max-width: 400px;
-}
-
-@keyframes pulseBorder {
-    0% { border-color: #500; box-shadow: inset 0 0 0 transparent; }
-    50% { border-color: #f00; box-shadow: inset 0 0 30px rgba(255,0,0,0.2); }
-    100% { border-color: #500; box-shadow: inset 0 0 0 transparent; }
-}
