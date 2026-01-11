@@ -1,7 +1,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
   import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, setDoc, doc, where, limit, getDoc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-  import { getStorage, ref, uploadBytes, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+  import { getStorage, ref, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyDaYxxhxjrvjVgqYcvPH53989Wr5dMgqHI",
@@ -37,6 +37,7 @@
   window.fbGet = getDoc;
   window.fbDelete = deleteDoc;
   window.fbGetDocs = getDocs;
+  window.fbDeleteFile = deleteObject;
 
   window.fbRef = ref;
   window.fbUpload = uploadBytes;
@@ -126,6 +127,18 @@
             // --- 11. ROUTER (UPDATED) ---
             const Router = {
                 go(page) {
+                    // 🔥 ЗАЩИТА ОТ МОБИЛЬНЫХ УСТРОЙСТВ
+                    if (page === 'cinema') {
+                        const isMobile = window.innerWidth <= 768 || 
+                                        /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+                        if (isMobile) {
+                            if(window.SoundFX) window.SoundFX.playTone(150, 'sawtooth', 0.5); 
+                            voxNotify("ACCESS DENIED: UNSUPPORTED HARDWARE DETECTED", "error");
+                            return; 
+                        }
+                    }
+
                     document.querySelectorAll('.view-section').forEach(v => {
                         v.classList.remove('active-view');
                         v.setAttribute('aria-hidden', 'true');
@@ -142,13 +155,18 @@
                         VideoSystem.init();
                         window.__videoInit = true;
                     }
+                    
+                    // 🔥 ЛОГИКА АРХИВА (НОВОЕ!) 🔥
+                    // Запускаем VaultSystem, когда заходим в архив
+                    if (page === 'storage') {
+                         if(window.VaultSystem) VaultSystem.init();
+                    }
 
-                    // 🔥 ЛОГИКА КИНОТЕАТРА 🔥
+                    // ЛОГИКА КИНОТЕАТРА
                     if (page === 'cinema') {
                         if(window.CinemaSystem) CinemaSystem.init();
                         if(window.CinemaSystem) CinemaSystem.join();
                     } else {
-                        // Если ушли со страницы кинотеатра — отключаемся
                         if(window.CinemaSystem) CinemaSystem.leave();
                     }
                 }
@@ -1103,37 +1121,92 @@
                 console.log(`%c BROWSER THEME: ${color} `, `background: ${color}; color: black; font-weight: bold;`);
             };
 
-            // --- NOTIFICATIONS ---
-            const voxNotify = (msg, type = 'info') => {
-                const area = document.getElementById('notification-area');
-                if (!area) return;
+            // --- 🔔 ADVANCED NOTIFICATION SYSTEM (SWIPE + SMOOTH FADE) ---
+            window.voxNotify = function(message, type = 'info') {
+                const container = document.getElementById('notification-area');
+                if (!container) return;
 
+                // 1. Создаем элемент
                 const toast = document.createElement('div');
-                toast.className = `vox-toast ${type === 'error' ? 'error' : ''}`;
-                
-                const header = document.createElement('div');
-                header.style.fontWeight = 'bold';
-                header.style.marginBottom = '5px';
-                header.textContent = '/// SYSTEM NOTIFICATION ///';
-                
-                const message = document.createElement('div');
-                message.textContent = msg; 
-                
-                toast.appendChild(header);
-                toast.appendChild(message);
-                area.appendChild(toast);
-                SoundFX.click();
-                
-                const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-                if(!prefersReducedMotion) {
-                    document.body.style.boxShadow = `inset 0 0 50px ${type === 'error' ? 'red' : 'var(--vox-cyan)'}`;
-                    setTimeout(() => document.body.style.boxShadow = 'none', 150);
-                }
+                toast.className = `vox-toast ${type}`;
+                toast.innerHTML = `<div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-size:16px;">${type === 'error' ? '⚠' : type === 'success' ? '✔' : 'ℹ'}</span>
+                    <span>${message}</span>
+                </div>`;
 
-                setTimeout(() => {
-                    toast.style.transform = 'translateX(120%)';
-                    setTimeout(() => { if(toast.parentNode) toast.parentNode.removeChild(toast); }, 300);
-                }, 3000);
+                // 2. Логика удаления (Плавная)
+                const removeToast = () => {
+                    if (toast.classList.contains('hiding')) return; // Уже удаляется
+                    
+                    toast.classList.add('hiding'); // Запускаем CSS анимацию slideOut
+                    
+                    // Ждем окончания анимации (0.4s как в CSS), потом удаляем из DOM
+                    setTimeout(() => {
+                        if (toast.parentNode) toast.remove();
+                    }, 400); 
+                };
+
+                // Таймер авто-удаления (4 секунды)
+                let autoRemove = setTimeout(removeToast, 4000);
+
+                // 3. 🔥 SWIPE LOGIC (ДЛЯ АНДРОИДА) 🔥
+                let startX = 0;
+                let currentX = 0;
+                let isDragging = false;
+
+                // Начало касания
+                toast.addEventListener('touchstart', (e) => {
+                    startX = e.touches[0].clientX;
+                    isDragging = true;
+                    clearTimeout(autoRemove); // Отменяем таймер, пока держим пальцем
+                    toast.style.transition = 'none'; // Убираем плавность для мгновенного отклика
+                }, {passive: true});
+
+                // Движение пальцем
+                toast.addEventListener('touchmove', (e) => {
+                    if (!isDragging) return;
+                    currentX = e.touches[0].clientX;
+                    const diff = currentX - startX;
+
+                    // Двигаем уведомление только вправо (по ходу анимации)
+                    if (diff > 0) {
+                        toast.style.transform = `translateX(${diff}px)`;
+                        // Чем дальше тянем, тем прозрачнее
+                        toast.style.opacity = 1 - (diff / 300);
+                    }
+                }, {passive: true});
+
+                // Конец касания
+                toast.addEventListener('touchend', () => {
+                    isDragging = false;
+                    const diff = currentX - startX;
+
+                    // Если свайпнули больше чем на 100px вправо -> удаляем
+                    if (diff > 100) {
+                        toast.style.transition = 'transform 0.2s ease-out';
+                        toast.style.transform = `translateX(120%)`; // Выкидываем за экран
+                        setTimeout(() => { if (toast.parentNode) toast.remove(); }, 200);
+                    } else {
+                        // Если свайп был слабый -> возвращаем на место
+                        toast.style.transition = 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+                        toast.style.transform = 'translateX(0)';
+                        toast.style.opacity = '1';
+                        // Возвращаем таймер удаления
+                        autoRemove = setTimeout(removeToast, 3000);
+                    }
+                });
+
+                // Также удаляем по клику (для ПК)
+                toast.onclick = removeToast;
+
+                // Добавляем в DOM
+                container.appendChild(toast);
+                
+                // Звуковой эффект (если есть система звука)
+                if(window.SoundFX) {
+                    if(type === 'error') window.SoundFX.playTone(150, 'sawtooth', 0.2);
+                    else window.SoundFX.playTone(800, 'sine', 0.1);
+                }
             };
 
             // --- 3. EASTER EGG ---
@@ -2827,20 +2900,99 @@
                 }
             }
             
-            // --- 💾 VAULT SYSTEM (STORAGE + DB) ---
+            // --- 💾 VAULT SYSTEM (OUT OF SERVICE MODE) ---
             window.VaultSystem = {
+                isInitialized: false, 
+                
+                // 🔥 ПЕРЕКЛЮЧАТЕЛЬ: true = "Закрыто", false = "Работает"
+                MAINTENANCE_MODE: true, 
+
                 init() {
-                    // Слушаем изменения в коллекции файлов текущего юзера
-                    if(window.auth.currentUser && window.db) {
+                    const grid = document.getElementById('vaultGrid');
+                    if(!grid) return;
+
+                    // 🔥 1. РЕЖИМ БЛОКИРОВКИ (Стили прямо в JS для гарантии)
+                    if (this.MAINTENANCE_MODE) {
+                        
+                        // Принудительно меняем стиль контейнера, чтобы убрать сетку
+                        grid.style.display = 'flex';
+                        grid.style.flexDirection = 'column';
+                        grid.style.alignItems = 'center';
+                        grid.style.justifyContent = 'center';
+                        grid.style.minHeight = '300px'; // Чтобы было место
+                        
+                        // Вставляем HTML с "вшитыми" стилями (inline styles)
+                        grid.innerHTML = `
+                            <div style="
+                                background: rgba(20, 0, 0, 0.95);
+                                border: 2px dashed #ff003c;
+                                padding: 40px;
+                                width: 90%;
+                                max-width: 600px;
+                                text-align: center;
+                                color: #ff003c;
+                                display: flex;
+                                flex-direction: column;
+                                align-items: center;
+                                gap: 15px;
+                                box-shadow: 0 0 30px rgba(255, 0, 0, 0.2);
+                            ">
+                                <div style="font-size: 60px; margin-bottom: 10px;">⚠</div>
+                                <div style="font-size: 24px; font-weight: bold; letter-spacing: 3px;">SECTOR DOWN</div>
+                                <div style="font-family: 'Courier New', monospace; color: #ff6666; font-size: 12px; line-height: 1.5;">
+                                    ACCESS SUSPENDED BY VANGUARD PROTOCOL.<br>
+                                    REASON: SECURITY BREACH DETECTED.<br>
+                                    ESTIMATED RESTORATION: UNKNOWN
+                                </div>
+                                <button class="btn-tech" style="margin-top: 20px; border-color: #555; color: #666; cursor: not-allowed; background: transparent;">
+                                    REQUEST BYPASS
+                                </button>
+                            </div>
+                        `;
+                        
+                        // Отключаем кнопку загрузки
+                        const uploadBtn = document.getElementById('vaultUpload');
+                        if(uploadBtn) uploadBtn.style.display = 'none';
+
+                        // Звук (играем только один раз)
+                        if(!this.isInitialized && window.SoundFX) {
+                             setTimeout(() => window.SoundFX.playTone(100, 'sawtooth', 0.5), 500);
+                        }
+                        
+                        this.isInitialized = true;
+                        return; // ⛔ СТОП
+                    }
+
+                    // 🔥 2. ОБЫЧНЫЙ РЕЖИМ (Если блокировка выключена)
+                    if (this.isInitialized) return;
+                    this.isInitialized = true;
+                    
+                    // Возвращаем кнопку загрузки, если она была скрыта
+                    const uploadBtn = document.getElementById('vaultUpload');
+                    if(uploadBtn) uploadBtn.style.display = 'inline-block';
+                    
+                    // Возвращаем стили сетки для файлов
+                    grid.style.display = ''; 
+                    grid.style.flexDirection = '';
+                    grid.style.alignItems = '';
+                    grid.style.justifyContent = '';
+
+                    // ... ДАЛЬШЕ ИДЕТ ТВОЙ СТАРЫЙ КОД ЗАГРУЗКИ ФАЙЛОВ ...
+                    // (Скопируй сюда остаток функции: проверку auth, window.fbQuery и т.д.)
+                    
+                    if(!window.auth.currentUser) {
+                        grid.innerHTML = '<div style="color:var(--alert-red); grid-column:1/-1; text-align:center; padding:50px;">ACCESS DENIED: LOGIN REQUIRED</div>';
+                        return;
+                    }
+
+                    if(window.db) {
                         const uid = window.auth.currentUser.uid;
                         const q = window.fbQuery(
                             window.fbCol(window.db, "user_archives"), 
-                            window.fbWhere("owner", "==", uid),
-                            window.fbOrder("createdAt", "desc")
+                            window.fbWhere("owner", "==", uid)
                         );
                         
                         window.fbSnap(q, (snapshot) => {
-                            const grid = document.getElementById('vaultGrid');
                             grid.innerHTML = '';
                             
                             if(snapshot.empty) {
@@ -2848,16 +3000,23 @@
                                 return;
                             }
 
-                            snapshot.forEach(doc => {
-                                const f = doc.data();
-                                this.renderCard(f, doc.id, grid);
+                            let files = [];
+                            snapshot.forEach(doc => { files.push({ id: doc.id, ...doc.data() }); });
+
+                            files.sort((a, b) => {
+                                const timeA = a.createdAt ? a.createdAt.toMillis() : 0;
+                                const timeB = b.createdAt ? b.createdAt.toMillis() : 0;
+                                return timeB - timeA;
                             });
+
+                            files.forEach(f => { this.renderCard(f, f.id, grid); });
                         });
                     }
                 },
 
                 renderCard(f, id, container) {
-                    // Определяем стиль в зависимости от статуса
+                    if(this.MAINTENANCE_MODE) return voxNotify("UPLOAD REJECTED: SYSTEM OFFLINE", "error");
+                    
                     let statusColor = "#666";
                     let statusText = "PENDING SCAN...";
                     let isLocked = false;
@@ -2871,16 +3030,18 @@
                         isLocked = true;
                     }
 
+                    // Обработка имени файла (если слишком длинное)
+                    const displayName = f.name.length > 20 ? f.name.substring(0, 18) + '...' : f.name;
                     const ext = f.name.split('.').pop().toUpperCase();
                     
                     const div = document.createElement('div');
-                    div.className = 'tech-card'; // Используем твой готовый стиль
+                    div.className = 'tech-card';
                     div.style = `padding:15px; width:auto; border-color:${statusColor}; position:relative; min-height:180px; display:flex; flex-direction:column; justify-content:space-between;`;
                     
                     div.innerHTML = `
                         <div>
                             <div style="font-size:30px; color:${statusColor}; margin-bottom:10px;">${isLocked ? '🔒' : '📄'}</div>
-                            <div style="font-size:12px; font-weight:bold; color:white; word-break:break-all;">${f.name}</div>
+                            <div style="font-size:12px; font-weight:bold; color:white; word-break:break-all;" title="${f.name}">${displayName}</div>
                             <div style="font-size:9px; color:#888; margin-top:5px;">${ext} FILE • ${(f.size/1024).toFixed(1)} KB</div>
                         </div>
                         
@@ -2888,7 +3049,7 @@
                             <div style="font-size:9px; color:${statusColor}; font-family:var(--font-code); margin-bottom:5px;">STATUS: ${statusText}</div>
                             ${isLocked 
                                 ? `<button class="btn-tech" style="width:100%; font-size:10px; border-color:red; color:red; cursor:not-allowed; opacity:0.5;">ACCESS DENIED</button>`
-                                : `<a href="${f.url}" target="_blank" class="btn-tech" style="width:100%; font-size:10px; display:block; text-align:center; padding:5px;">RETRIEVE</a>`
+                                : `<a href="${f.url}" target="_blank" class="btn-tech" style="width:100%; font-size:10px; display:block; text-align:center; padding:5px; text-decoration:none; color:var(--vox-cyan);">RETRIEVE</a>`
                             }
                             <button class="btn-tech" style="width:100%; font-size:9px; margin-top:5px; border-color:#444; color:#666;" onclick="VaultSystem.deleteFile('${id}', '${f.refPath}')">PURGE</button>
                         </div>
@@ -2899,80 +3060,77 @@
                 upload(input) {
                     const file = input.files[0];
                     if(!file || !window.auth.currentUser) return;
+
+                    if (file.size > 100 * 1024 * 1024) {
+                        voxNotify("VAULT LIMIT EXCEEDED (MAX 100MB)", "error");
+                        input.value = '';
+                        return;
+                    }
                     
-                    voxNotify("UPLOADING TO SECURE VAULT...", "info");
+                    voxNotify("ENCRYPTING & UPLOADING...", "info");
 
                     const uid = window.auth.currentUser.uid;
                     const path = `archives/${uid}/${Date.now()}_${file.name}`;
                     const storageRef = window.fbRef(window.storage, path);
                     
-                    // 1. Загрузка в Storage
-                    window.fbUpload(storageRef, file).then((snap) => {
-                        window.fbUrl(snap.ref).then((url) => {
-                            // 2. Запись в БД (Статус по умолчанию 'scanning')
-                            window.fbAdd(window.fbCol(window.db, "user_archives"), {
-                                owner: uid,
-                                name: file.name,
-                                size: file.size,
-                                url: url,
-                                refPath: path, // Чтобы потом удалить
-                                createdAt: window.fbTime(),
-                                status: 'scanning' // Начальный статус
-                            });
+                    const metadata = { cacheControl: 'public, max-age=31536000' };
+                    
+                    const uploadTask = window.fbUploadResumable(storageRef, file, metadata);
 
-                            voxNotify("UPLOAD COMPLETE. SCANNING INITIATED.", "success");
-                            
-                            // 3. ФЕЙКОВОЕ СКАНИРОВАНИЕ (Симуляция работы Vanguard AI)
-                            // Через 3 секунды меняем статус на SAFE (или случайно на THREAT)
-                            setTimeout(() => {
-                                this.simulateScan(file.name);
-                            }, 3000);
-                        });
-                    });
+                    uploadTask.on('state_changed', null, 
+                        (error) => voxNotify("ERROR: " + error.code, "error"),
+                        () => {
+                            window.fbUrl(uploadTask.snapshot.ref).then((url) => {
+                                window.fbAdd(window.fbCol(window.db, "user_archives"), {
+                                    owner: uid,
+                                    name: file.name,
+                                    size: file.size,
+                                    url: url,
+                                    refPath: path,
+                                    createdAt: window.fbTime(),
+                                    status: 'scanning'
+                                });
+
+                                voxNotify("ARCHIVE SECURED.", "success");
+                                setTimeout(() => { this.simulateScan(file.name); }, 3000);
+                            });
+                        }
+                    );
                     input.value = '';
                 },
 
                 async simulateScan(fileName) {
-                    // Ищем этот файл в базе (по имени и владельцу, свежий)
-                    // (Для упрощения найдем последний добавленный)
                     const uid = window.auth.currentUser.uid;
                     const q = window.fbQuery(
                         window.fbCol(window.db, "user_archives"), 
                         window.fbWhere("owner", "==", uid),
-                        window.fbWhere("name", "==", fileName),
+                        window.fbWhere("name", "==", fileName), // Без сложной сортировки тут
                         window.fbLimit(1)
                     );
                     
                     const snap = await window.fbGetDocs(q);
                     if(!snap.empty) {
                         const doc = snap.docs[0];
-                        // 10% шанс, что файл признают "Угрозой" (для атмосферы)
                         const isThreat = Math.random() < 0.1; 
-                        
-                        window.fbSet(doc.ref, { 
-                            status: isThreat ? 'threat' : 'safe' 
-                        }, { merge: true });
-
+                        window.fbSet(doc.ref, { status: isThreat ? 'threat' : 'safe' }, { merge: true });
                         if(isThreat) {
-                            voxNotify("ALERT: CONTRABAND DETECTED IN ARCHIVE!", "error");
-                            window.SoundFX.error();
-                        } else {
-                            // voxNotify("SCAN COMPLETE: FILE CLEAN.", "success");
+                            voxNotify("ALERT: CONTRABAND DETECTED!", "error");
+                            if(window.SoundFX) window.SoundFX.error();
                         }
                     }
                 },
 
-                deleteFile(id, refPath) {
+                async deleteFile(id, refPath) {
                     if(!confirm("PERMANENTLY PURGE DATA?")) return;
-                    
-                    // Удаляем из БД
-                    window.fbDelete(window.fbDoc(window.db, "user_archives", id));
-                    
-                    // Удаляем из Storage (если нужно, но можно оставить для истории)
-                    // const sRef = window.fbRef(window.storage, refPath);
-                    // deleteObject(sRef)... (требует импорта deleteObject, пока пропустим для простоты)
-                    
-                    voxNotify("DATA EXPUNGED.", "info");
+                    const fileRef = window.fbRef(window.storage, refPath);
+                    window.fbDeleteFile(fileRef).then(() => {
+                        window.fbDelete(window.fbDoc(window.db, "user_archives", id));
+                        voxNotify("DATA EXPUNGED FULLY.", "success");
+                        if(window.SoundFX) window.SoundFX.playTone(150, 'sawtooth', 0.2);
+                    }).catch(error => {
+                        window.fbDelete(window.fbDoc(window.db, "user_archives", id));
+                        voxNotify("DB RECORD CLEARED.", "info");
+                    });
                 }
             };
 
@@ -3107,22 +3265,43 @@
                     }
                 },
 
-                // Внутри window.CloudSystem добавь этот метод:
+                // --- ОПТИМИЗИРОВАННАЯ ОТПРАВКА ФОТО ---
                 sendImage(input) {
                     const file = input.files[0];
                     if(!file) return;
                     
-                    voxNotify("ENCRYPTING IMAGE DATA...", "info");
+                    // 1. Лимит для чата: 10 МБ (строго!)
+                    if (file.size > 10 * 1024 * 1024) {
+                        voxNotify("IMAGE TOO LARGE (MAX 10MB)", "error");
+                        input.value = '';
+                        return;
+                    }
+
+                    // 2. Проверка, что это картинка
+                    if (!file.type.startsWith('image/')) {
+                        voxNotify("INVALID FORMAT. IMAGE REQUIRED.", "error");
+                        return;
+                    }
+                    
+                    voxNotify("COMPRESSING & ENCRYPTING...", "info");
+                    
+                    const metadata = {
+                        contentType: file.type,
+                        cacheControl: 'public, max-age=31536000'
+                    };
+
                     const storageRef = window.fbRef(window.storage, `chat_images/${Date.now()}_${file.name}`);
                     
-                    window.fbUpload(storageRef, file).then((snapshot) => {
+                    // Загружаем
+                    const task = window.fbUploadResumable(storageRef, file, metadata);
+                    
+                    task.then(snapshot => {
                         window.fbUrl(snapshot.ref).then((url) => {
-                            // Отправляем как сообщение, но с типом 'image'
-                            this.sendMessage(url, 'image'); // <-- Мы перегрузим sendMessage
-                            voxNotify("VISUAL DATA SENT", "success");
+                            this.sendMessage(url, 'image');
+                            voxNotify("VISUAL DATA TRANSMITTED", "success");
                         });
                     });
-                    input.value = ''; // Сброс
+                    input.value = ''; 
                 },
 
                 // ЗАМЕНИ СТАРЫЙ sendMessage НА ЭТОТ:
@@ -3208,65 +3387,75 @@
                     });
                 },
 
-                // --- ВСТАВИТЬ ЭТО ВНУТРЬ CloudSystem (после sendMessage) ---
+                // --- ОПТИМИЗИРОВАННАЯ ЗАГРУЗКА МЕДИА (ВИДЕО/АУДИО) ---
                 uploadMedia(file, type) {
                     const user = window.auth.currentUser;
                     if(!user || !file) return;
 
-                    // 1. Настройки метаданных (КЭШИРОВАНИЕ - ГЛАВНЫЙ УСКОРИТЕЛЬ)
+                    // 1. ВАЛИДАЦИЯ РАЗМЕРА (Limit: 500MB)
+                    // Это спасает трафик и нервы
+                    const maxSize = 500 * 1024 * 1024; 
+                    if (file.size > maxSize) {
+                        voxNotify(`ERROR: FILE TOO LARGE (>500MB). COMPRESS IT.`, "error");
+                        if(window.SoundFX) window.SoundFX.error();
+                        return;
+                    }
+
+                    // 2. ВАЛИДАЦИЯ ТИПА
+                    // Проверяем, действительно ли это видео или аудио
+                    if (!file.type.startsWith(type + '/')) {
+                        voxNotify(`INVALID FORMAT. EXPECTED ${type.toUpperCase()}.`, "error");
+                        return;
+                    }
+
+                    // 3. УМНЫЕ МЕТАДАННЫЕ (КЕШИРОВАНИЕ)
                     const metadata = {
                         contentType: file.type,
-                        // Заставляем браузер хранить файл 1 год. Повторный запуск будет мгновенным.
+                        // Магия скорости: хранить в браузере 1 год
                         cacheControl: 'public, max-age=31536000' 
                     };
 
                     const fileName = `${type}s/${user.uid}_${Date.now()}_${file.name}`;
                     const storageRef = window.fbRef(window.storage, fileName);
                     
-                    // 2. ИСПОЛЬЗУЕМ RESUMABLE UPLOAD (Для стабильности и скорости)
+                    // Запуск загрузки
                     const uploadTask = window.fbUploadResumable(storageRef, file, metadata);
 
-                    voxNotify(`INITIATING UPLINK: 0%`, "info");
+                    voxNotify(`INITIATING ${type.toUpperCase()} UPLINK...`, "info");
 
-                    // 3. СЛУШАЕМ ПРОГРЕСС
                     uploadTask.on('state_changed', 
                         (snapshot) => {
-                            // Вычисляем процент
                             const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                            // Показываем уведомление каждые 25%, чтобы не спамить
+                            // Уведомляем только на ключевых этапах (0, 25, 50, 75, 100%), чтобы не спамить
                             if(progress % 25 < 1 || progress === 100) {
-                                voxNotify(`UPLOADING ${type.toUpperCase()}: ${Math.floor(progress)}%`, "info");
+                                voxNotify(`UPLOADING: ${Math.floor(progress)}%`, "info");
                             }
                         }, 
                         (error) => {
                             voxNotify("UPLOAD FAILURE: " + error.message, "error");
                         }, 
                         () => {
-                            // 4. ЗАГРУЗКА ЗАВЕРШЕНА
                             window.fbUrl(uploadTask.snapshot.ref).then((url) => {
-                                // Сохраняем в базу данных
+                                // Сохраняем в базу
                                 const collectionName = type === 'video' ? "videos" : "audios";
-                                const docData = {
+                                window.fbAdd(window.fbCol(window.db, collectionName), {
                                     author: user.uid,
                                     name: file.name,
                                     url: url,
                                     createdAt: window.fbTime(),
                                     isCloud: true,
-                                    size: file.size, // Полезно знать размер
+                                    size: file.size,
                                     mime: file.type
-                                };
+                                });
 
-                                window.fbAdd(window.fbCol(window.db, collectionName), docData);
-
-                                // Если это аудио - добавляем в плейлист сразу
+                                // Если это аудио - сразу добавляем в плейлист
                                 if(type === 'audio' && window.MusicSystem) {
-                                    window.MusicSystem.playlist.push({ 
-                                        name: file.name, url: url, isCloud: true 
-                                    });
+                                    window.MusicSystem.playlist.push({ name: file.name, url: url, isCloud: true });
                                     window.MusicSystem.renderPlaylist();
                                 }
                                 
                                 voxNotify("DATA SECURED IN ARCHIVE.", "success");
+                                if(window.SoundFX) window.SoundFX.playTone(600, 'sine', 0.5);
                             });
                         }
                     );
@@ -3301,16 +3490,22 @@
                     try {
                         let photoURL = user.photoURL;
                         
-                        // 1. Загрузка Аватарки (если есть)
+                        // 1. Загрузка Аватарки (ПЕРЕЗАПИСЬ)
                         if (avInput.files.length > 0) {
-                            const snap = await window.fbUpload(window.fbRef(window.storage, `avatars/${user.uid}/${Date.now()}`), avInput.files[0]);
+                            // Имя файла теперь всегда одинаковое: 'profile_pic'
+                            // Это АВТОМАТИЧЕСКИ удаляет старую аватарку при загрузке новой
+                            const path = `avatars/${user.uid}/profile_pic`;
+                            const snap = await window.fbUpload(window.fbRef(window.storage, path), avInput.files[0]);
+                            
+                            // Получаем URL
                             photoURL = await window.fbUrl(snap.ref);
                         }
 
-                        // 2. Загрузка Баннера (если есть)
+                        // 2. Загрузка Баннера (ПЕРЕЗАПИСЬ)
                         let bannerURL = null;
                         if (banInput.files.length > 0) {
-                            const snap = await window.fbUpload(window.fbRef(window.storage, `banners/${user.uid}/${Date.now()}`), banInput.files[0]);
+                            const path = `banners/${user.uid}/header_pic`;
+                            const snap = await window.fbUpload(window.fbRef(window.storage, path), banInput.files[0]);
                             bannerURL = await window.fbUrl(snap.ref);
                         }
 
@@ -3571,7 +3766,7 @@
                         feed.scrollTop = feed.scrollHeight;
                     });
                 },
-            },
+            };
 
             // Listen for typing input
             document.getElementById('msgInput').addEventListener('input', () => {
@@ -4220,6 +4415,7 @@
                     document.body.style.overflow = 'auto';
 
                     // Возвращаем кнопку админа (если это админ)
+                    const currentUser = window.auth.currentUser;
                     if(window.auth.currentUser && window.auth.currentUser.email === 'voxtek@voxtek.net' || user.email === 'test@voxtek.net') {
                         const admBtn = document.getElementById('adminToggleBtn');
                         if(admBtn) admBtn.style.display = 'block';
@@ -4356,6 +4552,7 @@
             
             // Hook into CloudSystem to Render Admin Tools for Messages
             const chatObserver = new MutationObserver((mutations) => {
+                const currentUser = window.auth.currentUser;
                 if(window.auth.currentUser && window.auth.currentUser.email === 'voxtek@voxtek.net' || user.email === 'test@voxtek.net') {
                     mutations.forEach(mut => {
                         mut.addedNodes.forEach(node => {
@@ -4990,36 +5187,75 @@
                     this.video.pause();
                     this.stopAmbilight();
                 },
-
-                // --- 🎬 CINEMA VAULT LOGIC (NEW) ---
                 
+                // --- ОПТИМИЗИРОВАННАЯ ЗАГРУЗКА ---
                 uploadMovie(input) {
                     const file = input.files[0];
                     if(!file) return;
 
-                    // 1. Уведомление
-                    voxNotify("UPLOADING TO CINEMA REEL...", "info");
+                    // 1. ВАЛИДАЦИЯ (OPTIMIZATION: PRE-CHECK)
+                    // Лимит: 500 МБ (чтобы не забивать канал)
+                    const maxSize = 500 * 1024 * 1024; 
+                    if (file.size > maxSize) {
+                        voxNotify("UPLOAD REJECTED: FILE TOO LARGE (MAX 500MB)", "error");
+                        // Звук отказа
+                        if(window.SoundFX) window.SoundFX.playTone(100, 'sawtooth', 0.2);
+                        input.value = ''; 
+                        return;
+                    }
 
-                    // 2. Путь в Storage (отдельная папка cinema_uploads)
+                    // Проверка типа
+                    if (!file.type.startsWith('video/')) {
+                        voxNotify("INVALID FORMAT. VIDEO REQUIRED.", "error");
+                        return;
+                    }
+
+                    voxNotify("INITIATING SECURE UPLOAD...", "info");
+
+                    // 2. METADATA (OPTIMIZATION: CACHING)
+                    // Мы добавляем cacheControl. Это магия. 
+                    // Браузеры будут хранить это видео в кеше 1 год (31536000 секунд).
+                    const metadata = {
+                        contentType: file.type,
+                        cacheControl: 'public, max-age=31536000' 
+                    };
+
                     const path = `cinema_uploads/${Date.now()}_${file.name}`;
-                    const storageRef = window.fbRef(window.storage, path);
-
-                    // 3. Загрузка
-                    const task = window.fbUpload(storageRef, file);
                     
-                    task.then(snap => {
-                        window.fbUrl(snap.ref).then(url => {
-                            // 4. Сохраняем в отдельную коллекцию 'cinema_library'
-                            window.fbAdd(window.fbCol(window.db, "cinema_library"), {
-                                name: file.name,
-                                url: url,
-                                addedAt: window.fbTime(),
-                                addedBy: window.auth.currentUser.email
+                    // Используем uploadBytesResumable напрямую для доступа к прогрессу и метаданным
+                    const storageRef = window.fbRef(window.storage, path);
+                    const uploadTask = window.fbUploadResumable(storageRef, file, metadata);
+
+                    // 3. ОТСЛЕЖИВАНИЕ ПРОГРЕССА
+                    uploadTask.on('state_changed', 
+                        (snapshot) => {
+                            // Вычисляем процент
+                            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                            // Можно выводить в консоль или в специальный бар, если есть
+                            console.log('Upload is ' + progress + '% done');
+                            
+                            // Если у тебя есть элемент прогресса, обновляй его тут
+                            // document.getElementById('uploadBar').style.width = progress + '%';
+                        }, 
+                        (error) => {
+                            voxNotify("UPLOAD FAILED: " + error.code, "error");
+                        }, 
+                        () => {
+                            // 4. ЗАВЕРШЕНИЕ
+                            window.fbUrl(uploadTask.snapshot.ref).then((url) => {
+                                window.fbAdd(window.fbCol(window.db, "cinema_library"), {
+                                    name: file.name,
+                                    url: url,
+                                    size: (file.size / (1024*1024)).toFixed(2) + ' MB', // Сохраняем размер для инфо
+                                    addedAt: window.fbTime(),
+                                    addedBy: window.auth.currentUser.email
+                                });
+                                voxNotify("FILM ARCHIVED SUCCESSFULLY.", "success");
+                                if(window.SoundFX) window.SoundFX.playTone(600, 'sine', 0.5);
+                                input.value = '';
                             });
-                            voxNotify("FILM ADDED TO REEL.", "success");
-                            input.value = ''; // Сброс
-                        });
-                    }).catch(e => voxNotify("UPLOAD FAILED: " + e.message, "error"));
+                        }
+                    );
                 },
 
                 fetchLibrary() {
@@ -5055,10 +5291,30 @@
                     this.loadFromInput(); // Запускаем
                 },
 
-                deleteMovie(id) {
-                    if(confirm("REMOVE FILM FROM ARCHIVE?")) {
-                        window.fbDelete(window.fbDoc(window.db, "cinema_library", id));
-                    }
+                async deleteMovie(id) {
+                    if(!confirm("REMOVE FILM FROM ARCHIVE?")) return;
+
+                    const docRef = window.fbDoc(window.db, "cinema_library", id);
+
+                    // 1. Получаем данные о фильме, чтобы найти его URL
+                    window.fbGet(docRef).then(doc => {
+                        if (doc.exists()) {
+                            const data = doc.data();
+                            // Создаем ссылку на файл из его URL
+                            const fileRef = window.fbRef(window.storage, data.url);
+
+                            // 2. Удаляем файл
+                            window.fbDeleteFile(fileRef).then(() => {
+                                // 3. Удаляем документ
+                                window.fbDelete(docRef);
+                                voxNotify("FILM DELETED FROM CLOUD.", "success");
+                            }).catch(() => {
+                                // Если ошибка (например, файл удалили вручную), просто чистим БД
+                                window.fbDelete(docRef);
+                                voxNotify("FILM RECORD REMOVED.", "info");
+                            });
+                        }
+                    });
                 },
 
                 // --- OLDER LOGIC (Keep functionality) ---
