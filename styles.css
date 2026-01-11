@@ -770,32 +770,52 @@ footer { text-align: center; padding: 60px 20px; color: #888; font-size: 11px; b
 #customVideoPlayer { width: 100%; height: 100%; outline: none; display:block; z-index: 2; position: relative; }
 
 /* --- ВСТАВЬ ЭТО В STYLES.CSS ВМЕСТО СТАРОГО БЛОКА --- */
+/* --- ОБНОВЛЕННЫЙ БЛОК ДЛЯ STYLES.CSS --- */
+
 .custom-video-controls {
     position: absolute; 
-    bottom: 15px; /* Отступ снизу */
+    bottom: 15px;
     
-    /* 🔥 ЖЕЛЕЗОБЕТОННОЕ ЦЕНТРИРОВАНИЕ 🔥 */
+    /* Центрирование */
     left: 50%;
-    transform: translateX(-50%) !important; /* !important чтобы перебить анимации */
-    width: 94%; /* Чуть меньше 100%, чтобы были отступы по краям */
+    transform: translateX(-50%);
+    width: 94%;
     
-    /* Дизайн (Стекло) */
+    /* Дизайн */
     background: rgba(10, 15, 20, 0.85);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    
     border: 1px solid rgba(0, 243, 255, 0.2);
     border-radius: 12px;
     padding: 10px 15px;
-    
     z-index: 100;
-    
-    /* Делаем её всегда видимой */
-    opacity: 1 !important; 
     
     display: flex; 
     flex-direction: column; 
     gap: 5px;
+
+    /* 🔥 ИЗМЕНЕНИЯ ЗДЕСЬ: */
+    opacity: 0; /* По умолчанию скрыта */
+    pointer-events: none; /* Чтобы нельзя было нажать, когда невидима */
+    transition: opacity 0.3s ease; /* Плавность */
+}
+
+/* 1. Показываем, если JS добавил класс user-active (движение мыши) */
+.video-wrapper.user-active .custom-video-controls {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* 2. Показываем, если просто навели мышку на видео (на всякий случай) */
+.video-wrapper:hover .custom-video-controls {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* 3. Когда видео на паузе — панель всегда видна (чтобы было удобно) */
+.video-wrapper.paused .custom-video-controls {
+    opacity: 1;
+    pointer-events: auto;
 }
 
 /* 1. Для ПК (устройств с мышью): показываем панель при наведении */
