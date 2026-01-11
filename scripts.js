@@ -472,79 +472,105 @@
                         bufferLength = this.analyser.frequencyBinCount; // Обычно 32, так как fftSize = 64
                         dataArray = new Uint8Array(bufferLength);
                     }
+                },
 
-                    // === ГЛАВНЫЙ ЦИКЛ ОТРИСОВКИ ===
+                    // === ОБНОВЛЕННЫЙ МЕТОД DRAW (С МОБИЛЬНОЙ КНОПКОЙ) ===
+                draw() {
+                    if (!this.canvas || this.animationId) return;
+
+                    const ctx = this.canvas.getContext('2d');
+                    const root = document.documentElement;
+                    // 🔥 НАХОДИМ КНОПКУ (для анимации на телефоне)
+                    const mobileBtn = document.getElementById('mobileMusicBtn'); 
+
+                    // Настройка FPS (чтобы не грелся телефон)
+                    let lastFrame = 0;
+                    const FPS_LIMIT = 60; 
+                    const FRAME_TIME = 1000 / FPS_LIMIT;
+
+                    let bufferLength = this.analyser ? this.analyser.frequencyBinCount : 32;
+                    let dataArray = new Uint8Array(bufferLength);
+
                     const render = (ts) => {
-                        // Если вкладка скрыта или музыка на паузе — останавливаем рендер для экономии
+                        // 1. ПРОВЕРКА: Если пауза или вкладка скрыта
                         if (document.hidden || this.audio.paused) {
                             this.animationId = null;
-                            // Сбрасываем яркость сетки в дефолт при паузе
+                            
+                            // Сбрасываем эффекты в ноль
                             root.style.setProperty('--scan-line-color', 'rgba(0, 243, 255, 0.03)');
+                            root.style.setProperty('--grid-glow', '0px');
+                            
+                            // Возвращаем кнопку в обычное состояние
+                            if(mobileBtn) {
+                                mobileBtn.style.transform = 'scale(1)';
+                                mobileBtn.style.boxShadow = 'none';
+                            }
                             return;
                         }
 
-                        // Контроль FPS
+                        // 2. КОНТРОЛЬ FPS
                         if (ts - lastFrame < FRAME_TIME) {
                             this.animationId = requestAnimationFrame(render);
                             return;
                         }
                         lastFrame = ts;
 
-                        const w = this.canvas.width;
-                        const h = this.canvas.height;
-
-                        // Очистка канваса (полупрозрачный след для плавности)
-                        ctx.fillStyle = 'rgba(0,0,0,0.5)';
-                        ctx.fillRect(0, 0, w, h);
-
-                        // Получаем данные о частотах
-                        if (!this.useSimulation && dataArray) {
+                        // 3. ПОЛУЧЕНИЕ ДАННЫХ ЗВУКА
+                        if (!this.useSimulation && this.analyser) {
                             this.analyser.getByteFrequencyData(dataArray);
                         }
 
-                        // --- ЛОГИКА 1: ВИЗУАЛИЗАТОР В ПЛЕЕРЕ (Столбики) ---
-                        const barWidth = (w / bufferLength) * 1.5;
-                        let x = 0;
-                        let sum = 0; // Сумма громкости для расчета средней энергии
+                        const w = this.canvas.width;
+                        const h = this.canvas.height;
 
+                        // Очистка с полупрозрачностью (шлейф)
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                        ctx.fillRect(0, 0, w, h);
+
+                        let sum = 0;
+                        const barWidth = (w / bufferLength) * 2.5;
+                        let x = 0;
+
+                        // --- ОТРИСОВКА СТОЛБИКОВ ---
                         for (let i = 0; i < bufferLength; i++) {
-                            // Данные: либо реальные, либо симуляция (random)
                             const value = dataArray ? dataArray[i] : (Math.random() * 50) + 50;
-                            
-                            // Собираем общую громкость
                             sum += value;
 
-                            // Рисуем столбик
-                            const barHeight = Math.max(2, (value / 255) * h); // Нормализация высоты
-
-                            // Цвет столбика (Vox Cyan с градиентом)
-                            ctx.fillStyle = `rgb(0, ${Math.min(255, value + 100)}, 255)`;
-                            ctx.fillRect(x, h - barHeight, barWidth, barHeight);
-
-                            x += barWidth + 2;
+                            const barHeight = (value / 255) * h;
+                            // Цвет: Vox Cyan + немного синего на пиках
+                            ctx.fillStyle = `hsl(${180 + value/5}, 100%, 50%)`;
+                            ctx.fillRect(x, h - barHeight, barWidth - 1, barHeight);
+                            x += barWidth;
                         }
 
-                        // --- ЛОГИКА 2: РЕАКТИВНАЯ СЕТКА (AUDIO REACTIVE GRID) ---
-                        
-                        // Вычисляем среднюю громкость (энергию трека)
-                        const average = sum / bufferLength; // 0..255
+                        // --- ВЫЧИСЛЕНИЕ ЭФФЕКТОВ ---
+                        const average = sum / bufferLength; // Средняя громкость (0-255)
 
-                        // Рассчитываем прозрачность (Alpha) для сетки
-                        // База 0.03 (чтобы сетку было видно всегда) + Энергия басов
-                        // Делим на 600, чтобы не слепило, а мягко пульсировало
-                        const intensity = 0.03 + (average / 600); 
-                        
-                        // Применяем к CSS переменной (это меняет фон body)
-                        root.style.setProperty('--scan-line-color', `rgba(0, 243, 255, ${intensity})`);
+                        // Делаем эффекты более "резкими" (реагируют на бас)
+                        const glowValue = Math.min(25, (average / 12)); 
+                        const gridOpacity = Math.min(0.5, 0.03 + (average / 400));
+                        const gridSize = 50 + (average / 40); // Сетка "дышит"
 
-                        // (Бонус) Пульсация логотипа
+                        // Применяем к фону сайта
+                        root.style.setProperty('--scan-line-color', `rgba(0, 243, 255, ${gridOpacity})`);
+                        root.style.setProperty('--grid-glow', `${glowValue}px`);
+                        document.body.style.backgroundSize = `${gridSize}px ${gridSize}px`;
+
+                        // --- 🔥 АНИМАЦИЯ МОБИЛЬНОЙ КНОПКИ 🔥 ---
+                        if (mobileBtn) {
+                            // Кнопка увеличивается под бит
+                            const btnScale = 1 + (average / 800); 
+                            mobileBtn.style.transform = `scale(${btnScale})`;
+                            // Добавляем неоновое свечение вокруг кнопки
+                            mobileBtn.style.boxShadow = `0 0 ${glowValue}px var(--vox-cyan)`;
+                        }
+
+                        // Пульсация логотипа в шапке
                         const logo = document.querySelector('.vox-logo-svg');
-                        if(logo) {
-                            const scale = 1 + (average / 1500); // Очень легкое увеличение
-                            logo.style.transform = `scale(${scale})`;
+                        if (logo) {
+                            logo.style.transform = `scale(${1 + (average / 1200)})`;
                         }
 
-                        // Зацикливаем
                         this.animationId = requestAnimationFrame(render);
                     };
 
