@@ -538,6 +538,7 @@
                             if(mobileBtn) {
                                 mobileBtn.style.transform = 'scale(1)';
                                 mobileBtn.style.boxShadow = 'none';
+                                mobileBtn.classList.remove('playing');
                             }
                             return;
                         }
@@ -593,6 +594,8 @@
                         // --- 🔥 АНИМАЦИЯ МОБИЛЬНОЙ КНОПКИ 🔥 ---
                         if (mobileBtn) {
                             // Кнопка увеличивается под бит
+                            mobileBtn.classList.add('playing');
+                            
                             const btnScale = 1 + (average / 800); 
                             mobileBtn.style.transform = `scale(${btnScale})`;
                             // Добавляем неоновое свечение вокруг кнопки

@@ -1990,18 +1990,27 @@ body.low-effects .hypno-spiral {
     left: 0;
     width: 76px;
     height: 76px;
-    transform: rotate(-90deg); /* Начинаем отсчет сверху */
-    pointer-events: none; /* Пропускаем клики сквозь кольцо */
+    transform: rotate(-90deg); /* Начинаем сверху */
+    pointer-events: none;
     z-index: 3;
-    filter: drop-shadow(0 0 4px var(--vox-cyan)); /* Неоновое свечение линии */
+    filter: drop-shadow(0 0 4px var(--vox-cyan));
+    
+    /* 🔥 ИСПРАВЛЕНИЕ: Скрываем кольцо по умолчанию */
+    opacity: 0;
+    transition: opacity 0.5s ease; /* Плавное появление */
+}
+
+/* 🔥 ПОКАЗЫВАЕМ КОЛЬЦО ТОЛЬКО КОГДА ЕСТЬ КЛАСС .playing */
+.mobile-only-btn.playing .progress-ring {
+    opacity: 1;
 }
 
 .progress-ring__circle {
     /* Длина окружности (2 * pi * 34 ≈ 213) */
     stroke-dasharray: 213;
-    stroke-dashoffset: 213; /* По умолчанию пусто */
-    transition: stroke-dashoffset 0.1s linear; /* Плавное движение полоски */
-    stroke-linecap: round; /* Загругленные края линии */
+    stroke-dashoffset: 213;
+    transition: stroke-dashoffset 0.1s linear;
+    stroke-linecap: round;
 }
 
 /* --- ПУЛЬСАЦИЯ (SONAR EFFECT) --- */
@@ -2017,7 +2026,12 @@ body.low-effects .hypno-spiral {
     pointer-events: none;
     z-index: 1;
     
-    /* Анимация "Радар" работает всегда */
+    /* 🔥 ПО УМОЛЧАНИЮ ОТКЛЮЧЕНО */
+    animation: none;
+}
+
+/* 🔥 ВКЛЮЧАЕМ ТОЛЬКО КОГДА ИГРАЕТ МУЗЫКА */
+.mobile-only-btn.playing .pulse-ring {
     animation: sonarWave 2.5s infinite cubic-bezier(0.1, 0, 0.3, 1);
 }
 
@@ -2028,7 +2042,7 @@ body.low-effects .hypno-spiral {
         border-width: 2px;
     }
     100% {
-        width: 200%; height: 200%; /* Расходится далеко */
+        width: 200%; height: 200%;
         opacity: 0;
         border-width: 0px;
     }
