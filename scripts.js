@@ -238,6 +238,17 @@
                 useSimulation: false,
                 isDragging: false,
 
+                openMenu() {
+                    const modal = document.getElementById('musicModal');
+                    if (modal) {
+                        modal.classList.add('active');
+                        // Звук клика для атмосферы
+                        if(window.SoundFX) window.SoundFX.click();
+                    } else {
+                        console.error("Music Modal not found!");
+                    }
+                },
+
                 init() {
                     // Базовые настройки
                     this.audio.volume = 0.2; 
