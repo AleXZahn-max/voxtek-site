@@ -543,11 +543,14 @@
                 isLooping: false,
                 
                 init() {
+
+                    if (this.isInitialized) return; this.isInitialized = true;
+
                     StaticFX.init();
                     
                     // ЗАЩИТА: Если нет главных элементов, не запускаемся
                     if(!this.wrapper || !this.video) {
-                        console.warn("VideoSystem: Wrapper or Video element missing");
+                        console.error("VideoSystem: Wrapper or Video element missing");
                         return;
                     }
 
@@ -566,7 +569,7 @@
                         this.input.addEventListener('change', (e) => {
                             const files = Array.from(e.target.files);
                             if (files.length > 0) {
-                                if (confirm("UPLOAD TO CLOUD ARCHIVE? (Private Storage)")) {
+                                if (confirm("UPLOAD TO CLOUD ARCHIVE?")) {
                                     files.forEach(file => CloudSystem.uploadMedia(file, 'video'));
                                 } else {
                                     this.handleFiles(e.target.files);
