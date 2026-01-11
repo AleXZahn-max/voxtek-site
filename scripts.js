@@ -516,9 +516,9 @@
             window.MusicSystem = MusicSystem;
             MusicSystem.init();
 
-            // --- 1.2 CUSTOM VIDEO PLAYER SYSTEM (SAFE MODE) ---
+            // --- 1.2 CUSTOM VIDEO PLAYER SYSTEM (OPTIMIZED & REMASTERED) ---
             const VideoSystem = {
-                // Ищем элементы (могут быть null, если их нет в HTML)
+                // 1. ССЫЛКИ НА ЭЛЕМЕНТЫ
                 input: document.getElementById('videoInput'),
                 video: document.getElementById('customVideoPlayer'),
                 wrapper: document.getElementById('broadcastContainer'), 
@@ -535,7 +535,7 @@
                 placeholder: document.getElementById('vidPlaceholder'),
                 playlistContainer: document.getElementById('videoPlaylist'),
                 
-                // Переменные состояния
+                // 2. ПЕРЕМЕННЫЕ СОСТОЯНИЯ
                 playlist: [],
                 currentIndex: -1,
                 hideControlsTimer: null,
@@ -547,17 +547,21 @@
                     
                     // ЗАЩИТА: Если нет главных элементов, не запускаемся
                     if(!this.wrapper || !this.video) {
-                        console.warn("VideoSystem: Wrapper or Video element missing in HTML");
+                        console.warn("VideoSystem: Wrapper or Video element missing");
                         return;
                     }
 
-                    // 1. Drag & Drop
+                    // 🔥 ОПТИМИЗАЦИЯ ЗАГРУЗКИ (YOUTUBE STYLE) 🔥
+                    this.video.preload = "auto"; // Грузить метаданные и начало сразу
+                    this.video.crossOrigin = "anonymous"; // Важно для Firebase CORS!
+
+                    // 1. Drag & Drop (Загрузка файлов перетаскиванием)
                     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
                         this.wrapper.addEventListener(eventName, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
                     });
                     this.wrapper.addEventListener('drop', (e) => { this.handleFiles(e.dataTransfer.files); });
 
-                    // 2. Загрузка файла через кнопку
+                    // 2. Загрузка файла через кнопку (С возможностью залить в облако)
                     if(this.input) {
                         this.input.addEventListener('change', (e) => {
                             const files = Array.from(e.target.files);
@@ -571,7 +575,7 @@
                         });
                     }
 
-                    // --- КНОПКИ УПРАВЛЕНИЯ (С ПРОВЕРКАМИ) ---
+                    // --- КНОПКИ УПРАВЛЕНИЯ ---
                     
                     // Play / Pause
                     if(this.playBtn) this.playBtn.addEventListener('click', () => this.togglePlay());
@@ -586,28 +590,28 @@
                             if(this.statusTag) this.statusTag.textContent = "SIGNAL STATUS: STANDBY";
                             StaticFX.toggle(true);
                             if(this.placeholder) this.placeholder.style.display = 'block';
+                            this.updateBufferVisual(0); // Сброс полоски буфера
                         });
                     }
 
-                    // Fullscreen + Авто-поворот экрана
+                    // Fullscreen + Авто-поворот на мобильных
                     if(this.fullBtn) {
                         this.fullBtn.addEventListener('click', async () => {
                             try {
                                 if (!document.fullscreenElement) {
-                                    // 1. Входим в фулскрин
+                                    // Вход
                                     if(this.wrapper.requestFullscreen) await this.wrapper.requestFullscreen();
                                     else if(this.wrapper.webkitRequestFullscreen) await this.wrapper.webkitRequestFullscreen();
                                     
-                                    // 2. Пытаемся повернуть экран горизонтально (Android)
+                                    // Поворот экрана (только Android/Mobile)
                                     if (screen.orientation && screen.orientation.lock) {
                                         screen.orientation.lock('landscape').catch(err => console.log("Rotation locked by OS"));
                                     }
                                 } else {
-                                    // 3. Выходим из фулскрина
+                                    // Выход
                                     if(document.exitFullscreen) await document.exitFullscreen();
                                     else if(document.webkitExitFullscreen) await document.webkitExitFullscreen();
                                     
-                                    // 4. Возвращаем вертикальный режим (или разблокируем)
                                     if (screen.orientation && screen.orientation.unlock) {
                                         screen.orientation.unlock();
                                     }
@@ -626,7 +630,7 @@
                         });
                     }
 
-                    // Скорость
+                    // Скорость воспроизведения
                     if(this.speedSel) {
                         this.speedSel.addEventListener('change', (e) => {
                             this.video.playbackRate = parseFloat(e.target.value);
@@ -634,37 +638,29 @@
                         });
                     }
 
-                    // --- 3. FORCED VIEW LISTENER (ВНУТРИ VideoSystem.init) ---
-                    // Слушаем специальный документ в базе
+                    // --- 3. FORCED VIEW LISTENER (Слежка за приказами Админа) ---
                     if(window.db) {
                         window.fbSnap(window.fbDoc(window.db, "system_state", "broadcast"), (doc) => {
                             const data = doc.data();
-                            // Проверяем, свежий ли приказ (не старее 10 секунд), чтобы не срабатывал при каждом входе
                             if (data && data.active && data.timestamp) {
                                 const now = Date.now();
-                                const cmdTime = data.timestamp.toMillis ? data.timestamp.toMillis() : now; // Защита от null
+                                const cmdTime = data.timestamp.toMillis ? data.timestamp.toMillis() : now;
                                 
                                 // Если приказ был дан менее 30 секунд назад - выполняем
                                 if (now - cmdTime < 30000) {
-                                    // 1. Принудительно открываем вкладку Видео
                                     Router.go('video');
                                     
-                                    // 2. Включаем видео
                                     this.video.src = data.url;
                                     this.video.play().then(() => {
                                         voxNotify("MANDATORY BROADCAST INITIATED", "error");
                                     }).catch(() => {
-                                        // Если браузер заблокировал звук, показываем кнопку
                                         alert("PRIORITY MESSAGE RECEIVED. CLICK TO PLAY.");
                                         this.video.play();
                                     });
 
-                                    // 3. Блокируем плеер (визуально)
                                     this.statusTag.textContent = "OVERRIDE BY VOXTEK";
                                     this.statusTag.style.background = "var(--alert-red)";
-                                    
-                                    // Очищаем локальное управление, чтобы не мешали
-                                    this.stopBtn.style.display = 'none';
+                                    this.stopBtn.style.display = 'none'; // Блокируем кнопку стоп
                                 }
                             }
                         });
@@ -684,20 +680,31 @@
                     // Громкость
                     if(this.vol) this.vol.addEventListener('input', (e) => { this.video.volume = e.target.value; });
                     
-                    // --- ПРОГРЕСС БАР (ИСПРАВЛЕНИЕ ОШИБКИ) ---
-                    // Обновляем ползунок, когда видео играет
+                    // --- 4. УМНЫЙ ПРОГРЕСС БАР (С БУФЕРИЗАЦИЕЙ) ---
                     this.video.addEventListener('timeupdate', () => {
                         if(!this.isDragging && this.video.duration && this.progress) {
-                            const pct = (this.video.currentTime / this.video.duration) * 100;
+                            const current = this.video.currentTime;
+                            const total = this.video.duration;
+                            const pct = (current / total) * 100;
+                            
                             this.progress.value = pct;
-                            if(this.timeDisplay) this.timeDisplay.textContent = `${this.fmt(this.video.currentTime)} / ${this.fmt(this.video.duration)}`;
+                            if(this.timeDisplay) this.timeDisplay.textContent = `${this.fmt(current)} / ${this.fmt(total)}`;
+                            
+                            this.updateBufferVisual(pct); // 🔥 Рисуем серую полоску
                         }
+                    });
+
+                    // Слушаем событие "progress" (когда браузер качает данные в фоне)
+                    this.video.addEventListener('progress', () => {
+                        const pct = (this.video.currentTime / (this.video.duration || 1)) * 100;
+                        this.updateBufferVisual(pct);
                     });
 
                     // Если ползунок есть - добавляем управление
                     if(this.progress) {
                         this.progress.addEventListener('input', (e) => {
                             this.isDragging = true;
+                            this.updateBufferVisual(e.target.value); // Обновляем визуал при перетаскивании
                             if(this.video.duration && this.timeDisplay) {
                                 const time = (e.target.value / 100) * this.video.duration;
                                 this.timeDisplay.textContent = `${this.fmt(time)} / ${this.fmt(this.video.duration)}`;
@@ -714,56 +721,35 @@
                         if(!this.isLooping) this.playNext();
                     });
                     
-                    // --- 1.2.1 НОВАЯ ЛОГИКА ИНТЕРФЕЙСА (ВСТАВИТЬ СЮДА) ---
+                    // --- 5. УПРАВЛЕНИЕ ИНТЕРФЕЙСОМ (Прячем кнопки) ---
+                    const updateUIState = () => {
+                        this.wrapper.classList.add('user-active'); // Показываем панель
+                        this.video.style.cursor = 'default';
+                        
+                        if(this.hideControlsTimer) clearTimeout(this.hideControlsTimer);
+                        if(this.video.paused) return; // На паузе не прячем
 
-                const updateUIState = () => {
-                    this.wrapper.classList.add('user-active'); // Показываем панель
-                    this.video.style.cursor = 'default';
-                    
-                    // Сбрасываем старый таймер
-                    if(this.hideControlsTimer) clearTimeout(this.hideControlsTimer);
-
-                    // Если видео на ПАУЗЕ -> Выходим (панель останется висеть вечно)
-                    if(this.video.paused) return;
-
-                    // Если видео ИГРАЕТ -> Запускаем таймер на 5 секунд
-                    this.hideControlsTimer = setTimeout(() => {
-                        // Проверяем, не держит ли юзер курсор на кнопках
-                        const controls = document.querySelector('.custom-video-controls');
-
-                        // Проверяем: есть ли мышь?
-                        const hasMouse = window.matchMedia('(hover: hover)').matches;
-
-                        // Если это ПК и мышь на кнопках — не скрываем. 
-                        // Если это телефон (нет мыши) — скрываем всегда по таймеру.
-                        if (!controls || !hasMouse || !controls.matches(':hover')) {
-                            this.wrapper.classList.remove('user-active'); // Hides controls
-                            
-                            // Убираем курсор (только на ПК)
-                            if(hasMouse) {
-                                this.video.style.cursor = 'none';
+                        this.hideControlsTimer = setTimeout(() => {
+                            const controls = document.querySelector('.custom-video-controls');
+                            if (!controls || !controls.matches(':hover')) {
+                                this.wrapper.classList.remove('user-active'); // Скрываем
+                                if(!window.matchMedia('(pointer: coarse)').matches) {
+                                    this.video.style.cursor = 'none'; // Прячем курсор на ПК
+                                }
                             }
-                        }
-                    }, 5000);
-                };
+                        }, 5000);
+                    };
 
-                // 1. Слушаем любые взаимодействия (движение, касание, клик)
-                this.wrapper.addEventListener('mousemove', updateUIState);
-                this.wrapper.addEventListener('touchstart', updateUIState);
-                this.wrapper.addEventListener('click', updateUIState);
-
-                // 2. Слушаем статус видео
-                this.video.addEventListener('play', () => updateUIState()); // Старт -> запуск таймера
-
-                this.video.addEventListener('pause', () => {
-                    // Пауза -> показываем панель и УБИВАЕМ таймер (чтобы висела)
-                    this.wrapper.classList.add('user-active');
-                    if(this.hideControlsTimer) clearTimeout(this.hideControlsTimer);
-                });
-                    
-                    // Если мышка ушла с видео - сразу прячем (опционально)
+                    this.wrapper.addEventListener('mousemove', updateUIState);
+                    this.wrapper.addEventListener('touchstart', updateUIState);
+                    this.wrapper.addEventListener('click', updateUIState);
+                    this.video.addEventListener('play', () => updateUIState());
+                    this.video.addEventListener('pause', () => {
+                        this.wrapper.classList.add('user-active');
+                        if(this.hideControlsTimer) clearTimeout(this.hideControlsTimer);
+                    });
                     this.wrapper.addEventListener('mouseleave', () => {
-                         if(!this.video.paused) this.wrapper.classList.remove('user-active');
+                        if(!this.video.paused) this.wrapper.classList.remove('user-active');
                     });
                     
                     // Горячие клавиши
@@ -790,6 +776,38 @@
                     });
 
                     // Загрузка плейлиста из базы
+                    this.loadFromDb();
+                },
+
+                // 🔥 ФУНКЦИЯ ОТРИСОВКИ БУФЕРА (КАК НА YOUTUBE)
+                updateBufferVisual(playedPercent) {
+                    if (!this.progress || !this.video.duration) return;
+
+                    let bufferedPercent = 0;
+                    // Ищем, какой кусок буфера сейчас активен
+                    if (this.video.buffered.length > 0) {
+                        for (let i = 0; i < this.video.buffered.length; i++) {
+                            // Если текущее время попадает в этот кусок
+                            if (this.video.buffered.start(i) <= this.video.currentTime && 
+                                this.video.buffered.end(i) >= this.video.currentTime) {
+                                bufferedPercent = (this.video.buffered.end(i) / this.video.duration) * 100;
+                                break;
+                            }
+                        }
+                    }
+
+                    // CSS Градиент: Голубой (сыграно) | Серый (загружено) | Черный (пусто)
+                    this.progress.style.background = `linear-gradient(to right, 
+                        var(--vox-cyan) 0%, 
+                        var(--vox-cyan) ${playedPercent}%, 
+                        #777 ${playedPercent}%, 
+                        #777 ${bufferedPercent}%, 
+                        #111 ${bufferedPercent}%, 
+                        #111 100%)`;
+                },
+
+                // Вспомогательный метод загрузки из БД
+                loadFromDb() {
                     setTimeout(() => {
                         if(window.db && window.auth.currentUser) {
                             const q = window.fbQuery(
@@ -817,7 +835,6 @@
                     }, 2000);
                 },
 
-                // Стандартные методы (без изменений логики, только проверки)
                 handleFiles(files) {
                     if (files.length > 0) {
                         Array.from(files).forEach(file => {
@@ -863,14 +880,34 @@
                     this.renderPlaylist();
                 },
 
+                // 🔥 ОБНОВЛЕННАЯ ЗАГРУЗКА ТРЕКА
                 loadTrack(idx) {
                     const track = this.playlist[idx];
+                    
+                    // Сброс src для надежной перезагрузки
+                    this.video.removeAttribute('src'); 
+                    this.video.load();
+
                     this.video.src = track.url;
-                    this.video.play().catch(e => console.log("Autoplay blocked"));
+                    
+                    // Показываем статус "буферизация" (Желтый)
                     if(this.statusTag) {
-                        this.statusTag.textContent = `SIGNAL: ${track.name.substring(0,20)}`;
-                        this.statusTag.style.background = "var(--vox-cyan)";
+                        this.statusTag.textContent = "BUFFERING...";
+                        this.statusTag.style.background = "#ffff00"; 
+                        this.statusTag.style.color = "black";
                     }
+
+                    // Когда метаданные загрузились и можно играть
+                    this.video.oncanplay = () => {
+                        if(this.statusTag) {
+                            this.statusTag.textContent = `SIGNAL: ${track.name.substring(0,20)}`;
+                            this.statusTag.style.background = "var(--vox-cyan)";
+                            this.statusTag.style.color = "black";
+                        }
+                    };
+
+                    this.video.play().catch(e => console.log("Autoplay blocked, waiting for interaction"));
+                    
                     if(this.placeholder) this.placeholder.style.display = 'none';
                     if(this.playBtn) this.playBtn.textContent = "|| PAUSE";
                     StaticFX.toggle(false);
