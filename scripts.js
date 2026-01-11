@@ -1102,7 +1102,7 @@
                         const title = document.getElementById('heroTitle');
                         title.innerHTML = "Welcome Back,<br>Citizen";
                         title.setAttribute('data-text', "Welcome Back, Citizen"); 
-                        document.getElementById('initBtn').textContent = "AWAITING ORDERS";
+                        document.getElementById('initBtn').textContent = "CONNECT TO SYSTEM";
                         //voxNotify('Identity verified. Welcome back.', 'success');
                     }
                 },
