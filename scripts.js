@@ -2971,6 +2971,82 @@
                 }
             };
 
+            // --- 🆙 SMART UPLOAD NOTIFICATION (NO SPAM) ---
+            const updateUploadToast = (id, fileName, percent, loaded, total, isDone = false, error = null) => {
+                const area = document.getElementById('notification-area');
+                if (!area) return;
+
+                // 1. Ищем, есть ли уже такая плашка
+                let toast = document.getElementById(id);
+
+                // 2. Если нет — создаем
+                if (!toast) {
+                    toast = document.createElement('div');
+                    toast.id = id;
+                    toast.className = 'vox-toast'; // Используем тот же стиль
+                    toast.style.transition = 'all 0.3s ease';
+                    toast.style.borderLeft = '4px solid var(--vox-cyan)'; // Синяя полоска
+                    area.appendChild(toast);
+                    
+                    // Звук старта
+                    if(window.SoundFX) window.SoundFX.playTone(600, 'sine', 0.1);
+                }
+
+                // 3. Если ошибка — красим в красный и удаляем
+                if (error) {
+                    toast.style.borderLeftColor = 'var(--alert-red)';
+                    toast.innerHTML = `
+                        <div style="font-weight:bold; color:var(--alert-red); margin-bottom:5px;">/// UPLOAD ERROR ///</div>
+                        <div style="font-size:12px;">${fileName}</div>
+                        <div style="font-size:10px; color:#aaa; margin-top:5px;">${error}</div>
+                    `;
+                    setTimeout(() => toast.remove(), 5000); // Удаляем через 5 сек
+                    return;
+                }
+
+                // 4. Если готово — красим в зеленый
+                if (isDone) {
+                    toast.style.borderLeftColor = '#0f0'; // Зеленый
+                    toast.innerHTML = `
+                        <div style="font-weight:bold; color:#0f0; margin-bottom:5px;">/// UPLOAD COMPLETE ///</div>
+                        <div style="font-size:12px; color:white;">${fileName}</div>
+                        <div style="font-size:10px; color:#aaa; margin-top:5px;">DATA ARCHIVED SUCCESSFULLY.</div>
+                        <div style="width:100%; height:4px; background:#333; margin-top:10px;">
+                            <div style="width:100%; height:100%; background:#0f0; box-shadow:0 0 10px #0f0;"></div>
+                        </div>
+                    `;
+                    if(window.SoundFX) window.SoundFX.playTone(1000, 'square', 0.2);
+                    setTimeout(() => toast.remove(), 4000); // Удаляем через 4 сек
+                    return;
+                }
+
+                // 5. ОБЫЧНОЕ ОБНОВЛЕНИЕ (ПРОЦЕСС)
+                // Форматируем размер (bytes -> MB)
+                const loadedMB = (loaded / (1024 * 1024)).toFixed(1);
+                const totalMB = (total / (1024 * 1024)).toFixed(1);
+
+                toast.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+                        <span style="font-weight:bold; color:var(--vox-cyan);">/// UPLOADING DATA ///</span>
+                        <span style="font-size:10px; font-family:monospace;">${percent}%</span>
+                    </div>
+                    
+                    <div style="font-size:12px; margin-bottom:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:250px;">
+                        ${fileName}
+                    </div>
+
+                    <div style="font-size:9px; color:#888; font-family:var(--font-code); margin-bottom:8px;">
+                        SIZE: ${loadedMB} MB / ${totalMB} MB
+                    </div>
+
+                    <div style="width:100%; height:4px; background:#333; position:relative; overflow:hidden;">
+                        <div style="width:${percent}%; height:100%; background:var(--vox-cyan); 
+                                    box-shadow:0 0 10px var(--vox-cyan); transition: width 0.2s linear;">
+                        </div>
+                    </div>
+                `;
+            };
+
             // --- NEW: CLOUD SYNC (Chat & Files) ---
             window.CloudSystem = {
                 chatListener: null,
@@ -3203,43 +3279,53 @@
                     });
                 },
 
-                // --- ВСТАВИТЬ ЭТО ВНУТРЬ CloudSystem (после sendMessage) ---
+                // --- ВСТАВИТЬ ЭТО ВНУТРЬ CloudSystem (ОБНОВЛЕННАЯ ВЕРСИЯ) ---
                 uploadMedia(file, type) {
                     const user = window.auth.currentUser;
                     if(!user || !file) return;
 
-                    // 1. Настройки метаданных (КЭШИРОВАНИЕ - ГЛАВНЫЙ УСКОРИТЕЛЬ)
+                    // Уникальный ID для уведомления (чтобы можно было обновлять именно его)
+                    // Используем timestamp, чтобы разные файлы не конфликтовали
+                    const toastId = `upload_${Date.now()}`;
+
                     const metadata = {
                         contentType: file.type,
-                        // Заставляем браузер хранить файл 1 год. Повторный запуск будет мгновенным.
                         cacheControl: 'public, max-age=31536000' 
                     };
 
                     const fileName = `${type}s/${user.uid}_${Date.now()}_${file.name}`;
                     const storageRef = window.fbRef(window.storage, fileName);
                     
-                    // 2. ИСПОЛЬЗУЕМ RESUMABLE UPLOAD (Для стабильности и скорости)
                     const uploadTask = window.fbUploadResumable(storageRef, file, metadata);
 
-                    voxNotify(`INITIATING UPLINK: 0%`, "info");
+                    // Сразу показываем 0%
+                    updateUploadToast(toastId, file.name, 0, 0, file.size);
 
-                    // 3. СЛУШАЕМ ПРОГРЕСС
                     uploadTask.on('state_changed', 
                         (snapshot) => {
                             // Вычисляем процент
                             const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                            // Показываем уведомление каждые 25%, чтобы не спамить
-                            if(progress % 25 < 1 || progress === 100) {
-                                voxNotify(`UPLOADING ${type.toUpperCase()}: ${Math.floor(progress)}%`, "info");
-                            }
+                            
+                            // 🔥 ВЫЗЫВАЕМ НАШУ НОВУЮ КРАСИВУЮ ФУНКЦИЮ
+                            // Она сама обновит существующую плашку
+                            updateUploadToast(
+                                toastId, 
+                                file.name, 
+                                Math.floor(progress), 
+                                snapshot.bytesTransferred, 
+                                snapshot.totalBytes
+                            );
                         }, 
                         (error) => {
-                            voxNotify("UPLOAD FAILURE: " + error.message, "error");
+                            // Ошибка
+                            console.error(error);
+                            updateUploadToast(toastId, file.name, 0, 0, 0, false, error.message);
                         }, 
                         () => {
-                            // 4. ЗАГРУЗКА ЗАВЕРШЕНА
+                            // Успех (100%)
+                            updateUploadToast(toastId, file.name, 100, file.size, file.size, true);
+
                             window.fbUrl(uploadTask.snapshot.ref).then((url) => {
-                                // Сохраняем в базу данных
                                 const collectionName = type === 'video' ? "videos" : "audios";
                                 const docData = {
                                     author: user.uid,
@@ -3247,21 +3333,18 @@
                                     url: url,
                                     createdAt: window.fbTime(),
                                     isCloud: true,
-                                    size: file.size, // Полезно знать размер
+                                    size: file.size,
                                     mime: file.type
                                 };
 
                                 window.fbAdd(window.fbCol(window.db, collectionName), docData);
 
-                                // Если это аудио - добавляем в плейлист сразу
                                 if(type === 'audio' && window.MusicSystem) {
                                     window.MusicSystem.playlist.push({ 
                                         name: file.name, url: url, isCloud: true 
                                     });
                                     window.MusicSystem.renderPlaylist();
                                 }
-                                
-                                voxNotify("DATA SECURED IN ARCHIVE.", "success");
                             });
                         }
                     );

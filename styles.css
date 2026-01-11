@@ -731,7 +731,30 @@ footer { text-align: center; padding: 60px 20px; color: #888; font-size: 11px; b
 .video-wrapper.user-active { cursor: default; }
 
 .video-screen-container {
-    width: 100%; aspect-ratio: 16/9; background: #050505; position: relative; overflow: hidden; border-bottom: 1px solid #333;
+    width: 100%; 
+    aspect-ratio: 16/9; 
+    background: #000; 
+    position: relative; 
+    overflow: hidden; 
+    
+    /* 1. Скругление углов (как у старых/дорогих мониторов) */
+    border-radius: 12px;
+    
+    /* 2. Внутренняя тень (эффект глубины экрана) */
+    box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.9);
+    
+    /* 3. Тонкая рамка "стекла" */
+    border: 1px solid rgba(0, 243, 255, 0.3);
+}
+
+/* Добавляем блик на стекле */
+.video-screen-container::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: radial-gradient(circle at 50% -20%, rgba(255,255,255,0.05), transparent 60%);
+    pointer-events: none;
+    z-index: 10;
 }
 .video-overlay-crt {
     position: absolute; top:0; left:0; width:100%; height:100%; 
@@ -748,12 +771,31 @@ footer { text-align: center; padding: 60px 20px; color: #888; font-size: 11px; b
 
 /* Custom Controls (Floating) */
 .custom-video-controls {
-    position: absolute; bottom: 0; left: 0; width: 100%;
-    background: linear-gradient(to top, rgba(0,0,0,0.95), transparent);
-    padding: 30px 15px 15px 15px; z-index: 10000;
-    opacity: 0; transform: translateY(20px); pointer-events: none;
-    transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-    display: flex; flex-direction: column; gap: 5px;
+    /* Отрываем панель от низа и кладем ПОВЕРХ видео */
+    position: absolute; 
+    bottom: 15px; 
+    left: 2%; 
+    width: 96%;
+    
+    /* Стекломорфизм (размытый фон) */
+    background: rgba(10, 15, 20, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 10px 15px;
+    
+    z-index: 100;
+    
+    /* Анимация появления */
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s ease;
+    
+    display: flex; 
+    flex-direction: column; 
+    gap: 5px;
 }
 
 /* 1. Для ПК (устройств с мышью): показываем панель при наведении */
