@@ -238,10 +238,10 @@
                 useSimulation: false,
                 isDragging: false,
 
-                openMenu() {
-                    // Используем this.menu, так как мы уже нашли этот элемент выше
+                // 🔥 ВСТАВИТЬ В MusicSystem ВМЕСТО openMenu:
+                toggleMenu() {
                     if (this.menu) {
-                        this.menu.classList.add('open'); // В CSS у тебя класс .open
+                        this.menu.classList.toggle('open'); // <-- Главное изменение: toggle
                         if(window.SoundFX) window.SoundFX.click();
                     } else {
                         console.error("Music Menu element not found!");
@@ -285,6 +285,17 @@
                             this.seekSlider.value = pct;
                             document.getElementById('currentTime').textContent = this.fmtTime(this.audio.currentTime);
                             document.getElementById('durationTime').textContent = this.fmtTime(this.audio.duration);
+
+                        const circle = document.querySelector('.progress-ring__circle');
+                            if (circle) {
+                                const radius = circle.r.baseVal.value;
+                                const circumference = 2 * Math.PI * radius; // ≈ 213
+                                const percent = this.audio.currentTime / this.audio.duration;
+                                
+                                // Сдвигаем линию
+                                const offset = circumference - (percent * circumference);
+                                circle.style.strokeDashoffset = offset;
+                            }
                         }
                     });
 
@@ -425,6 +436,19 @@
                     this.useSimulation = false;
                     const coverText = document.querySelector('.cover-text');
                     if(coverText) coverText.textContent = track.name.substring(0, 20);
+
+                    // 🔥 НОВОЕ: Обновляем кнопку на телефоне
+                    const mobileArt = document.getElementById('mobileBtnArt');
+                    const mobileIcon = document.querySelector('.mobile-only-btn .btn-icon');
+                    
+                    if(mobileArt && mobileIcon) {
+                        // Если это трек из облака и есть картинка (или дефолтная)
+                        // Тут можно добавить логику для реальных обложек, если они есть в базе
+                        // Пока поставим заглушку или иконку
+                        mobileArt.src = "cover.png"; // Или track.coverUrl если есть
+                        mobileArt.style.display = 'block';
+                        mobileIcon.style.display = 'none';
+                    }
                 },
 
                 fmtTime(s) {
@@ -5131,6 +5155,108 @@
             document.addEventListener('click', unlockAudio);
             document.addEventListener('keydown', unlockAudio);
             document.addEventListener('touchstart', unlockAudio);
+
+// --- MOBILE BUTTON DRAG SYSTEM ---
+const initDraggableButton = () => {
+    const btn = document.getElementById('mobileMusicBtn');
+    if (!btn) return;
+
+    let isDragging = false;
+    let startX, startY, initialLeft, initialTop;
+    let movedDistance = 0; // Чтобы отличать клик от перетаскивания
+
+    // 1. ЗАГРУЗКА СОХРАНЕННОЙ ПОЗИЦИИ
+    const savedPos = localStorage.getItem('voxBtnPos');
+    if (savedPos) {
+        const pos = JSON.parse(savedPos);
+        // Сбрасываем CSS-позиционирование по умолчанию
+        btn.style.bottom = 'auto';
+        btn.style.right = 'auto';
+        btn.style.left = pos.left;
+        btn.style.top = pos.top;
+    }
+
+        btn.addEventListener('touchstart', (e) => {
+            isDragging = false;
+            movedDistance = 0;
+            
+            // Получаем начальные координаты пальца
+            const touch = e.touches[0];
+            startX = touch.clientX;
+            startY = touch.clientY;
+
+            // Получаем текущие координаты кнопки
+            const rect = btn.getBoundingClientRect();
+            initialLeft = rect.left;
+            initialTop = rect.top;
+
+            // Отключаем плавную анимацию во время перетаскивания (для мгновенной реакции)
+            btn.style.transition = 'none';
+        }, { passive: false });
+
+        btn.addEventListener('touchmove', (e) => {
+            // Предотвращаем скролл страницы, пока тянем кнопку
+            if (e.cancelable) e.preventDefault(); 
+
+            const touch = e.touches[0];
+            const dx = touch.clientX - startX;
+            const dy = touch.clientY - startY;
+
+            // Считаем, сколько мы прошли (по теореме Пифагора, примерно)
+            movedDistance = Math.sqrt(dx*dx + dy*dy);
+
+            // Если сдвинули больше чем на 5 пикселей — это перетаскивание
+            if (movedDistance > 5) {
+                isDragging = true;
+                
+                // Новые координаты
+                let newLeft = initialLeft + dx;
+                let newTop = initialTop + dy;
+
+                // ОГРАНИЧЕНИЕ ЭКРАНА (чтобы не утащить кнопку за край)
+                const maxLeft = window.innerWidth - btn.offsetWidth;
+                const maxTop = window.innerHeight - btn.offsetHeight;
+
+                // Не даем уйти за левый/верхний край (минимум 0)
+                newLeft = Math.max(0, newLeft);
+                newTop = Math.max(0, newTop);
+                
+                // Не даем уйти за правый/нижний край
+                newLeft = Math.min(maxLeft, newLeft);
+                newTop = Math.min(maxTop, newTop);
+
+                // Применяем
+                btn.style.bottom = 'auto';
+                btn.style.right = 'auto';
+                btn.style.left = `${newLeft}px`;
+                btn.style.top = `${newTop}px`;
+            }
+        }, { passive: false });
+
+        btn.addEventListener('touchend', () => {
+            // Возвращаем анимации (для эффектов пульсации и т.д.)
+            btn.style.transition = 'transform 0.1s ease, box-shadow 0.1s ease';
+
+            if (!isDragging && movedDistance < 5) {
+                // Если почти не двигали — СЧИТАЕМ ЭТО КЛИКОМ
+                if (window.MusicSystem && window.MusicSystem.toggleMenu) {
+                    window.MusicSystem.toggleMenu();
+                }
+            } else {
+                // Если перетаскивали — СОХРАНЯЕМ ПОЗИЦИЮ
+                const pos = {
+                    left: btn.style.left,
+                    top: btn.style.top
+                };
+                localStorage.setItem('voxBtnPos', JSON.stringify(pos));
+            }
+            
+            isDragging = false;
+        });
+    };
+
+    // Запускаем инициализацию (добавь это в конец файла или в window.onload)
+    initDraggableButton();
 
             // Запускаем
             setTimeout(initMiniMatrix, 500);

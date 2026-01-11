@@ -1904,88 +1904,146 @@ body.low-effects .hypno-spiral {
     transform: scale(1.05);  /* <-- Можешь раскомментировать, если хочешь легкое увеличение */
 }
 
-/* --- MOBILE INTERFACE: VOXTEK STYLE --- */
+/* =========================================
+   MOBILE MUSIC REACTOR BUTTON (VOXTEK V2)
+   ========================================= */
 
 .mobile-only-btn {
-    display: none;
+    display: none; /* Скрыто на ПК */
+    
+    /* Позиционирование */
     position: fixed;
-    /* Учитываем нижнюю полоску навигации Android/iOS */
-    bottom: max(30px, env(safe-area-inset-bottom) + 20px); 
+    /* Учитываем отступ снизу на iPhone (полоска жестов) */
+    bottom: max(30px, env(safe-area-inset-bottom) + 20px);
     right: 20px;
-    width: 72px;
-    height: 72px;
     
-    /* Эффект стекла вместо просто черного */
-    background: rgba(5, 10, 15, 0.85);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    /* Размеры (под SVG кольцо) */
+    width: 76px;
+    height: 76px;
+    padding: 0;
     
-    border: 1px solid rgba(0, 243, 255, 0.5);
+    /* СТИЛЬ: Матовое стекло (Glassmorphism) */
+    background: rgba(10, 10, 10, 0.6); 
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    
     border-radius: 50%;
-    color: var(--vox-cyan);
-    z-index: 10001;
-    cursor: pointer;
+    border: none; /* Бордер рисует SVG, здесь он не нужен */
     
+    /* Слои и порядок */
+    z-index: 10001;
+    overflow: visible; /* Чтобы свечение (glow) выходило за рамки */
+    
+    /* УПРАВЛЕНИЕ И АНИМАЦИИ */
+    cursor: pointer;
+    touch-action: none; /* ВАЖНО: Отключает скролл страницы при перетаскивании кнопки */
+    
+    /* Анимируем только тень и масштаб. 
+       ВАЖНО: НЕ анимировать left/top, иначе перетаскивание будет "ватным"! */
+    transition: transform 0.1s ease, box-shadow 0.3s ease;
+    
+    /* Тень-свечение */
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
+}
+
+/* --- ВНУТРЕННИЙ КОНТЕНТ (ОБЛОЖКА/ИКОНКА) --- */
+.btn-inner-content {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    
+    /* Центрирование */
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    
+    display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     
-    /* Двойное свечение: снаружи и внутри */
-    box-shadow: 
-        0 0 20px rgba(0, 0, 0, 0.5),
-        inset 0 0 15px rgba(0, 243, 255, 0.1);
-        
-    /* Плавность для трансформаций из JS */
-    transition: box-shadow 0.1s ease, border-color 0.3s ease;
-    padding: 0;
-    
-    /* Чтобы текст не выделялся при долгом нажатии */
-    user-select: none;
-    -webkit-tap-highlight-color: transparent;
+    background: #050505;
+    overflow: hidden; /* Обрезаем картинку по кругу */
+    z-index: 2;
+    border: 1px solid rgba(0, 243, 255, 0.3);
 }
 
-/* Иконка */
-.mobile-only-btn .btn-icon { 
-    font-size: 26px; 
-    filter: drop-shadow(0 0 5px var(--vox-cyan)); /* Иконка светится */
-    margin-bottom: 2px;
+/* Обложка альбома */
+#mobileBtnArt {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none; /* Показываем через JS, когда трек играет */
 }
 
-/* Текст */
-.mobile-only-btn .btn-text { 
-    font-size: 9px; 
-    font-weight: 800; 
-    letter-spacing: 1.5px; 
-    opacity: 0.8;
+/* Иконка и текст (если нет обложки) */
+.mobile-only-btn .btn-icon {
+    font-size: 24px;
+    filter: drop-shadow(0 0 5px var(--vox-cyan));
+    z-index: 3;
 }
 
-/* Кольцо "Радара" (Pulse Ring) */
+/* --- КРУГОВОЙ ПРОГРЕСС (SVG) --- */
+.progress-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 76px;
+    height: 76px;
+    transform: rotate(-90deg); /* Начинаем отсчет сверху */
+    pointer-events: none; /* Пропускаем клики сквозь кольцо */
+    z-index: 3;
+    filter: drop-shadow(0 0 4px var(--vox-cyan)); /* Неоновое свечение линии */
+}
+
+.progress-ring__circle {
+    /* Длина окружности (2 * pi * 34 ≈ 213) */
+    stroke-dasharray: 213;
+    stroke-dashoffset: 213; /* По умолчанию пусто */
+    transition: stroke-dashoffset 0.1s linear; /* Плавное движение полоски */
+    stroke-linecap: round; /* Загругленные края линии */
+}
+
+/* --- ПУЛЬСАЦИЯ (SONAR EFFECT) --- */
 .pulse-ring {
     position: absolute;
-    top: -5px; left: -5px; right: -5px; bottom: -5px; /* Чуть шире кнопки */
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    height: 100%;
     border-radius: 50%;
     border: 1px solid var(--vox-cyan);
     opacity: 0;
     pointer-events: none;
+    z-index: 1;
     
-    /* Анимация "Сонара", работает всегда */
-    animation: sonarWave 2s infinite cubic-bezier(0.1, 0, 0.3, 1);
+    /* Анимация "Радар" работает всегда */
+    animation: sonarWave 2.5s infinite cubic-bezier(0.1, 0, 0.3, 1);
 }
 
-/* Анимация расходящейся волны */
 @keyframes sonarWave {
-    0% { transform: scale(0.8); opacity: 0.6; border-width: 2px; }
-    100% { transform: scale(1.6); opacity: 0; border-width: 0px; }
+    0% {
+        width: 100%; height: 100%;
+        opacity: 0.8;
+        border-width: 2px;
+    }
+    100% {
+        width: 200%; height: 200%; /* Расходится далеко */
+        opacity: 0;
+        border-width: 0px;
+    }
 }
 
-/* Медиа-запрос (показываем только на мобильных) */
+/* --- МОБИЛЬНАЯ АДАПТАЦИЯ --- */
+/* Показываем кнопку только на экранах < 768px */
 @media (max-width: 768px) {
-    .mobile-only-btn { display: flex; }
+    .mobile-only-btn {
+        display: block; /* Flex не нужен, так как внутри absolute */
+    }
 }
 
 /* Эффект нажатия */
-.mobile-only-btn:active { 
-    transform: scale(0.9) !important; /* !important перебьет JS на мгновение клика */
-    background: rgba(0, 243, 255, 0.15);
-    border-color: var(--vox-cyan);
+.mobile-only-btn:active {
+    transform: scale(0.95);
+    box-shadow: 0 0 25px var(--vox-cyan-dim);
 }

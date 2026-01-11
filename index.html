@@ -782,10 +782,15 @@
     </div>
 </div>
 
-<button id="mobileMusicBtn" class="mobile-only-btn" onclick="MusicSystem.openMenu()">
+<button id="mobileMusicBtn" class="mobile-only-btn">
     <div class="pulse-ring"></div>
-    <span class="btn-icon">M</span>
-    <span class="btn-text">VOX AUDIO</span>
+    <svg class="progress-ring" width="76" height="76">
+        <circle class="progress-ring__circle" stroke="var(--vox-cyan)" stroke-width="3" fill="transparent" r="34" cx="38" cy="38"/>
+    </svg>
+    <div class="btn-inner-content">
+        <img id="mobileBtnArt" src="cover.png" onerror="this.style.display='none'" alt="Art">
+        <span class="btn-icon">M</span>
+    </div>
 </button>
 <script type="module" src="scripts.js"></script>
 </body>
