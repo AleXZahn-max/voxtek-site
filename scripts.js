@@ -253,6 +253,37 @@
                 init() {
                     if (this.isInitialized) return;
                     this.isInitialized = true;
+                    if (this.localInput) {
+                        this.localInput.addEventListener('change', (e) => {
+                            const files = Array.from(e.target.files);
+                            
+                            if (files.length > 0) {
+                                // Пробегаем по всем выбранным файлам
+                                files.forEach(file => {
+                                    // Создаем временную ссылку на файл
+                                    const url = URL.createObjectURL(file);
+                                    // Добавляем в массив плейлиста
+                                    this.playlist.push({ 
+                                        name: file.name, 
+                                        url: url, 
+                                        isCloud: false 
+                                    });
+                                });
+
+                                // Обновляем визуальный список
+                                this.renderPlaylist();
+                                
+                                // (Опционально) Если плейлист был пуст, начинаем играть первый трек
+                                if (this.currentIndex === -1) {
+                                    this.currentIndex = 0;
+                                    this.loadTrack(0);
+                                }
+                                
+                                // Сбрасываем инпут, чтобы можно было загрузить тот же файл снова при желании
+                                this.localInput.value = '';
+                            }
+                        });
+                    }
                     if (this.playBtn) {
                         this.playBtn.addEventListener('click', () => this.togglePlay());
                     }
