@@ -229,7 +229,7 @@
                 localInput: document.getElementById('localAudioInput'),
                 playlistContainer: document.getElementById('audioPlaylist'),
                 playlist: [
-                    { name: "Brighter.mp3", url: "embient.mp3" }
+                    { name: "Brighter", url: "embient.mp3" }
                 ], 
                 currentIndex: 0,
                 ctx: null,
@@ -319,11 +319,13 @@
                     
                     // Проверяем, есть ли треки, прежде чем пытаться их загрузить
                     if (this.playlist.length > 0) {
-                        if (this.currentIndex === -1) this.currentIndex = 0; // Если индекс не выбран, берем первый
+                        if (this.currentIndex === -1) this.currentIndex = 0; 
                         this.loadTrack(this.currentIndex);
+                        
+                        this.renderPlaylist(); 
                     } else {
                         console.log("Playlist empty, waiting for input...");
-}
+                    }
                 },
 
                 togglePlay() {
