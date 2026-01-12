@@ -217,6 +217,7 @@
                 }
             };
             window.SoundFX = SoundFX;
+
             // --- 1.1 AMBIENT MUSIC SYSTEM (UPDATED) ---
             const MusicSystem = {
                 audio: document.getElementById('bg-music'),
@@ -229,7 +230,7 @@
                 localInput: document.getElementById('localAudioInput'),
                 playlistContainer: document.getElementById('audioPlaylist'),
                 playlist: [
-                    { name: "Brighter", url: "embient.mp3" }
+                    { name: "Brighter", url: "embient.mp3" } // Дефолтный трек
                 ], 
                 currentIndex: 0,
                 ctx: null,
@@ -239,140 +240,230 @@
                 animationId: null,
                 useSimulation: false,
                 isDragging: false,
+                isInitialized: false,
 
-                // 🔥 ВСТАВИТЬ В MusicSystem ВМЕСТО openMenu:
                 toggleMenu() {
                     if (this.menu) {
-                        this.menu.classList.toggle('open'); // <-- Главное изменение: toggle
+                        this.menu.classList.toggle('open');
                         if(window.SoundFX) window.SoundFX.click();
-                    } else {
-                        console.error("Music Menu element not found!");
                     }
                 },
 
                 init() {
-                    if (this.isInitialized) return;
-                    this.isInitialized = true;
-                    if (this.localInput) {
-                        this.localInput.addEventListener('change', (e) => {
-                            const files = Array.from(e.target.files);
-                            
-                            if (files.length > 0) {
-                                // Пробегаем по всем выбранным файлам
-                                files.forEach(file => {
-                                    // Создаем временную ссылку на файл
-                                    const url = URL.createObjectURL(file);
-                                    // Добавляем в массив плейлиста
-                                    this.playlist.push({ 
-                                        name: file.name, 
-                                        url: url, 
-                                        isCloud: false 
-                                    });
-                                });
 
-                                // Обновляем визуальный список
-                                this.renderPlaylist();
-                                
-                                // (Опционально) Если плейлист был пуст, начинаем играть первый трек
-                                if (this.currentIndex === -1) {
-                                    this.currentIndex = 0;
-                                    this.loadTrack(0);
-                                }
-                                
-                                // Сбрасываем инпут, чтобы можно было загрузить тот же файл снова при желании
-                                this.localInput.value = '';
-                            }
+                    if (this.isInitialized) return; 
+                    this.isInitialized = true;
+
+                    const self = this; // 🔥 СОХРАНЯЕМ ПРАВИЛЬНУЮ ССЫЛКУ НА СИСТЕМУ
+
+                    // Базовые настройки
+                    self.audio.volume = 0.5;
+                    
+                    if (this.localInput) {
+                        const newClone = this.localInput.cloneNode(true);
+                        this.localInput.parentNode.replaceChild(newClone, this.localInput);
+                        this.localInput = newClone;
+                    }
+
+                    // --- 1. СЛУШАТЕЛЬ ГРОМКОСТИ ---
+                    if(self.volSlider) {
+                        self.volSlider.addEventListener('input', (e) => {
+                            self.audio.volume = e.target.value;
                         });
                     }
-                    if (this.playBtn) {
-                        this.playBtn.addEventListener('click', () => this.togglePlay());
+
+                    // --- 2. СЛУШАТЕЛЬ ПЕРЕМОТКИ (SEEK) ---
+                    if(self.seekSlider) {
+                        self.seekSlider.addEventListener('mousedown', () => self.isDragging = true);
+                        self.seekSlider.addEventListener('touchstart', () => self.isDragging = true);
+                        
+                        self.seekSlider.addEventListener('change', (e) => {
+                            if (self.audio.duration) {
+                                const time = (e.target.value / 100) * self.audio.duration;
+                                self.audio.currentTime = time;
+                            }
+                            self.isDragging = false;
+                        });
+                        
+                        self.seekSlider.addEventListener('input', (e) => {
+                            self.isDragging = true;
+                            // Визуальное обновление при перетаскивании
+                            const time = (e.target.value / 100) * self.audio.duration;
+                            const curTimeEl = document.getElementById('currentTime');
+                            if(curTimeEl) curTimeEl.textContent = self.fmtTime(time);
+                        });
                     }
 
-                    // 1. Настройка громкости
-                    this.audio.volume = 0.5;
-
-                    // 2. Слушатель: Если песня кончилась — включаем следующую
-                    this.audio.addEventListener('ended', () => {
-                        this.nextTrack();
-                    });
-
-                    // 3. Слушатель: Обновление ползунка времени
-                    this.audio.addEventListener('timeupdate', () => {
-                        if (!this.isDragging && !isNaN(this.audio.duration)) {
-                            const percent = (this.audio.currentTime / this.audio.duration) * 100;
-                            // Обновляем прогресс-бар в меню
-                            const progressBar = document.getElementById('musicProgress');
-                            if (progressBar) progressBar.style.width = `${percent}%`;
-
-                            // Обновляем круговой прогресс на мобильной кнопке
+                    // --- 3. ОБНОВЛЕНИЕ ВРЕМЕНИ (TIMEUPDATE) ---
+                    self.audio.addEventListener('timeupdate', () => {
+                        // Используем self вместо this, чтобы точно обращаться к системе
+                        if (!self.isDragging && !isNaN(self.audio.duration)) {
+                            const percent = (self.audio.currentTime / self.audio.duration) * 100;
+                            
+                            if (self.seekSlider) self.seekSlider.value = percent;
+                            
+                            const curTimeEl = document.getElementById('currentTime');
+                            const durTimeEl = document.getElementById('durationTime');
+                            
+                            // 🔥 ЗДЕСЬ БЫЛА ОШИБКА. ТЕПЕРЬ self.fmtTime ТОЧНО СРАБОТАЕТ
+                            if(curTimeEl) curTimeEl.textContent = self.fmtTime(self.audio.currentTime);
+                            if(durTimeEl) durTimeEl.textContent = self.fmtTime(self.audio.duration);
+                            
+                            // Круговой прогресс
                             const circle = document.querySelector('.progress-ring__circle');
                             if (circle) {
                                 const radius = circle.r.baseVal.value;
-                                const circumference = 2 * Math.PI * radius; // ≈ 213
-                                const offset = circumference - ((this.audio.currentTime / this.audio.duration) * circumference);
+                                const circumference = 2 * Math.PI * radius;
+                                const offset = circumference - ((self.audio.currentTime / self.audio.duration) * circumference);
                                 circle.style.strokeDashoffset = offset;
                             }
                         }
                     });
 
-                    // 🔥 4. ГЛАВНОЕ ИСПРАВЛЕНИЕ: ВОСКРЕШЕНИЕ ВИЗУАЛИЗАЦИИ
-                    // Когда нажимаем Play -> запускаем draw() заново
-                    this.audio.addEventListener('play', () => {
-                        // Меняем иконку в меню на "Пауза"
-                        const playBtn = document.getElementById('playPauseBtn');
-                        if (playBtn) playBtn.textContent = '⏸'; // Или твоя иконка паузы
+                    // --- 4. ЗАГРУЗКА МЕТАДАННЫХ (Убираем --:--) ---
+                    self.audio.addEventListener('loadedmetadata', () => {
+                        const durEl = document.getElementById('durationTime');
+                        const curEl = document.getElementById('currentTime');
                         
-                        // Запускаем анимацию, если она была остановлена
-                        if (!this.animationId) {
-                            this.draw();
+                        if (durEl && self.audio.duration && isFinite(self.audio.duration)) {
+                            durEl.textContent = self.fmtTime(self.audio.duration);
                         }
+                        if (curEl) curEl.textContent = "00:00";
+                        if (self.seekSlider) self.seekSlider.value = 0;
                     });
 
-                    // Когда нажимаем Pause -> просто меняем иконку
-                    this.audio.addEventListener('pause', () => {
+                    // --- ОСТАЛЬНЫЕ СЛУШАТЕЛИ ---
+                    if (self.playBtn) {
+                        self.playBtn.addEventListener('click', () => self.togglePlay());
+                    }
+
+                    self.audio.addEventListener('ended', () => self.nextTrack());
+
+                    self.audio.addEventListener('play', () => {
                         const playBtn = document.getElementById('playPauseBtn');
-                        if (playBtn) playBtn.textContent = '▶'; // Или твоя иконка плей
+                        if (playBtn) playBtn.textContent = '⏸';
+                        if (!self.animationId) self.draw();
                     });
 
-                    // 5. Настройка AudioContext (для работы визуализатора)
+                    self.audio.addEventListener('pause', () => {
+                        const playBtn = document.getElementById('playPauseBtn');
+                        if (playBtn) playBtn.textContent = 'PLAY STREAM';
+                    });
+
+                    // Audio Context
                     try {
-                        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                        this.analyser = this.audioCtx.createAnalyser();
-                        this.analyser.fftSize = 64; // Меньше нагрузка, ретро стиль
-                        
-                        const source = this.audioCtx.createMediaElementSource(this.audio);
-                        source.connect(this.analyser);
-                        this.analyser.connect(this.audioCtx.destination);
+                        self.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        self.analyser = self.audioCtx.createAnalyser();
+                        self.analyser.fftSize = 64; 
+                        const source = self.audioCtx.createMediaElementSource(self.audio);
+                        source.connect(self.analyser);
+                        self.analyser.connect(self.audioCtx.destination);
                     } catch (e) {
-                        console.log("Audio API restricted (Waiting for user interaction)");
-                        this.useSimulation = true;
+                        console.log("Audio API restricted");
+                        self.useSimulation = true;
                     }
                     
-                    // Проверяем, есть ли треки, прежде чем пытаться их загрузить
-                    if (this.playlist.length > 0) {
-                        if (this.currentIndex === -1) this.currentIndex = 0; 
-                        this.loadTrack(this.currentIndex);
-                        
-                        this.renderPlaylist(); 
-                    } else {
-                        console.log("Playlist empty, waiting for input...");
+                    // Загрузка локальных файлов
+                    if (self.localInput) {
+                        self.localInput.addEventListener('change', (e) => {
+                            const files = Array.from(e.target.files);
+                            if (files.length > 0) {
+                                if (confirm("UPLOAD AUDIO TO CLOUD ARCHIVE? (Private Storage)")) {
+                                    files.forEach(file => {
+                                        if(window.CloudSystem) window.CloudSystem.uploadMedia(file, 'audio');
+                                    });
+                                } else {
+                                    files.forEach(file => {
+                                        const url = URL.createObjectURL(file);
+                                        self.playlist.push({ name: file.name, url: url, isCloud: false });
+                                    });
+                                    self.renderPlaylist();
+                                    if (self.currentIndex === -1) {
+                                        self.currentIndex = 0;
+                                        self.loadTrack(0);
+                                    }
+                                }
+                                self.localInput.value = '';
+                            }
+                        });
+                    }
+
+                    // Загрузка из базы
+                    setTimeout(() => {
+                        if(window.db && window.auth.currentUser) {
+                            const q = window.fbQuery(
+                                window.fbCol(window.db, "audios"), 
+                                window.fbWhere("author", "==", window.auth.currentUser.uid), 
+                                window.fbOrder("createdAt", "desc")
+                            );
+                            window.fbSnap(q, (snapshot) => {
+                                snapshot.docChanges().forEach((change) => {
+                                    if (change.type === "added") {
+                                        const data = change.doc.data();
+                                        if(!self.playlist.some(t => t.id === change.doc.id)) {
+                                            self.playlist.push({ 
+                                                id: change.doc.id, 
+                                                name: data.name, 
+                                                url: data.url, 
+                                                isCloud: true 
+                                            });
+                                            self.renderPlaylist();
+                                        }
+                                    }
+                                    if (change.type === "removed") {
+                                        self.playlist = self.playlist.filter(t => t.id !== change.doc.id);
+                                        self.renderPlaylist();
+                                    }
+                                });
+                            });
+                        }
+                    }, 2500);
+
+                    // Drag & Drop
+                    const dropZone = self.menu; 
+                    if (dropZone) {
+                        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                            dropZone.addEventListener(eventName, (e) => {
+                                e.preventDefault(); e.stopPropagation();
+                            }, false);
+                        });
+                        dropZone.addEventListener('dragover', () => {
+                            dropZone.style.boxShadow = "inset 0 0 50px var(--vox-cyan)";
+                            dropZone.style.borderColor = "white";
+                        });
+                        dropZone.addEventListener('dragleave', () => {
+                            dropZone.style.boxShadow = "none";
+                            dropZone.style.borderColor = "var(--vox-cyan)";
+                        });
+                        dropZone.addEventListener('drop', (e) => {
+                            dropZone.style.boxShadow = "none";
+                            dropZone.style.borderColor = "var(--vox-cyan)";
+                            const files = e.dataTransfer.files;
+                            if (files.length > 0) {
+                                if (confirm("UPLOAD DROPPED FILES TO CLOUD?")) {
+                                    Array.from(files).forEach(file => {
+                                        if (file.type.startsWith('audio/')) {
+                                            if(window.CloudSystem) window.CloudSystem.uploadMedia(file, 'audio');
+                                        }
+                                    });
+                                } else {
+                                    Array.from(files).forEach(file => {
+                                        if (file.type.startsWith('audio/')) {
+                                            const url = URL.createObjectURL(file);
+                                            self.playlist.push({ name: file.name, url: url, isCloud: false });
+                                        }
+                                    });
+                                    self.renderPlaylist();
+                                }
+                            }
+                        });
                     }
                 },
 
                 togglePlay() {
-                    // Разблокировка аудио-движка (для браузеров)
-                    if (this.audioCtx && this.audioCtx.state === 'suspended') {
-                        this.audioCtx.resume();
-                    }
-
-                    if (this.audio.paused) {
-                        // Если на паузе — ПРОДОЛЖАЕМ
-                        this.audio.play()
-                            .catch(e => console.error("Playback error:", e));
-                    } else {
-                        // Если играет — СТАВИМ ПАУЗУ
-                        this.audio.pause();
-                    }
+                    if (this.audioCtx && this.audioCtx.state === 'suspended') this.audioCtx.resume();
+                    if (this.audio.paused) this.audio.play().catch(e => console.error(e));
+                    else this.audio.pause();
                 },
 
                 renderPlaylist() {
@@ -394,25 +485,26 @@
                     });
                 },
 
+                // --- 3. ОБНОВЛЕННОЕ УДАЛЕНИЕ (УДАЛЯЕТ ИЗ ОБЛАКА) ---
                 async removeTrack(idx, e) {
                     e.stopPropagation();
                     const track = this.playlist[idx];
                     
-                    // УДАЛЕНИЕ ИЗ ОБЛАКА
+                    // Если это облачный трек — удаляем из базы
                     if (track.isCloud && track.id) {
-                        if(await confirm("DELETE AUDIO FROM CLOUD?")) {
+                        if(await confirm("PERMANENTLY DELETE FROM CLOUD ARCHIVE?")) {
                             window.fbDelete(window.fbDoc(window.db, "audios", track.id));
-                            voxNotify("AUDIO REMOVED FROM CLOUD", "success");
+                            if(window.voxNotify) window.voxNotify("AUDIO DATA PURGED", "success");
                         }
-                        return; // Список обновится сам через fbSnap
+                        return; // Список обновится сам через слушатель fbSnap
                     }
                     
-                    // УДАЛЕНИЕ ЛОКАЛЬНОГО
+                    // Если локальный — удаляем просто из массива
                     this.playlist.splice(idx, 1);
                     if(this.currentIndex === idx) {
                         this.audio.pause();
                         this.currentIndex = -1;
-                        this.playBtn.textContent = "PLAY STREAM";
+                        this.playBtn.textContent = "▶"; // Сброс иконки
                     } else if (this.currentIndex > idx) this.currentIndex--;
                     this.renderPlaylist();
                 },
@@ -421,9 +513,7 @@
                     if(this.currentIndex < 0 || this.currentIndex >= this.playlist.length) return;
                     this.loadTrack(this.currentIndex);
                     this.startAudioContext();
-                    this.audio.play().then(() => {
-                        this.playBtn.textContent = "PAUSE STREAM";
-                    }).catch(err => console.log("Autoplay blocked", err));
+                    this.audio.play();
                     this.renderPlaylist();
                 },
 
@@ -437,162 +527,150 @@
                     }
                 },
                 
+                // Переименовал nextTrack в playNext для единообразия, добавь алиас если нужно
+                nextTrack() { this.playNext(); },
+
                 loadTrack(idx) {
                     const track = this.playlist[idx];
-                    let finalUrl = track.url;
-                    
                     this.audio.crossOrigin = "anonymous";
-                    this.audio.src = finalUrl;
+                    this.audio.src = track.url;
                     this.useSimulation = false;
+                    
                     const coverText = document.querySelector('.cover-text');
-                    if(coverText) coverText.textContent = track.name.substring(0, 20);
+                    if(coverText) {
+                        coverText.innerHTML = `<span>${idx+1}. ${track.name.replace(/\.[^/.]+$/, "")}</span>`;
+                    }
 
-                    // 🔥 НОВОЕ: Обновляем кнопку на телефоне
                     const mobileArt = document.getElementById('mobileBtnArt');
                     const mobileIcon = document.querySelector('.mobile-only-btn .btn-icon');
-                    
                     if(mobileArt && mobileIcon) {
-                        // Если это трек из облака и есть картинка (или дефолтная)
-                        // Тут можно добавить логику для реальных обложек, если они есть в базе
-                        // Пока поставим заглушку или иконку
-                        mobileArt.src = "cover.png"; // Или track.coverUrl если есть
+                        mobileArt.src = "cover.png"; 
                         mobileArt.style.display = 'block';
                         mobileIcon.style.display = 'none';
                     }
                 },
 
-                fmtTime(s) {
-                    const m = Math.floor(s / 60);
-                    const sec = Math.floor(s % 60);
-                    return `${m < 10 ? '0'+m : m}:${sec < 10 ? '0'+sec : sec}`;
-                },
-
                 startAudioContext() {
                     if (this.audioCtx) return;
-                    const AudioContext = window.AudioContext || window.webkitAudioContext;
-                    this.audioCtx = new AudioContext();
-
-                    try {
-                        this.analyser = this.audioCtx.createAnalyser();
-                        this.source = this.audioCtx.createMediaElementSource(this.audio);
-                        this.source.connect(this.analyser);
-                        this.analyser.connect(this.audioCtx.destination);
-                        this.analyser.fftSize = 64; 
-                        this.useSimulation = false;
-                    } catch (e) {
-                        console.log("Visualizer Error (CORS). Using simulation.");
-                        this.useSimulation = true;
-                    }
-                    this.draw();
+                    this.init(); // Перестраховка
                 },
 
-                    // === ОБНОВЛЕННЫЙ МЕТОД DRAW (С МОБИЛЬНОЙ КНОПКОЙ) ===
+                // Твой код draw (без изменений, он хороший)
                 draw() {
                     if (!this.canvas || this.animationId) return;
-
                     const ctx = this.canvas.getContext('2d');
                     const root = document.documentElement;
-                    // 🔥 НАХОДИМ КНОПКУ (для анимации на телефоне)
-                    const mobileBtn = document.getElementById('mobileMusicBtn'); 
-
-                    // Настройка FPS (чтобы не грелся телефон)
+                    const mobileBtn = document.getElementById('mobileMusicBtn');
+                    const logo = document.querySelector('.vox-logo-svg');
                     let lastFrame = 0;
-                    const FPS_LIMIT = 60; 
+                    const FPS_LIMIT = 60;
                     const FRAME_TIME = 1000 / FPS_LIMIT;
 
-                    let bufferLength = this.analyser ? this.analyser.frequencyBinCount : 32;
+                    const resize = () => {
+                        if (this.canvas.parentElement) {
+                            this.canvas.width = this.canvas.parentElement.clientWidth;
+                            this.canvas.height = this.canvas.parentElement.clientHeight;
+                        }
+                    };
+                    resize();
+                    window.addEventListener('resize', resize);
+
+                    let bufferLength = this.analyser ? this.analyser.frequencyBinCount : 64;
                     let dataArray = new Uint8Array(bufferLength);
 
                     const render = (ts) => {
-                        // 1. ПРОВЕРКА: Если пауза или вкладка скрыта
                         if (document.hidden || this.audio.paused) {
                             this.animationId = null;
-                            
-                            // Сбрасываем эффекты в ноль
                             root.style.setProperty('--scan-line-color', 'rgba(0, 243, 255, 0.03)');
                             root.style.setProperty('--grid-glow', '0px');
-                            
-                            // Возвращаем кнопку в обычное состояние
-                            if(mobileBtn) {
+                            document.body.style.backgroundSize = '30px 30px';
+                            if (mobileBtn) {
                                 mobileBtn.style.transform = 'scale(1)';
                                 mobileBtn.style.boxShadow = 'none';
                                 mobileBtn.classList.remove('playing');
                             }
+                            if (logo) logo.style.transform = 'scale(1)';
                             return;
                         }
 
-                        // 2. КОНТРОЛЬ FPS
                         if (ts - lastFrame < FRAME_TIME) {
                             this.animationId = requestAnimationFrame(render);
                             return;
                         }
                         lastFrame = ts;
 
-                        // 3. ПОЛУЧЕНИЕ ДАННЫХ ЗВУКА
                         if (!this.useSimulation && this.analyser) {
                             this.analyser.getByteFrequencyData(dataArray);
+                        } else {
+                            for (let i = 0; i < bufferLength; i++) dataArray[i] = Math.random() * 50;
                         }
 
                         const w = this.canvas.width;
                         const h = this.canvas.height;
+                        const centerX = w / 2;
+                        const centerY = h / 2;
+                        const radius = Math.min(w, h) * 0.15;
 
-                        // Очистка с полупрозрачностью (шлейф)
-                        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-                        ctx.fillRect(0, 0, w, h);
+                        ctx.clearRect(0, 0, w, h);
 
                         let sum = 0;
-                        const barWidth = (w / bufferLength) * 2.5;
-                        let x = 0;
+                        for (let i = 0; i < bufferLength; i++) sum += dataArray[i];
+                        const average = sum / bufferLength;
 
-                        // --- ОТРИСОВКА СТОЛБИКОВ ---
-                        for (let i = 0; i < bufferLength; i++) {
-                            const value = dataArray ? dataArray[i] : (Math.random() * 50) + 50;
-                            sum += value;
+                        const pulse = 1 + (average / 255) * 0.3;
+                        ctx.beginPath();
+                        ctx.arc(centerX, centerY, radius * pulse, 0, 2 * Math.PI);
+                        ctx.fillStyle = "rgba(0, 243, 255, 0.1)";
+                        ctx.fill();
+                        ctx.strokeStyle = "var(--vox-cyan)";
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
 
-                            const barHeight = (value / 255) * h;
-                            // Цвет: Vox Cyan + немного синего на пиках
-                            ctx.fillStyle = `hsl(${180 + value/5}, 100%, 50%)`;
-                            ctx.fillRect(x, h - barHeight, barWidth - 1, barHeight);
-                            x += barWidth;
+                        const bars = 64; 
+                        const step = (Math.PI * 2) / bars;
+
+                        for (let i = 0; i < bars; i++) {
+                            const dataIndex = Math.floor((i / bars) * bufferLength);
+                            const value = dataArray[dataIndex] || 0;
+                            const barLen = (value / 255) * (Math.min(w, h) * 0.4);
+                            const angle = i * step;
+                            const x1 = centerX + Math.cos(angle) * (radius + 5);
+                            const y1 = centerY + Math.sin(angle) * (radius + 5);
+                            const x2 = centerX + Math.cos(angle) * (radius + 5 + barLen);
+                            const y2 = centerY + Math.sin(angle) * (radius + 5 + barLen);
+
+                            ctx.beginPath();
+                            ctx.moveTo(x1, y1);
+                            ctx.lineTo(x2, y2);
+                            ctx.strokeStyle = `hsl(${180 + (value/255)*40}, 100%, 50%)`;
+                            ctx.lineWidth = 2;
+                            ctx.stroke();
                         }
 
-                        // --- ВЫЧИСЛЕНИЕ ЭФФЕКТОВ ---
-                        const average = sum / bufferLength; // Средняя громкость (0-255)
+                        const glowValue = Math.min(30, (average / 10)); 
+                        const gridOpacity = Math.min(0.4, 0.03 + (average / 500));
+                        const gridSize = 30 + (average / 30);
 
-                        // Делаем эффекты более "резкими" (реагируют на бас)
-                        const glowValue = Math.min(25, (average / 12)); 
-                        const gridOpacity = Math.min(0.5, 0.03 + (average / 400));
-                        const gridSize = 50 + (average / 40); // Сетка "дышит"
-
-                        // Применяем к фону сайта
                         root.style.setProperty('--scan-line-color', `rgba(0, 243, 255, ${gridOpacity})`);
                         root.style.setProperty('--grid-glow', `${glowValue}px`);
                         document.body.style.backgroundSize = `${gridSize}px ${gridSize}px`;
 
-                        // --- 🔥 АНИМАЦИЯ МОБИЛЬНОЙ КНОПКИ 🔥 ---
                         if (mobileBtn) {
-                            // Кнопка увеличивается под бит
                             mobileBtn.classList.add('playing');
-                            
-                            const btnScale = 1 + (average / 800); 
+                            const btnScale = 1 + (average / 600);
                             mobileBtn.style.transform = `scale(${btnScale})`;
-                            // Добавляем неоновое свечение вокруг кнопки
                             mobileBtn.style.boxShadow = `0 0 ${glowValue}px var(--vox-cyan)`;
                         }
-
-                        // Пульсация логотипа в шапке
-                        const logo = document.querySelector('.vox-logo-svg');
                         if (logo) {
-                            logo.style.transform = `scale(${1 + (average / 1200)})`;
+                            logo.style.transform = `scale(${1 + (average / 1000)})`;
                         }
 
                         this.animationId = requestAnimationFrame(render);
                     };
-
                     this.animationId = requestAnimationFrame(render);
                 }
-
             };
+
             window.MusicSystem = MusicSystem;
             MusicSystem.init();
 
@@ -625,6 +703,7 @@
                 init() {
 
                     if (this.isInitialized) return; this.isInitialized = true;
+                
 
                     StaticFX.init();
                     
@@ -938,7 +1017,7 @@
                     this.playlist.forEach((track, idx) => {
                         const div = document.createElement('div');
                         div.className = `playlist-item ${idx === this.currentIndex ? 'active' : ''}`;
-                        div.innerHTML = `<span>${idx+1}. ${track.name}</span><span class="playlist-remove" onclick="VideoSystem.removeTrack(${idx}, event)">×</span>`;
+                        div.innerHTML = `<span>${idx+1}. ${track.name.replace(/\.[^/.]+$/, "")}</span><span class="playlist-remove" onclick="VideoSystem.removeTrack(${idx}, event)">×</span>`;
                         div.onclick = (e) => { if(!e.target.classList.contains('playlist-remove')) { this.currentIndex = idx; this.playCurrent(); }};
                         this.playlistContainer.appendChild(div);
                     });
@@ -2695,7 +2774,12 @@
                         const timeA = this.lastActiveTimes[a.uid] || 0;
                         const timeB = this.lastActiveTimes[b.uid] || 0;
                         if (timeB !== timeA) return timeB - timeA;
-                        return a.name.localeCompare(b.name);
+                        
+                        // 🔥 ИСПРАВЛЕНИЕ: Добавляем защиту от пустых имен
+                        const nameA = a.name || "Unknown";
+                        const nameB = b.name || "Unknown";
+                        
+                        return nameA.localeCompare(nameB);
                     });
                     
                     sortedUsers.forEach(user => {
@@ -2705,7 +2789,7 @@
                         const unread = this.unreadCounts[user.uid] || 0;
 
                         // Данные
-                        const name = user.name || user.email.split('@')[0];
+                        const name = user.name || (user.email ? user.email.split('@')[0] : "Unknown ID");
                         const avatarSrc = user.avatar || `https://placehold.co/40x40/000000/00f3ff/png?text=${name[0]}`;
                         
                         // 🔥 ОПРЕДЕЛЯЕМ РОЛЬ ДЛЯ СПИСКА КОНТАКТОВ 🔥
@@ -4442,7 +4526,8 @@
                     document.body.style.overflow = 'auto';
 
                     // Возвращаем кнопку админа (если это админ)
-                    if(window.auth.currentUser && window.auth.currentUser.email === 'voxtek@voxtek.net' || user.email === 'test@voxtek.net') {
+                    const currentUser = window.auth.currentUser;
+                    if(currentUser && (currentUser.email === 'voxtek@voxtek.net' || currentUser.email === 'test@voxtek.net')) {
                         const admBtn = document.getElementById('adminToggleBtn');
                         if(admBtn) admBtn.style.display = 'block';
                     }
@@ -4578,7 +4663,8 @@
             
             // Hook into CloudSystem to Render Admin Tools for Messages
             const chatObserver = new MutationObserver((mutations) => {
-                if(window.auth.currentUser && window.auth.currentUser.email === 'voxtek@voxtek.net' || user.email === 'test@voxtek.net') {
+                const currentUser = window.auth.currentUser;
+                if(currentUser && (currentUser.email === 'voxtek@voxtek.net' || currentUser.email === 'test@voxtek.net')) {
                     mutations.forEach(mut => {
                         mut.addedNodes.forEach(node => {
                             if(node.classList && node.classList.contains('msg-wrapper')) {
@@ -5238,6 +5324,83 @@ const initDraggableButton = () => {
 
     // Запускаем инициализацию (добавь это в конец файла или в window.onload)
     initDraggableButton();
+
+// Вставь это в scripts.js
+
+const initCustomCursor = () => {
+    const cursor = document.getElementById('cursor-main');
+    const follower = document.getElementById('cursor-follower');
+    
+    // Защита от ошибок
+    if (!cursor || !follower) return;
+
+    let mouseX = 0, mouseY = 0;
+    let posX = 0, posY = 0;
+
+    // 1. Движение мыши
+    document.addEventListener('mousemove', (e) => {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        
+        // Показываем курсор (если он был скрыт)
+        cursor.style.opacity = '1';
+        follower.style.opacity = '0.6';
+
+        // Основная точка движется мгновенно
+        cursor.style.left = mouseX + 'px';
+        cursor.style.top = mouseY + 'px';
+        
+        // Логика наведения (Hover)
+        // Проверяем, наведены ли мы на что-то интерактивное
+        const target = e.target;
+        const isInteractive = 
+            target.tagName === 'BUTTON' || 
+            target.tagName === 'A' || 
+            target.tagName === 'INPUT' || 
+            target.tagName === 'TEXTAREA' ||
+            target.tagName === 'LABEL' ||
+            target.closest('.btn-tech') || 
+            target.closest('.clickable') ||
+            target.onclick != null || // Если у элемента есть onclick
+            window.getComputedStyle(target).cursor === 'pointer'; // Если в CSS задан pointer
+
+        if (isInteractive) {
+            document.body.classList.add('hovering');
+        } else {
+            document.body.classList.remove('hovering');
+        }
+    });
+
+    // 2. Скрытие курсора, если мышь ушла из окна
+    document.addEventListener('mouseout', (e) => {
+        if (!e.relatedTarget && !e.toElement) {
+            cursor.style.opacity = '0';
+            follower.style.opacity = '0';
+        }
+    });
+
+    // 3. Эффекты нажатия
+    document.addEventListener('mousedown', () => document.body.classList.add('clicking'));
+    document.addEventListener('mouseup', () => document.body.classList.remove('clicking'));
+
+    // 4. Плавное движение хвоста (Loop)
+    const loop = () => {
+        // Интерполяция (смягчение движения)
+        posX += (mouseX - posX) / 5;
+        posY += (mouseY - posY) / 5;
+        
+        follower.style.left = posX + 'px';
+        follower.style.top = posY + 'px';
+        
+        requestAnimationFrame(loop);
+    };
+    loop();
+};
+
+// Запуск (только на ПК, на телефонах курсор не нужен)
+if (window.matchMedia("(pointer: fine)").matches) {
+    initCustomCursor();
+}
 
             // Запускаем
             setTimeout(initMiniMatrix, 500);
