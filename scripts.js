@@ -228,8 +228,10 @@
                 canvas: document.getElementById('audioCanvas'),
                 localInput: document.getElementById('localAudioInput'),
                 playlistContainer: document.getElementById('audioPlaylist'),
-                playlist: [], 
-                currentIndex: -1,
+                playlist: [
+                    { name: "Brighter.mp3", url: "embient.mp3" }
+                ], 
+                currentIndex: 0,
                 ctx: null,
                 analyser: null,
                 source: null,
@@ -249,120 +251,95 @@
                 },
 
                 init() {
-                    // Базовые настройки
-                    this.audio.volume = 0.2; 
-                    this.playlist.push({ name: 'Brighter', url: 'embient.mp3' });
-                    this.currentIndex = 0;
-                    this.renderPlaylist();
+                    if (this.isInitialized) return;
+                    this.isInitialized = true;
+                    if (this.playBtn) {
+                        this.playBtn.addEventListener('click', () => this.togglePlay());
+                    }
 
-                    // --- СЛУШАТЕЛИ СОБЫТИЙ ---
-                    this.toggleBtn.addEventListener('click', () => {
-                        this.menu.classList.toggle('open');
-                        SoundFX.click();
-                    });
+                    // 1. Настройка громкости
+                    this.audio.volume = 0.5;
 
-                    this.playBtn.addEventListener('click', () => {
-                        if (this.audio.paused) {
-                            this.playCurrent();
-                        } else {
-                            this.audio.pause();
-                            this.playBtn.textContent = "RESUME STREAM";
-                        }
-                        SoundFX.click();
-                    });
-
+                    // 2. Слушатель: Если песня кончилась — включаем следующую
                     this.audio.addEventListener('ended', () => {
-                        this.playNext();
+                        this.nextTrack();
                     });
 
-                    this.volSlider.addEventListener('input', (e) => {
-                        this.audio.volume = e.target.value;
-                    });
-
+                    // 3. Слушатель: Обновление ползунка времени
                     this.audio.addEventListener('timeupdate', () => {
                         if (!this.isDragging && !isNaN(this.audio.duration)) {
-                            const pct = (this.audio.currentTime / this.audio.duration) * 100;
-                            this.seekSlider.value = pct;
-                            document.getElementById('currentTime').textContent = this.fmtTime(this.audio.currentTime);
-                            document.getElementById('durationTime').textContent = this.fmtTime(this.audio.duration);
+                            const percent = (this.audio.currentTime / this.audio.duration) * 100;
+                            // Обновляем прогресс-бар в меню
+                            const progressBar = document.getElementById('musicProgress');
+                            if (progressBar) progressBar.style.width = `${percent}%`;
 
-                        const circle = document.querySelector('.progress-ring__circle');
+                            // Обновляем круговой прогресс на мобильной кнопке
+                            const circle = document.querySelector('.progress-ring__circle');
                             if (circle) {
                                 const radius = circle.r.baseVal.value;
                                 const circumference = 2 * Math.PI * radius; // ≈ 213
-                                const percent = this.audio.currentTime / this.audio.duration;
-                                
-                                // Сдвигаем линию
-                                const offset = circumference - (percent * circumference);
+                                const offset = circumference - ((this.audio.currentTime / this.audio.duration) * circumference);
                                 circle.style.strokeDashoffset = offset;
                             }
                         }
                     });
 
-                    this.seekSlider.addEventListener('mousedown', () => this.isDragging = true);
-                    this.seekSlider.addEventListener('touchstart', () => this.isDragging = true);
-                    this.seekSlider.addEventListener('change', (e) => {
-                         const time = (e.target.value / 100) * this.audio.duration;
-                         this.audio.currentTime = time;
-                         this.isDragging = false;
-                    });
-
-                    document.getElementById('coverUpload').addEventListener('change', (e) => {
-                        const file = e.target.files[0];
-                        if(file) {
-                             const url = URL.createObjectURL(file);
-                             document.getElementById('coverImg').src = url;
+                    // 🔥 4. ГЛАВНОЕ ИСПРАВЛЕНИЕ: ВОСКРЕШЕНИЕ ВИЗУАЛИЗАЦИИ
+                    // Когда нажимаем Play -> запускаем draw() заново
+                    this.audio.addEventListener('play', () => {
+                        // Меняем иконку в меню на "Пауза"
+                        const playBtn = document.getElementById('playPauseBtn');
+                        if (playBtn) playBtn.textContent = '⏸'; // Или твоя иконка паузы
+                        
+                        // Запускаем анимацию, если она была остановлена
+                        if (!this.animationId) {
+                            this.draw();
                         }
                     });
 
-                    // Загрузка локальных файлов (и отправка в облако)
-                    this.localInput.addEventListener('change', (e) => {
-                         const files = Array.from(e.target.files);
-                         if (files.length > 0) {
-                             files.forEach(file => {
-                                 // Вызываем CloudSystem для загрузки в базу (тип 'audio')
-                                 if(window.CloudSystem) window.CloudSystem.uploadMedia(file, 'audio');
-                             });
-                             voxNotify(`INITIATING CLOUD UPLOAD (${files.length} FILES)...`, 'info');
-                         }
+                    // Когда нажимаем Pause -> просто меняем иконку
+                    this.audio.addEventListener('pause', () => {
+                        const playBtn = document.getElementById('playPauseBtn');
+                        if (playBtn) playBtn.textContent = '▶'; // Или твоя иконка плей
                     });
 
-                    // 🔥 ЗАГРУЗКА СОХРАНЕННЫХ ТРЕКОВ ИЗ БАЗЫ 🔥
-                    setTimeout(() => {
-                        if(window.db && window.auth.currentUser) {
-                            const q = window.fbQuery(
-                                window.fbCol(window.db, "audios"), 
-                                window.fbWhere("author", "==", window.auth.currentUser.uid), 
-                                window.fbOrder("createdAt", "desc"),
-                                window.fbLimit(50)
-                            );
-                            
-                            // Слушаем изменения в базе (реальное время)
-                            window.fbSnap(q, (snapshot) => {
-                                snapshot.docChanges().forEach((change) => {
-                                    // Если добавлен новый трек
-                                    if (change.type === "added") {
-                                        const data = change.doc.data();
-                                        // Проверяем на дубликаты
-                                        if(!this.playlist.some(t => t.url === data.url)) {
-                                            this.playlist.push({ 
-                                                id: change.doc.id, 
-                                                name: data.name, 
-                                                url: data.url, 
-                                                isCloud: true 
-                                            });
-                                            this.renderPlaylist();
-                                        }
-                                    }
-                                    // Если удален трек
-                                    if (change.type === "removed") {
-                                        this.playlist = this.playlist.filter(t => t.id !== change.doc.id);
-                                        this.renderPlaylist();
-                                    }
-                                });
-                            });
-                        }
-                    }, 2500); // Даем время на логин
+                    // 5. Настройка AudioContext (для работы визуализатора)
+                    try {
+                        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        this.analyser = this.audioCtx.createAnalyser();
+                        this.analyser.fftSize = 64; // Меньше нагрузка, ретро стиль
+                        
+                        const source = this.audioCtx.createMediaElementSource(this.audio);
+                        source.connect(this.analyser);
+                        this.analyser.connect(this.audioCtx.destination);
+                    } catch (e) {
+                        console.log("Audio API restricted (Waiting for user interaction)");
+                        this.useSimulation = true;
+                    }
+                    
+                    // Проверяем, есть ли треки, прежде чем пытаться их загрузить
+                    if (this.playlist.length > 0) {
+                        if (this.currentIndex === -1) this.currentIndex = 0; // Если индекс не выбран, берем первый
+                        this.loadTrack(this.currentIndex);
+                    } else {
+                        console.log("Playlist empty, waiting for input...");
+}
+                },
+
+                togglePlay() {
+                    // Разблокировка аудио-движка (для браузеров)
+                    if (this.audioCtx && this.audioCtx.state === 'suspended') {
+                        this.audioCtx.resume();
+                    }
+
+                    if (this.audio.paused) {
+                        // Если на паузе — ПРОДОЛЖАЕМ
+                        this.audio.play()
+                            .catch(e => console.error("Playback error:", e));
+                    } else {
+                        // Если играет — СТАВИМ ПАУЗУ
+                        this.audio.pause();
+                    }
                 },
 
                 renderPlaylist() {
@@ -474,38 +451,6 @@
                         this.useSimulation = true;
                     }
                     this.draw();
-                },
-
-                draw() {
-                    if (!this.canvas || this.animationId) return;
-
-                    const ctx = this.canvas.getContext('2d');
-                    const root = document.documentElement; // Для управления CSS переменными
-
-                    // === 1. Обработка ресайза (чтобы канвас не мылился) ===
-                    const resize = () => {
-                        this.canvas.width = this.canvas.clientWidth;
-                        this.canvas.height = this.canvas.clientHeight;
-                    };
-                    resize(); // Вызываем один раз при старте
-
-                    if (!this._resizeBound) {
-                        window.addEventListener('resize', resize);
-                        this._resizeBound = true;
-                    }
-
-                    let lastFrame = 0;
-                    const FPS_LIMIT = 30; // Ограничиваем 30 FPS для стиля "ретро" и экономии CPU
-                    const FRAME_TIME = 1000 / FPS_LIMIT;
-
-                    let bufferLength = 32;
-                    let dataArray = null;
-
-                    // Если AudioContext активен, настраиваем буфер
-                    if (!this.useSimulation && this.analyser) {
-                        bufferLength = this.analyser.frequencyBinCount; // Обычно 32, так как fftSize = 64
-                        dataArray = new Uint8Array(bufferLength);
-                    }
                 },
 
                     // === ОБНОВЛЕННЫЙ МЕТОД DRAW (С МОБИЛЬНОЙ КНОПКОЙ) ===

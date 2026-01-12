@@ -938,7 +938,41 @@ footer { text-align: center; padding: 60px 20px; color: #888; font-size: 11px; b
 }
 .playlist-item { padding: 5px 10px; background: #111; color: #aaa; font-size: 11px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
 .playlist-item:hover { background: #222; color: white; }
-.playlist-item.active { background: rgba(0, 243, 255, 0.1); color: var(--vox-cyan); border-left: 2px solid var(--vox-cyan); }
+.playlist-item {
+    transition: all 0.3s ease;
+    border-left: 2px solid transparent;
+    border-bottom: 1px solid #222;
+}
+
+.playlist-item:hover {
+    background: rgba(0, 243, 255, 0.05);
+    padding-left: 15px; /* Сдвиг при наведении */
+}
+
+.playlist-item.active {
+    background: linear-gradient(90deg, rgba(0, 243, 255, 0.15), transparent);
+    color: var(--vox-cyan);
+    border-left: 4px solid var(--vox-cyan);
+    text-shadow: 0 0 10px var(--vox-cyan);
+    font-weight: bold;
+    padding-left: 15px;
+    position: relative;
+}
+
+/* Добавляем иконку "Sound Wave" перед активным треком */
+.playlist-item.active::before {
+    content: 'ılıll'; /* Имитация звуковой волны символами */
+    font-family: Arial, sans-serif;
+    font-size: 10px;
+    margin-right: 8px;
+    animation: textFlicker 1s infinite;
+}
+
+@keyframes textFlicker {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
 .playlist-remove { color: var(--alert-red); font-weight: bold; padding: 0 5px; }
 .playlist-remove:hover { color: white; }
 
@@ -964,15 +998,92 @@ footer { text-align: center; padding: 60px 20px; color: #888; font-size: 11px; b
 .cover-art-box:hover #coverImg { opacity: 1; filter: grayscale(0%); }
 .cover-text { position: absolute; bottom: 0; left: 0; width: 100%; background: rgba(0,0,0,0.7); color: white; padding: 5px; font-size: 10px; text-align: center; }
 
-.music-controls { display: flex; flex-direction: column; gap: 10px; }
-.range-wrap { display: flex; align-items: center; gap: 10px; font-size: 10px; color: #aaa; }
-input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; background: #333; outline: none; }
-input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 10px; height: 10px; background: var(--vox-cyan); cursor: pointer; box-shadow: 0 0 5px var(--vox-cyan); }
+/* Общий стиль контейнера для ползунка */
+.range-wrap {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 10px;
+    font-weight: bold;
+    color: var(--vox-cyan);
+    font-family: var(--font-code);
+    margin-bottom: 5px;
+}
+
+/* Сам инпут */
+input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 6px;
+    background: #111; /* Темная подложка */
+    border: 1px solid #333;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+    box-shadow: inset 0 0 5px rgba(0,0,0,0.8);
+}
+
+/* Ползунок (Кружок/Квадрат) */
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    background: var(--vox-cyan);
+    border: 2px solid #000; /* Контрастная обводка */
+    box-shadow: 0 0 10px var(--vox-cyan), 0 0 20px var(--vox-cyan); /* Свечение */
+    cursor: pointer;
+    transition: transform 0.1s, background 0.2s;
+    margin-top: -4px; /* Центрирование */
+    transform: rotate(45deg); /* Делаем ромб для стиля Vox */
+}
+
+/* Эффект при наведении */
+input[type="range"]::-webkit-slider-thumb:hover {
+    background: #fff;
+    transform: rotate(45deg) scale(1.3);
+    box-shadow: 0 0 15px #fff, 0 0 30px var(--vox-cyan);
+}
 #toggleMenuBtn {
     position: absolute; left: -40px; top: 0; width: 40px; height: 40px;
     background: var(--vox-cyan); border: none; color: black; font-weight: bold;
     display: flex; justify-content: center; align-items: center; font-size: 20px;
     clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 10px 50%);
+}
+#playPauseBtn {
+    background: transparent;
+    border: 1px solid var(--vox-cyan);
+    color: var(--vox-cyan);
+    font-size: 14px;
+    letter-spacing: 2px;
+    padding: 12px;
+    transition: all 0.3s;
+    text-shadow: 0 0 5px var(--vox-cyan);
+    box-shadow: inset 0 0 10px rgba(0, 243, 255, 0.1);
+    position: relative;
+    overflow: hidden;
+}
+
+#playPauseBtn:hover {
+    background: var(--vox-cyan);
+    color: #000;
+    box-shadow: 0 0 20px var(--vox-cyan), inset 0 0 20px white;
+    font-weight: 900;
+}
+
+/* Эффект сканирующей линии внутри кнопки */
+#playPauseBtn::after {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+    animation: btnScan 3s infinite;
+}
+
+@keyframes btnScan {
+    0% { left: -100%; }
+    20% { left: 100%; }
+    100% { left: 100%; }
 }
 
 /* =========================================
