@@ -703,6 +703,15 @@
                     this.animationId = requestAnimationFrame(render);
                 }
             };
+            
+            // 1. Делаем системы глобальными (чтобы HTML мог их видеть)
+            window.MusicSystem = MusicSystem;
+
+            // 2. Инициализируем плеер (если он еще не запущен)
+            // Небольшая задержка (500мс), чтобы страница точно прогрузилась
+            setTimeout(() => {
+                if(window.MusicSystem) window.MusicSystem.init();
+            }, 500);
 
             // --- 1.2 CUSTOM VIDEO PLAYER SYSTEM (OPTIMIZED & REMASTERED) ---
             const VideoSystem = {
