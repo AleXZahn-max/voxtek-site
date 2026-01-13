@@ -2138,6 +2138,11 @@
                     const input = document.getElementById('verify2FAInput');
                     const code = input.value.trim();
                     
+                    if (!code) {
+                        voxNotify("PLEASE ENTER CODE FROM APP.", "warning");
+                        return;
+                    }
+                    
                     try {
                         const totp = new OTPAuth.TOTP({
                             algorithm: "SHA1",
@@ -2327,6 +2332,8 @@
                     this.banListener = window.fbSnap(window.fbDoc(window.db, "users", uid), (doc) => {
                         const data = doc.data();
                         if (data && data.isBanned === true) {
+                            voxNotify("YOU HAVE BEEN BANNED FROM VOXTEK ENTERPRISES.", "error");
+                            
                             // Если прилетел бан — выкидываем мгновенно
                             document.getElementById('modal2FALogin').classList.remove('active');
                             window.fbLogout(window.auth);
@@ -3554,14 +3561,39 @@
                 
                 // USER MANAGEMENT
                 registerUser(user) {
-                    const ref = window.fbDoc(window.db, "users", user.uid);
-                    window.fbSet(ref, {
-                        uid: user.uid,
-                        email: user.email,
-                        name: user.displayName || user.email.split('@')[0],
-                        avatar: user.photoURL,
-                        lastSeen: window.fbTime()
-                    }, { merge: true });
+                    if (!user) return;
+                    const userRef = window.fbDoc(window.db, "users", user.uid);
+
+                    // 1. Сначала ПРОВЕРЯЕМ, существует ли юзер
+                    window.fbGet(userRef).then((docSnap) => {
+                        if (docSnap.exists()) {
+                            // А. Если юзер ЕСТЬ: Обновляем только время входа (не трогаем 2FA!)
+                            window.fbSet(userRef, {
+                                email: user.email,
+                                lastSeen: window.fbTime(),
+                                isOnline: true,
+                                // photoURL: user.photoURL || null // Можно раскомментировать, если нужно обновлять аватарку Google
+                            }, { merge: true });
+                        } else {
+                            // Б. Если юзера НЕТ (Реально новый): Создаем с нуля
+                            window.fbSet(userRef, {
+                                uid: user.uid,
+                                email: user.email,
+                                name: user.displayName || user.email.split('@')[0],
+                                photoURL: user.photoURL || null,
+                                createdAt: window.fbTime(),
+                                lastSeen: window.fbTime(),
+                                isOnline: true,
+                                trustScore: 50,
+                                role: 'user',
+                                mfaEnabled: false, // Только для НОВЫХ ставим false
+                                bio: "New Citizen"
+                            });
+                            console.log("NEW CITIZEN REGISTERED IN DATABASE.");
+                        }
+                    }).catch((error) => {
+                        console.error("REGISTER ERROR:", error);
+                    });
                 },
                 
                 listenToUsers() {
