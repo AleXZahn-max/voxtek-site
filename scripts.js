@@ -218,11 +218,12 @@
             };
             window.SoundFX = SoundFX;
 
-           // --- 1.1 AMBIENT MUSIC SYSTEM (FIXED & UPDATED) ---
-            const MusicSystem = {
+           // --- 1.1 AMBIENT MUSIC SYSTEM (FIXED INPUTS & LISTENERS) ---
+            window.MusicSystem = { // Используем window для глобального доступа
                 audio: document.getElementById('bg-music'),
                 menu: document.getElementById('slide-music-menu'),
                 toggleBtn: document.getElementById('toggleMenuBtn'),
+                mobileBtn: document.getElementById('mobileMusicBtn'), // 🔥 Добавили мобильную кнопку
                 playBtn: document.getElementById('playPauseBtn'),
                 volSlider: document.getElementById('volumeControl'),
                 seekSlider: document.getElementById('seekControl'),
@@ -249,7 +250,6 @@
                     }
                 },
 
-                // 🔥 ДОБАВЛЕНА НЕДОСТАЮЩАЯ ФУНКЦИЯ 🔥
                 fmtTime(s) {
                     if (isNaN(s) || !isFinite(s)) return "--:--";
                     const m = Math.floor(s / 60);
@@ -258,148 +258,45 @@
                 },
 
                 init() {
-
                     if (this.isInitialized) return; 
                     this.isInitialized = true;
 
-                    const self = this; // 🔥 СОХРАНЯЕМ ПРАВИЛЬНУЮ ССЫЛКУ НА СИСТЕМУ
+                    const self = this; 
+
+                    // 0. Обновляем ссылки на элементы (на случай, если DOM долго грузился)
+                    self.audio = document.getElementById('bg-music');
+                    self.toggleBtn = document.getElementById('toggleMenuBtn');
+                    self.mobileBtn = document.getElementById('mobileMusicBtn');
+                    self.playBtn = document.getElementById('playPauseBtn');
+                    self.localInput = document.getElementById('localAudioInput');
 
                     // Базовые настройки
-                    self.audio.volume = 0.5;
-                    
-                    if (this.localInput) {
-                        const newClone = this.localInput.cloneNode(true);
-                        this.localInput.parentNode.replaceChild(newClone, this.localInput);
-                        this.localInput = newClone;
+                    if(self.audio) self.audio.volume = 0.5;
+
+                    // 🔥 1. СЛУШАТЕЛЬ ДЛЯ КНОПКИ МЕНЮ (НОТА) 🔥
+                    if(self.toggleBtn) {
+                        self.toggleBtn.onclick = (e) => {
+                            e.stopPropagation(); // Чтобы клик не ушел ниже
+                            self.toggleMenu();
+                        };
                     }
 
-                    // --- 1. СЛУШАТЕЛЬ ГРОМКОСТИ ---
-                    if(self.volSlider) {
-                        self.volSlider.addEventListener('input', (e) => {
-                            self.audio.volume = e.target.value;
-                        });
+                    // 🔥 2. СЛУШАТЕЛЬ ДЛЯ МОБИЛЬНОЙ КНОПКИ (КРУГ) 🔥
+                    if(self.mobileBtn) {
+                        self.mobileBtn.onclick = (e) => {
+                            e.stopPropagation();
+                            self.toggleMenu();
+                        };
                     }
 
-                    // --- 2. СЛУШАТЕЛЬ ПЕРЕМОТКИ (SEEK) ---
-                    if(self.seekSlider) {
-                        self.seekSlider.addEventListener('mousedown', () => self.isDragging = true);
-                        self.seekSlider.addEventListener('touchstart', () => self.isDragging = true);
-                        
-                        self.seekSlider.addEventListener('change', (e) => {
-                            if (self.audio.duration) {
-                                const time = (e.target.value / 100) * self.audio.duration;
-                                self.audio.currentTime = time;
-                            }
-                            self.isDragging = false;
-                        });
-                        
-                        self.seekSlider.addEventListener('input', (e) => {
-                            self.isDragging = true;
-                            // Визуальное обновление при перетаскивании
-                            const time = (e.target.value / 100) * self.audio.duration;
-                            const curTimeEl = document.getElementById('currentTime');
-                            if(curTimeEl) curTimeEl.textContent = self.fmtTime(time);
-                        });
-                    }
-
-                    // --- 3. ОБНОВЛЕНИЕ ВРЕМЕНИ (TIMEUPDATE) ---
-                    self.audio.addEventListener('timeupdate', () => {
-                        // Используем self вместо this, чтобы точно обращаться к системе
-                        if (!self.isDragging && !isNaN(self.audio.duration)) {
-                            const percent = (self.audio.currentTime / self.audio.duration) * 100;
-                            
-                            if (self.seekSlider) self.seekSlider.value = percent;
-                            
-                            const curTimeEl = document.getElementById('currentTime');
-                            const durTimeEl = document.getElementById('durationTime');
-                            
-                            // Теперь self.fmtTime существует и не вызовет ошибку!
-                            if(curTimeEl) curTimeEl.textContent = self.fmtTime(self.audio.currentTime);
-                            if(durTimeEl) durTimeEl.textContent = self.fmtTime(self.audio.duration);
-                            
-                            // Круговой прогресс (Мобильная кнопка)
-                            const circle = document.querySelector('.progress-ring__circle');
-                            if (circle) {
-                                // Добавляем проверку на валидность чисел, чтобы точка не исчезала
-                                const radius = circle.r.baseVal.value;
-                                const circumference = 2 * Math.PI * radius;
-                                const offset = circumference - ((self.audio.currentTime / self.audio.duration) * circumference);
-                                
-                                // Если offset валиден, применяем его
-                                if (!isNaN(offset)) {
-                                    circle.style.strokeDashoffset = offset;
-                                }
-                            }
-                        }
-                    });
-
-                    // --- 4. ЗАГРУЗКА МЕТАДАННЫХ (ФИКС ВРЕМЕНИ И КРУГА) ---
-                    self.audio.addEventListener('loadedmetadata', () => {
-                        const durEl = document.getElementById('durationTime');
-                        const curEl = document.getElementById('currentTime');
-                        
-                        // 1. Чиним время
-                        if (durEl) {
-                            // Если длительность бесконечна (стрим) или NaN, покажем прочерки
-                            durEl.textContent = self.fmtTime(self.audio.duration);
-                        }
-                        if (curEl) curEl.textContent = "00:00";
-                        if (self.seekSlider) self.seekSlider.value = 0;
-
-                        // 🔥 2. ЧИНИМ КРУГ (ANDROID BUTTON) 🔥
-                        const circle = document.querySelector('.progress-ring__circle');
-                        if (circle) {
-                            const radius = circle.r.baseVal.value;
-                            const circumference = 2 * Math.PI * radius; // Считаем длину окружности
-                            
-                            // Говорим CSS, какой длины наша линия
-                            circle.style.strokeDasharray = `${circumference} ${circumference}`;
-                            // Скрываем её полностью (offset = длина), чтобы она начала заполняться с 0
-                            circle.style.strokeDashoffset = circumference;
-                        }
-                    });
-
-                    // --- ОСТАЛЬНЫЕ СЛУШАТЕЛИ ---
-                    if (self.playBtn) {
-                        self.playBtn.addEventListener('click', () => self.togglePlay());
-                    }
-
-                    self.audio.addEventListener('ended', () => self.nextTrack());
-
-                    self.audio.addEventListener('play', () => {
-                        const playBtn = document.getElementById('playPauseBtn');
-                        if (playBtn) playBtn.textContent = '⏸';
-                        if (!self.animationId) self.draw();
-                        
-                        // Активируем анимацию мобильной кнопки
-                        const mobileBtn = document.getElementById('mobileMusicBtn');
-                        if(mobileBtn) mobileBtn.classList.add('playing');
-                    });
-
-                    self.audio.addEventListener('pause', () => {
-                        const playBtn = document.getElementById('playPauseBtn');
-                        if (playBtn) playBtn.textContent = 'PLAY STREAM';
-                        
-                        // Останавливаем анимацию мобильной кнопки
-                        const mobileBtn = document.getElementById('mobileMusicBtn');
-                        if(mobileBtn) mobileBtn.classList.remove('playing');
-                    });
-
-                    // Audio Context
-                    try {
-                        self.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                        self.analyser = self.audioCtx.createAnalyser();
-                        self.analyser.fftSize = 64; 
-                        const source = self.audioCtx.createMediaElementSource(self.audio);
-                        source.connect(self.analyser);
-                        self.analyser.connect(self.audioCtx.destination);
-                    } catch (e) {
-                        console.log("Audio API restricted");
-                        self.useSimulation = true;
-                    }
-                    
-                    // Загрузка локальных файлов
+                    // --- 3. ЗАГРУЗКА ФАЙЛОВ (ИСПРАВЛЕННЫЙ CLONE) ---
                     if (self.localInput) {
+                        // Удаляем старые слушатели путем клонирования
+                        const newClone = self.localInput.cloneNode(true);
+                        self.localInput.parentNode.replaceChild(newClone, self.localInput);
+                        self.localInput = newClone;
+
+                        // Вешаем слушатель на НОВЫЙ элемент
                         self.localInput.addEventListener('change', (e) => {
                             const files = Array.from(e.target.files);
                             if (files.length > 0) {
@@ -413,19 +310,127 @@
                                         self.playlist.push({ name: file.name, url: url, isCloud: false });
                                     });
                                     self.renderPlaylist();
-                                    if (self.currentIndex === -1) {
-                                        self.currentIndex = 0;
-                                        self.loadTrack(0);
+                                    // Если ничего не играло - загружаем первый добавленный
+                                    if (self.currentIndex === -1 || self.playlist.length === files.length) {
+                                        self.currentIndex = self.playlist.length - files.length;
+                                        self.loadTrack(self.currentIndex);
                                     }
                                 }
-                                self.localInput.value = '';
+                                self.localInput.value = ''; // Сброс, чтобы можно было выбрать тот же файл
                             }
                         });
                     }
 
+                    // --- 4. СЛУШАТЕЛЬ ГРОМКОСТИ ---
+                    if(self.volSlider) {
+                        self.volSlider.addEventListener('input', (e) => {
+                            if(self.audio) self.audio.volume = e.target.value;
+                        });
+                    }
+
+                    // --- 5. СЛУШАТЕЛЬ ПЕРЕМОТКИ ---
+                    if(self.seekSlider) {
+                        self.seekSlider.addEventListener('mousedown', () => self.isDragging = true);
+                        self.seekSlider.addEventListener('touchstart', () => self.isDragging = true);
+                        
+                        self.seekSlider.addEventListener('change', (e) => {
+                            if (self.audio && self.audio.duration) {
+                                const time = (e.target.value / 100) * self.audio.duration;
+                                self.audio.currentTime = time;
+                            }
+                            self.isDragging = false;
+                        });
+                        
+                        self.seekSlider.addEventListener('input', (e) => {
+                            self.isDragging = true;
+                            if(self.audio && self.audio.duration) {
+                                const time = (e.target.value / 100) * self.audio.duration;
+                                const curTimeEl = document.getElementById('currentTime');
+                                if(curTimeEl) curTimeEl.textContent = self.fmtTime(time);
+                            }
+                        });
+                    }
+
+                    // --- 6. ВРЕМЯ И ПРОГРЕСС ---
+                    if(self.audio) {
+                        self.audio.addEventListener('timeupdate', () => {
+                            if (!self.isDragging && !isNaN(self.audio.duration)) {
+                                const percent = (self.audio.currentTime / self.audio.duration) * 100;
+                                if (self.seekSlider) self.seekSlider.value = percent;
+                                
+                                const curTimeEl = document.getElementById('currentTime');
+                                const durTimeEl = document.getElementById('durationTime');
+                                
+                                if(curTimeEl) curTimeEl.textContent = self.fmtTime(self.audio.currentTime);
+                                if(durTimeEl) durTimeEl.textContent = self.fmtTime(self.audio.duration);
+                                
+                                // Круговой прогресс
+                                const circle = document.querySelector('.progress-ring__circle');
+                                if (circle) {
+                                    const radius = circle.r.baseVal.value;
+                                    const circumference = 2 * Math.PI * radius;
+                                    const offset = circumference - ((self.audio.currentTime / self.audio.duration) * circumference);
+                                    if (!isNaN(offset)) circle.style.strokeDashoffset = offset;
+                                }
+                            }
+                        });
+
+                        self.audio.addEventListener('loadedmetadata', () => {
+                            const durEl = document.getElementById('durationTime');
+                            const curEl = document.getElementById('currentTime');
+                            if (durEl) durEl.textContent = self.fmtTime(self.audio.duration);
+                            if (curEl) curEl.textContent = "00:00";
+                            if (self.seekSlider) self.seekSlider.value = 0;
+
+                            const circle = document.querySelector('.progress-ring__circle');
+                            if (circle) {
+                                const radius = circle.r.baseVal.value;
+                                const circumference = 2 * Math.PI * radius;
+                                circle.style.strokeDasharray = `${circumference} ${circumference}`;
+                                circle.style.strokeDashoffset = circumference;
+                            }
+                        });
+
+                        self.audio.addEventListener('ended', () => self.nextTrack());
+
+                        self.audio.addEventListener('play', () => {
+                            if(self.playBtn) self.playBtn.textContent = '⏸';
+                            if (!self.animationId) self.draw();
+                            if(self.mobileBtn) self.mobileBtn.classList.add('playing');
+                        });
+
+                        self.audio.addEventListener('pause', () => {
+                            if(self.playBtn) self.playBtn.textContent = 'PLAY STREAM';
+                            if(self.mobileBtn) self.mobileBtn.classList.remove('playing');
+                        });
+                    }
+
+                    // --- 7. КНОПКА PLAY ---
+                    if (self.playBtn) {
+                        self.playBtn.onclick = (e) => {
+                            e.preventDefault(); 
+                            self.togglePlay();
+                        };
+                    }
+
+                    // Audio Context
+                    try {
+                        self.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        if(self.audio) {
+                            self.analyser = self.audioCtx.createAnalyser();
+                            self.analyser.fftSize = 64; 
+                            const source = self.audioCtx.createMediaElementSource(self.audio);
+                            source.connect(self.analyser);
+                            self.analyser.connect(self.audioCtx.destination);
+                        }
+                    } catch (e) {
+                        console.log("Audio API restricted or already active");
+                        self.useSimulation = true;
+                    }
+                    
                     // Загрузка из базы
                     setTimeout(() => {
-                        if(window.db && window.auth.currentUser) {
+                        if(window.db && window.auth && window.auth.currentUser) {
                             const q = window.fbQuery(
                                 window.fbCol(window.db, "audios"), 
                                 window.fbWhere("author", "==", window.auth.currentUser.uid), 
@@ -496,19 +501,32 @@
                 },
 
                 togglePlay() {
-                    if (this.audioCtx && this.audioCtx.state === 'suspended') this.audioCtx.resume();
-                    if (this.audio.paused) this.audio.play().catch(e => console.error(e));
-                    else this.audio.pause();
+                    // Важно: на телефонах AudioContext нужно "будить" по клику
+                    if (this.audioCtx && this.audioCtx.state === 'suspended') {
+                        this.audioCtx.resume();
+                    }
+                    
+                    if (this.audio.paused) {
+                        this.audio.play()
+                            .catch(e => {
+                                console.error("Play error:", e);
+                                // Если ошибка (например, нет взаимодействия), можно показать уведомление
+                                if(window.voxNotify) window.voxNotify("CLICK TO PLAY", "warn");
+                            });
+                    } else {
+                        this.audio.pause();
+                    }
                 },
 
                 renderPlaylist() {
+                    if(!this.playlistContainer) return;
                     this.playlistContainer.innerHTML = '';
                     this.playlist.forEach((track, idx) => {
                         const div = document.createElement('div');
                         div.className = `playlist-item ${idx === this.currentIndex ? 'active' : ''}`;
                         div.innerHTML = `
                             <span>${idx+1}. ${track.name}</span>
-                            <span class="playlist-remove" onclick="MusicSystem.removeTrack(${idx}, event)">×</span>
+                            <span class="playlist-remove" onclick="window.MusicSystem.removeTrack(${idx}, event)">×</span>
                         `;
                         div.onclick = (e) => {
                             if(!e.target.classList.contains('playlist-remove')) {
@@ -520,26 +538,23 @@
                     });
                 },
 
-                // --- 3. ОБНОВЛЕННОЕ УДАЛЕНИЕ (УДАЛЯЕТ ИЗ ОБЛАКА) ---
                 async removeTrack(idx, e) {
-                    e.stopPropagation();
+                    if(e) e.stopPropagation();
                     const track = this.playlist[idx];
                     
-                    // Если это облачный трек — удаляем из базы
                     if (track.isCloud && track.id) {
                         if(await confirm("PERMANENTLY DELETE FROM CLOUD ARCHIVE?")) {
                             window.fbDelete(window.fbDoc(window.db, "audios", track.id));
                             if(window.voxNotify) window.voxNotify("AUDIO DATA PURGED", "success");
                         }
-                        return; // Список обновится сам через слушатель fbSnap
+                        return; 
                     }
                     
-                    // Если локальный — удаляем просто из массива
                     this.playlist.splice(idx, 1);
                     if(this.currentIndex === idx) {
                         this.audio.pause();
                         this.currentIndex = -1;
-                        this.playBtn.textContent = "▶"; // Сброс иконки
+                        if(this.playBtn) this.playBtn.textContent = "▶"; 
                     } else if (this.currentIndex > idx) this.currentIndex--;
                     this.renderPlaylist();
                 },
@@ -548,7 +563,7 @@
                     if(this.currentIndex < 0 || this.currentIndex >= this.playlist.length) return;
                     this.loadTrack(this.currentIndex);
                     this.startAudioContext();
-                    this.audio.play();
+                    this.audio.play().catch(e => console.error(e));
                     this.renderPlaylist();
                 },
 
@@ -586,7 +601,7 @@
 
                 startAudioContext() {
                     if (this.audioCtx) return;
-                    this.init(); // Перестраховка
+                    this.init(); 
                 },
 
                 draw() {
