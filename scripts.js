@@ -230,12 +230,8 @@
                 canvas: null,
                 localInput: null,
                 playlistContainer: null,
-                
-                // Дефолтный трек (можно указать свою обложку cover: "путь/к/картинке.png", если есть)
-                playlist: [
-                    { name: "Hazbin Hotel - Brighter", url: "brighter.mp3", cover: null } 
-                ], 
-                currentIndex: 0,
+                playlist: [], 
+                currentIndex: -1,
                 ctx: null,
                 analyser: null,
                 source: null,
