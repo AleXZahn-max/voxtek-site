@@ -1,5 +1,5 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, setDoc, doc, where, limit, getDoc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getStorage, ref, uploadBytes, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
@@ -218,7 +218,7 @@
             };
             window.SoundFX = SoundFX;
 
-            // --- 1.1 AMBIENT MUSIC SYSTEM (UPDATED) ---
+           // --- 1.1 AMBIENT MUSIC SYSTEM (FIXED & UPDATED) ---
             const MusicSystem = {
                 audio: document.getElementById('bg-music'),
                 menu: document.getElementById('slide-music-menu'),
@@ -247,6 +247,14 @@
                         this.menu.classList.toggle('open');
                         if(window.SoundFX) window.SoundFX.click();
                     }
+                },
+
+                // 🔥 ДОБАВЛЕНА НЕДОСТАЮЩАЯ ФУНКЦИЯ 🔥
+                fmtTime(s) {
+                    if (isNaN(s) || !isFinite(s)) return "--:--";
+                    const m = Math.floor(s / 60);
+                    const sec = Math.floor(s % 60);
+                    return `${m < 10 ? '0' + m : m}:${sec < 10 ? '0' + sec : sec}`;
                 },
 
                 init() {
@@ -305,17 +313,22 @@
                             const curTimeEl = document.getElementById('currentTime');
                             const durTimeEl = document.getElementById('durationTime');
                             
-                            // 🔥 ЗДЕСЬ БЫЛА ОШИБКА. ТЕПЕРЬ self.fmtTime ТОЧНО СРАБОТАЕТ
+                            // Теперь self.fmtTime существует и не вызовет ошибку!
                             if(curTimeEl) curTimeEl.textContent = self.fmtTime(self.audio.currentTime);
                             if(durTimeEl) durTimeEl.textContent = self.fmtTime(self.audio.duration);
                             
-                            // Круговой прогресс
+                            // Круговой прогресс (Мобильная кнопка)
                             const circle = document.querySelector('.progress-ring__circle');
                             if (circle) {
+                                // Добавляем проверку на валидность чисел, чтобы точка не исчезала
                                 const radius = circle.r.baseVal.value;
                                 const circumference = 2 * Math.PI * radius;
                                 const offset = circumference - ((self.audio.currentTime / self.audio.duration) * circumference);
-                                circle.style.strokeDashoffset = offset;
+                                
+                                // Если offset валиден, применяем его
+                                if (!isNaN(offset)) {
+                                    circle.style.strokeDashoffset = offset;
+                                }
                             }
                         }
                     });
@@ -326,7 +339,8 @@
                         const curEl = document.getElementById('currentTime');
                         
                         // 1. Чиним время
-                        if (durEl && self.audio.duration && isFinite(self.audio.duration)) {
+                        if (durEl) {
+                            // Если длительность бесконечна (стрим) или NaN, покажем прочерки
                             durEl.textContent = self.fmtTime(self.audio.duration);
                         }
                         if (curEl) curEl.textContent = "00:00";
@@ -356,11 +370,19 @@
                         const playBtn = document.getElementById('playPauseBtn');
                         if (playBtn) playBtn.textContent = '⏸';
                         if (!self.animationId) self.draw();
+                        
+                        // Активируем анимацию мобильной кнопки
+                        const mobileBtn = document.getElementById('mobileMusicBtn');
+                        if(mobileBtn) mobileBtn.classList.add('playing');
                     });
 
                     self.audio.addEventListener('pause', () => {
                         const playBtn = document.getElementById('playPauseBtn');
                         if (playBtn) playBtn.textContent = 'PLAY STREAM';
+                        
+                        // Останавливаем анимацию мобильной кнопки
+                        const mobileBtn = document.getElementById('mobileMusicBtn');
+                        if(mobileBtn) mobileBtn.classList.remove('playing');
                     });
 
                     // Audio Context
@@ -540,7 +562,6 @@
                     }
                 },
                 
-                // Переименовал nextTrack в playNext для единообразия, добавь алиас если нужно
                 nextTrack() { this.playNext(); },
 
                 loadTrack(idx) {
@@ -568,7 +589,6 @@
                     this.init(); // Перестраховка
                 },
 
-                // Твой код draw (без изменений, он хороший)
                 draw() {
                     if (!this.canvas || this.animationId) return;
                     const ctx = this.canvas.getContext('2d');
@@ -683,9 +703,6 @@
                     this.animationId = requestAnimationFrame(render);
                 }
             };
-
-            window.MusicSystem = MusicSystem;
-            MusicSystem.init();
 
             // --- 1.2 CUSTOM VIDEO PLAYER SYSTEM (OPTIMIZED & REMASTERED) ---
             const VideoSystem = {
@@ -2060,7 +2077,164 @@
                 }
             };
 
-            // --- UPDATED: AUTH SYSTEM (WITH BAN MONITOR) ---
+            // --- 🔒 TWO FACTOR AUTH SYSTEM (OTPAuth Version) ---
+            window.TwoFactorSystem = {
+                secret: null,
+                isSetupMode: false,
+
+                // Helper: Сами генерируем случайный секрет (Base32)
+                generateSecret(length = 20) {
+                    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+                    let secret = '';
+                    const random = new Uint8Array(length);
+                    window.crypto.getRandomValues(random);
+                    for (let i = 0; i < length; i++) {
+                        secret += chars[random[i] % 32];
+                    }
+                    return secret;
+                },
+
+                // 1. Начинаем настройку
+                startSetup() {
+                    this.isSetupMode = true;
+                    // Генерируем секрет вручную
+                    this.secret = this.generateSecret(); 
+                    
+                    const user = window.auth.currentUser;
+                    const name = user.email || "VoxTek_User";
+                    
+                    // Создаем объект TOTP для получения ссылки (otpauth://)
+                    // Используем глобальный объект OTPAuth
+                    const totp = new OTPAuth.TOTP({
+                        issuer: "VOXTEK ENTERPRISES",
+                        label: name,
+                        algorithm: "SHA1",
+                        digits: 6,
+                        period: 30,
+                        secret: OTPAuth.Secret.fromBase32(this.secret)
+                    });
+
+                    const otpauth_url = totp.toString(); 
+
+                    // Показываем модалку
+                    document.getElementById('modal2FASetup').classList.add('active');
+                    document.getElementById('secret-text').textContent = this.secret;
+                    
+                    // Рисуем QR
+                    const container = document.getElementById('qrcode-container');
+                    container.innerHTML = '';
+                    new QRCode(container, {
+                        text: otpauth_url,
+                        width: 128,
+                        height: 128,
+                        colorDark : "#000000",
+                        colorLight : "#ffffff",
+                        correctLevel : QRCode.CorrectLevel.H
+                    });
+                },
+
+                // 2. Подтверждаем настройку
+                confirmSetup() {
+                    const input = document.getElementById('verify2FAInput');
+                    const code = input.value.trim();
+                    
+                    try {
+                        const totp = new OTPAuth.TOTP({
+                            algorithm: "SHA1",
+                            digits: 6,
+                            period: 30,
+                            secret: OTPAuth.Secret.fromBase32(this.secret)
+                        });
+
+                        // validate возвращает разницу во времени (число) или null, если код неверный
+                        const delta = totp.validate({ token: code, window: 1 });
+                        const isValid = delta !== null;
+
+                        if (isValid) {
+                            const uid = window.auth.currentUser.uid;
+                            // Сохраняем в базу
+                            window.fbSet(window.fbDoc(window.db, "users", uid), {
+                                mfaSecret: this.secret,
+                                mfaEnabled: true
+                            }, { merge: true }).then(() => {
+                                voxNotify("2FA SECURITY ENABLED.", "success");
+                                document.getElementById('modal2FASetup').classList.remove('active');
+                                AuthSystem.unlockApp(); // Пускаем в приложение
+                            });
+                        } else {
+                            voxNotify("INVALID CODE. TRY AGAIN.", "error");
+                            input.classList.add('input-error');
+                            setTimeout(() => input.classList.remove('input-error'), 300);
+                            if(window.SoundFX) window.SoundFX.error();
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        voxNotify("ERROR: " + e.message, "error");
+                    }
+                },
+
+                // 3. Проверка при входе
+                checkLogin(user) {
+                    window.fbGet(window.fbDoc(window.db, "users", user.uid)).then(doc => {
+                        const data = doc.data();
+                        
+                        if (data && data.isBanned === true) {
+                            AuthSystem.monitorBan(user.uid);
+                            return;
+                        }
+
+                        if (data && data.mfaEnabled && data.mfaSecret) {
+                            // Если 2FA включена -> БЛОКИРУЕМ и просим код
+                            this.secret = data.mfaSecret;
+                            document.getElementById('modal2FALogin').classList.add('active');
+                            
+                            const inp = document.getElementById('login2FAInput');
+                            inp.value = '';
+                            setTimeout(() => inp.focus(), 100);
+                        } else {
+                            // Если нет -> заставляем настроить
+                            voxNotify("SECURITY PROTOCOL UPDATE. SETUP 2FA REQUIRED.", "warn");
+                            this.startSetup();
+                        }
+                    });
+                },
+
+                // 4. Проверка кода при входе
+                verifyLogin() {
+                    const input = document.getElementById('login2FAInput');
+                    const code = input.value.trim();
+                    
+                    try {
+                        const totp = new OTPAuth.TOTP({
+                            algorithm: "SHA1",
+                            digits: 6,
+                            period: 30,
+                            secret: OTPAuth.Secret.fromBase32(this.secret)
+                        });
+
+                        const delta = totp.validate({ token: code, window: 1 });
+                        const isValid = delta !== null;
+                        
+                        if (isValid) {
+                            document.getElementById('modal2FALogin').classList.remove('active');
+                            voxNotify("IDENTITY CONFIRMED. WELCOME.", "success");
+                            if(window.SoundFX) window.SoundFX.playTone(600, 'sine', 0.2);
+                            AuthSystem.unlockApp();
+                        } else {
+                            voxNotify("ACCESS DENIED. INCORRECT CODE.", "error");
+                            if(window.SoundFX) window.SoundFX.error();
+                            
+                            input.classList.add('input-error');
+                            setTimeout(() => input.classList.remove('input-error'), 300);
+                        }
+                    } catch (e) {
+                        console.error(e);
+                        voxNotify("SYSTEM ERROR", "error");
+                    }
+                }
+            };
+
+            // --- UPDATED AUTH SYSTEM (GOOGLE + 2FA INTEGRATED) ---
             window.AuthSystem = {
                 currentUser: null,
                 isInitialized: false,
@@ -2075,49 +2249,104 @@
                         window.fbAuthListener(window.auth, (user) => {
                             if (user) {
                                 this.currentUser = user;
-                                this.showApp();
-                                CloudSystem.registerUser(user);
-                                this.monitorBan(user.uid); 
-                                if(window.AdminSystem) AdminSystem.init(user);
-
-                                // Heartbeat
-                                this.heartbeat = setInterval(() => {
-                                    window.fbSet(window.fbDoc(window.db, "users", user.uid), {
-                                        lastSeen: window.fbTime(),
-                                        isOnline: true
-                                    }, { merge: true });
-                                }, 60000);
                                 
-                                window.fbSet(window.fbDoc(window.db, "users", user.uid), { isOnline: true, lastSeen: window.fbTime() }, { merge: true });
+                                // 1. Скрываем экран входа
+                                document.getElementById('msgAuth').style.display = 'none';
+                                
+                                // 2. НЕ показываем приложение сразу.
+                                // 3. Запускаем проверку 2FA. Она сама решит, пускать или нет.
+                                TwoFactorSystem.checkLogin(user);
+
+                                // Фоновая регистрация и проверка банов
+                                if(window.CloudSystem) CloudSystem.registerUser(user);
+                                this.monitorBan(user.uid); 
 
                             } else {
+                                // Юзер вышел
                                 this.currentUser = null;
-                                if(this.banListener) this.banListener();
+                                if(this.banListener) this.banListener(); // Отписка от банов
                                 if(this.heartbeat) clearInterval(this.heartbeat);
+                                
                                 this.showAuth();
+                                
+                                // Закрываем все модалки безопасности
+                                document.getElementById('modal2FALogin').classList.remove('active');
+                                document.getElementById('modal2FASetup').classList.remove('active');
+                                
+                                // Отключаем админку
+                                if(window.AdminSystem) AdminSystem.shutdown();
                             }
                         });
                     }
                 },
+                
+                // --- НОВАЯ ФУНКЦИЯ: Вход через Google ---
+                loginGoogle() {
+                    const provider = new GoogleAuthProvider();
+                    signInWithPopup(window.auth, provider)
+                        .then((result) => {
+                            voxNotify("GOOGLE UPLINK ESTABLISHED.", "success");
+                            // Дальше сработает fbAuthListener в init()
+                        }).catch((error) => {
+                            voxNotify("LOGIN FAILED: " + error.message, "error");
+                        });
+                },
+
+                // --- ФУНКЦИЯ РАЗБЛОКИРОВКИ (Вызывается ТОЛЬКО после прохождения 2FA) ---
+                unlockApp() {
+                    const user = this.currentUser;
+                    if(!user) return;
+
+                    // Показываем основной интерфейс
+                    document.getElementById('msgApp').classList.add('active');
+                    
+                    // Загружаем чат и админку
+                    if(window.CloudSystem) {
+                        CloudSystem.loadChat('global');
+                        CloudSystem.listenToUsers();
+                    }
+                    if(window.AdminSystem) AdminSystem.init(user);
+
+                    // Запускаем "пульс" (Онлайн статус)
+                    if(this.heartbeat) clearInterval(this.heartbeat);
+                    
+                    const updateOnline = () => {
+                        window.fbSet(window.fbDoc(window.db, "users", user.uid), {
+                            lastSeen: window.fbTime(),
+                            isOnline: true
+                        }, { merge: true });
+                    };
+                    
+                    updateOnline(); // Сразу
+                    this.heartbeat = setInterval(updateOnline, 60000); // И каждую минуту
+                },
 
                 monitorBan(uid) {
+                    if(this.banListener) this.banListener(); // Сброс старого слушателя
+                    
                     this.banListener = window.fbSnap(window.fbDoc(window.db, "users", uid), (doc) => {
                         const data = doc.data();
                         if (data && data.isBanned === true) {
+                            // Если прилетел бан — выкидываем мгновенно
+                            document.getElementById('modal2FALogin').classList.remove('active');
                             window.fbLogout(window.auth);
+                            
+                            // VSOD (Экран смерти)
                             const vsod = document.getElementById('vsod-layer');
-                            vsod.classList.add('active');
-                            vsod.innerHTML = `
-                                <div class="sad-face">:(</div>
-                                <h1 style="color:red; font-size:40px;">ACCOUNT TERMINATED</h1>
-                                <p style="margin-top:20px; font-size:18px;">ACCESS TO VOXTEK SYSTEMS REVOKED.</p>
-                                <div style="margin-top:40px; border:1px solid red; padding:20px; background:rgba(50,0,0,0.5);">
-                                    <p style="color:#aaa; font-size:12px;">OFFICIAL REASON:</p>
-                                    <h2 style="color:white; margin-top:10px;">"${data.banReason}"</h2>
-                                </div>
-                                <p style="margin-top:40px; font-size:12px; color:#666;">ID: ${uid}</p>
-                            `;
-                            SoundFX.error();
+                            if(vsod) {
+                                vsod.classList.add('active');
+                                vsod.innerHTML = `
+                                    <div class="sad-face">:(</div>
+                                    <h1 style="color:red; font-size:40px;">ACCOUNT TERMINATED</h1>
+                                    <p style="margin-top:20px; font-size:18px;">ACCESS TO VOXTEK SYSTEMS REVOKED.</p>
+                                    <div style="margin-top:40px; border:1px solid red; padding:20px; background:rgba(50,0,0,0.5);">
+                                        <p style="color:#aaa; font-size:12px;">OFFICIAL REASON:</p>
+                                        <h2 style="color:white; margin-top:10px;">"${data.banReason || 'UNKNOWN'}"</h2>
+                                    </div>
+                                    <p style="margin-top:40px; font-size:12px; color:#666;">ID: ${uid}</p>
+                                `;
+                                if(window.SoundFX) window.SoundFX.error();
+                            }
                         }
                     });
                 },
@@ -2132,7 +2361,7 @@
                         document.querySelector('#msgAuth .auth-tabs button:last-child').classList.add('active');
                         document.getElementById('formRegister').classList.add('active');
                     }
-                    SoundFX.click();
+                    if(window.SoundFX) window.SoundFX.click();
                 },
 
                 register() {
@@ -2141,20 +2370,19 @@
                     if (!u.includes('@')) u = u + '@voxtek.net';
                     if(!u || !p) return voxNotify('Credentials required.', 'error');
                     
-                    ContractSystem.open(u, p);
+                    if(window.ContractSystem) ContractSystem.open(u, p);
                 },
 
-                // 🔥 ИСПРАВЛЕНИЕ ЗДЕСЬ: Логика перенесена внутрь функции 🔥
+                // Вызывается из ContractSystem после подписания
                 finalizeRegister(u, p) {
-                    // 1. Сначала вычисляем реферала
+                    // Проверка рефералки
                     const urlParams = new URLSearchParams(window.location.search);
                     let referrerId = urlParams.get('ref');
                     
                     if (referrerId && referrerId.includes('_')) {
                         const parts = referrerId.split('_');
                         const ts = parseInt(parts[1]);
-                        const lifeTime = 12 * 60 * 60 * 1000;
-                                    
+                        const lifeTime = 12 * 60 * 60 * 1000; // 12 часов
                         if (!ts || (Date.now() - ts > lifeTime)) {
                             referrerId = null; 
                         } else {
@@ -2162,7 +2390,7 @@
                         }
                     }
 
-                    voxNotify('CONTRACT SEALED. THANK YOU FOR COOPORATING WITH VOXTEK.', 'info');
+                    voxNotify('CONTRACT SEALED.', 'info');
                     
                     window.fbRegister(window.auth, u, p)
                         .then((cred) => {
@@ -2173,7 +2401,8 @@
                                 isOnline: true,
                                 lastSeen: window.fbTime(),
                                 contractSigned: true,
-                                invitedBy: referrerId || null // Теперь переменная referrerId доступна
+                                invitedBy: referrerId || null,
+                                mfaEnabled: false // При регистрации 2FA выключена, но система сразу заставит включить
                             }, { merge: true });
 
                             voxNotify('WELCOME TO THE VOXTEK ENTERPRISES.', 'success');
@@ -2187,7 +2416,7 @@
                     if (!u.includes('@')) u = u + '@voxtek.net';
                     voxNotify('VERIFYING...', 'info');
                     window.fbLogin(window.auth, u, p)
-                        .catch((error) => { voxNotify('ACCESS DENIED. ' + error.message, 'error'); SoundFX.error(); });
+                        .catch((error) => { voxNotify('ACCESS DENIED. ' + error.message, 'error'); if(window.SoundFX) SoundFX.error(); });
                 },
 
                 logout() {
@@ -2197,35 +2426,47 @@
                 copyInvite() {
                     const user = window.auth.currentUser;
                     if(!user) return;
-                    
                     const timestamp = Date.now();
                     const url = `${window.location.origin}${window.location.pathname}?ref=${user.uid}_${timestamp}`;
-                    
                     navigator.clipboard.writeText(url).then(() => {
                         voxNotify("TEMPORARY UPLINK COPIED (12H)", "success");
                     });
                 },
 
                 showAuth() {
-                    document.getElementById('msgAuth').style.display = 'flex';
-                    document.getElementById('msgApp').classList.remove('active');
+                    const msgAuth = document.getElementById('msgAuth');
+                    const msgApp = document.getElementById('msgApp');
+                    if(msgAuth) msgAuth.style.display = 'flex';
+                    if(msgApp) msgApp.classList.remove('active');
                 },
 
-                showApp() {
-                    document.getElementById('msgAuth').style.display = 'none';
-                    document.getElementById('msgApp').classList.add('active');
-                    if(window.CloudSystem) {
-                        CloudSystem.loadChat('global');
-                        CloudSystem.listenToUsers();
-                    }
-                },
-                
                 send() {
                     const inp = document.getElementById('msgInput');
                     const txt = inp.value.trim();
                     if(!txt) return;
-                    CloudSystem.sendMessage(txt);
+                    if(window.CloudSystem) CloudSystem.sendMessage(txt);
                     inp.value = '';
+                },
+                
+                shutdown() {
+                    // 1. Отписываемся от прослушивания базы данных (чтобы не тратить ресурсы)
+                    if(this.adminListener) {
+                        this.adminListener(); 
+                        this.adminListener = null;
+                    }
+
+                    // 2. Прячем кнопку "/// SYSTEM CONTROL ///"
+                    const toggleBtn = document.getElementById('adminToggleBtn');
+                    if(toggleBtn) toggleBtn.style.display = 'none';
+
+                    // 3. 🔥 ВАЖНО: Прячем саму панель и убираем синий стиль
+                    const panel = document.getElementById('adminPanel');
+                    if(panel) {
+                        panel.style.display = 'none';      // Скрываем окно
+                        panel.classList.remove('blue-mode'); // Убираем подсветку
+                    }
+                    
+                    console.log("ADMIN SYSTEM SHUTDOWN COMPLETED.");
                 }
             };
             
