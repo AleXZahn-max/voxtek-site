@@ -218,19 +218,22 @@
             };
             window.SoundFX = SoundFX;
 
-           // --- 1.1 AMBIENT MUSIC SYSTEM (FIXED & UPDATED) ---
-            const MusicSystem = {
-                audio: document.getElementById('bg-music'),
-                menu: document.getElementById('slide-music-menu'),
-                toggleBtn: document.getElementById('toggleMenuBtn'),
-                playBtn: document.getElementById('playPauseBtn'),
-                volSlider: document.getElementById('volumeControl'),
-                seekSlider: document.getElementById('seekControl'),
-                canvas: document.getElementById('audioCanvas'),
-                localInput: document.getElementById('localAudioInput'),
-                playlistContainer: document.getElementById('audioPlaylist'),
+// --- 1.1 AMBIENT MUSIC SYSTEM (WITH COVER ART READER) ---
+            window.MusicSystem = { 
+                audio: null,
+                menu: null,
+                toggleBtn: null,
+                mobileBtn: null,
+                playBtn: null,
+                volSlider: null,
+                seekSlider: null,
+                canvas: null,
+                localInput: null,
+                playlistContainer: null,
+                
+                // Дефолтный трек (можно указать свою обложку cover: "путь/к/картинке.png", если есть)
                 playlist: [
-                    { name: "Hazbin Hotel - Brighter", url: "brighter.mp3" } // Дефолтный трек
+                    { name: "Hazbin Hotel - Brighter", url: "brighter.mp3", cover: null } 
                 ], 
                 currentIndex: 0,
                 ctx: null,
@@ -249,7 +252,6 @@
                     }
                 },
 
-                // 🔥 ДОБАВЛЕНА НЕДОСТАЮЩАЯ ФУНКЦИЯ 🔥
                 fmtTime(s) {
                     if (isNaN(s) || !isFinite(s)) return "--:--";
                     const m = Math.floor(s / 60);
@@ -258,174 +260,139 @@
                 },
 
                 init() {
-
                     if (this.isInitialized) return; 
                     this.isInitialized = true;
 
-                    const self = this; // 🔥 СОХРАНЯЕМ ПРАВИЛЬНУЮ ССЫЛКУ НА СИСТЕМУ
+                    const self = this; 
+                    self.audio = document.getElementById('bg-music');
+                    self.menu = document.getElementById('slide-music-menu');
+                    self.toggleBtn = document.getElementById('toggleMenuBtn');
+                    self.mobileBtn = document.getElementById('mobileMusicBtn');
+                    self.playBtn = document.getElementById('playPauseBtn');
+                    self.volSlider = document.getElementById('volumeControl');
+                    self.seekSlider = document.getElementById('seekControl');
+                    self.canvas = document.getElementById('audioCanvas');
+                    self.localInput = document.getElementById('localAudioInput');
+                    self.playlistContainer = document.getElementById('audioPlaylist');
 
                     // Базовые настройки
-                    self.audio.volume = 0.5;
+                    if(self.audio) self.audio.volume = 0.5;
+
+                    // Кнопки меню
+                    if(self.toggleBtn) self.toggleBtn.onclick = (e) => { e.stopPropagation(); self.toggleMenu(); };
+                    if(self.mobileBtn) self.mobileBtn.onclick = (e) => { e.stopPropagation(); self.toggleMenu(); };
                     
-                    if (this.localInput) {
-                        const newClone = this.localInput.cloneNode(true);
-                        this.localInput.parentNode.replaceChild(newClone, this.localInput);
-                        this.localInput = newClone;
-                    }
-
-                    // --- 1. СЛУШАТЕЛЬ ГРОМКОСТИ ---
-                    if(self.volSlider) {
-                        self.volSlider.addEventListener('input', (e) => {
-                            self.audio.volume = e.target.value;
-                        });
-                    }
-
-                    // --- 2. СЛУШАТЕЛЬ ПЕРЕМОТКИ (SEEK) ---
-                    if(self.seekSlider) {
-                        self.seekSlider.addEventListener('mousedown', () => self.isDragging = true);
-                        self.seekSlider.addEventListener('touchstart', () => self.isDragging = true);
-                        
-                        self.seekSlider.addEventListener('change', (e) => {
-                            if (self.audio.duration) {
-                                const time = (e.target.value / 100) * self.audio.duration;
-                                self.audio.currentTime = time;
-                            }
-                            self.isDragging = false;
-                        });
-                        
-                        self.seekSlider.addEventListener('input', (e) => {
-                            self.isDragging = true;
-                            // Визуальное обновление при перетаскивании
-                            const time = (e.target.value / 100) * self.audio.duration;
-                            const curTimeEl = document.getElementById('currentTime');
-                            if(curTimeEl) curTimeEl.textContent = self.fmtTime(time);
-                        });
-                    }
-
-                    // --- 3. ОБНОВЛЕНИЕ ВРЕМЕНИ (TIMEUPDATE) ---
-                    self.audio.addEventListener('timeupdate', () => {
-                        // Используем self вместо this, чтобы точно обращаться к системе
-                        if (!self.isDragging && !isNaN(self.audio.duration)) {
-                            const percent = (self.audio.currentTime / self.audio.duration) * 100;
-                            
-                            if (self.seekSlider) self.seekSlider.value = percent;
-                            
-                            const curTimeEl = document.getElementById('currentTime');
-                            const durTimeEl = document.getElementById('durationTime');
-                            
-                            // Теперь self.fmtTime существует и не вызовет ошибку!
-                            if(curTimeEl) curTimeEl.textContent = self.fmtTime(self.audio.currentTime);
-                            if(durTimeEl) durTimeEl.textContent = self.fmtTime(self.audio.duration);
-                            
-                            // Круговой прогресс (Мобильная кнопка)
-                            const circle = document.querySelector('.progress-ring__circle');
-                            if (circle) {
-                                // Добавляем проверку на валидность чисел, чтобы точка не исчезала
-                                const radius = circle.r.baseVal.value;
-                                const circumference = 2 * Math.PI * radius;
-                                const offset = circumference - ((self.audio.currentTime / self.audio.duration) * circumference);
-                                
-                                // Если offset валиден, применяем его
-                                if (!isNaN(offset)) {
-                                    circle.style.strokeDashoffset = offset;
-                                }
-                            }
-                        }
-                    });
-
-                    // --- 4. ЗАГРУЗКА МЕТАДАННЫХ (ФИКС ВРЕМЕНИ И КРУГА) ---
-                    self.audio.addEventListener('loadedmetadata', () => {
-                        const durEl = document.getElementById('durationTime');
-                        const curEl = document.getElementById('currentTime');
-                        
-                        // 1. Чиним время
-                        if (durEl) {
-                            // Если длительность бесконечна (стрим) или NaN, покажем прочерки
-                            durEl.textContent = self.fmtTime(self.audio.duration);
-                        }
-                        if (curEl) curEl.textContent = "00:00";
-                        if (self.seekSlider) self.seekSlider.value = 0;
-
-                        // 🔥 2. ЧИНИМ КРУГ (ANDROID BUTTON) 🔥
-                        const circle = document.querySelector('.progress-ring__circle');
-                        if (circle) {
-                            const radius = circle.r.baseVal.value;
-                            const circumference = 2 * Math.PI * radius; // Считаем длину окружности
-                            
-                            // Говорим CSS, какой длины наша линия
-                            circle.style.strokeDasharray = `${circumference} ${circumference}`;
-                            // Скрываем её полностью (offset = длина), чтобы она начала заполняться с 0
-                            circle.style.strokeDashoffset = circumference;
-                        }
-                    });
-
-                    // --- ОСТАЛЬНЫЕ СЛУШАТЕЛИ ---
+                    // Кнопка Play
                     if (self.playBtn) {
-                        self.playBtn.addEventListener('click', () => self.togglePlay());
+                        self.playBtn.onclick = (e) => {
+                            e.preventDefault(); 
+                            self.togglePlay();
+                        };
                     }
 
-                    self.audio.addEventListener('ended', () => self.nextTrack());
-
-                    self.audio.addEventListener('play', () => {
-                        const playBtn = document.getElementById('playPauseBtn');
-                        if (playBtn) playBtn.textContent = '⏸';
-                        if (!self.animationId) self.draw();
-                        
-                        // Активируем анимацию мобильной кнопки
-                        const mobileBtn = document.getElementById('mobileMusicBtn');
-                        if(mobileBtn) mobileBtn.classList.add('playing');
-                    });
-
-                    self.audio.addEventListener('pause', () => {
-                        const playBtn = document.getElementById('playPauseBtn');
-                        if (playBtn) playBtn.textContent = 'PLAY STREAM';
-                        
-                        // Останавливаем анимацию мобильной кнопки
-                        const mobileBtn = document.getElementById('mobileMusicBtn');
-                        if(mobileBtn) mobileBtn.classList.remove('playing');
-                    });
-
-                    // Audio Context
-                    try {
-                        self.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                        self.analyser = self.audioCtx.createAnalyser();
-                        self.analyser.fftSize = 64; 
-                        const source = self.audioCtx.createMediaElementSource(self.audio);
-                        source.connect(self.analyser);
-                        self.analyser.connect(self.audioCtx.destination);
-                    } catch (e) {
-                        console.log("Audio API restricted");
-                        self.useSimulation = true;
-                    }
-                    
-                    // Загрузка локальных файлов
+                    // 🔥 ЗАГРУЗКА ФАЙЛОВ С ЧТЕНИЕМ ОБЛОЖКИ 🔥
                     if (self.localInput) {
-                        self.localInput.addEventListener('change', (e) => {
+                        self.localInput.onclick = (e) => { e.target.value = null; };
+                        
+                        self.localInput.onchange = (e) => {
                             const files = Array.from(e.target.files);
                             if (files.length > 0) {
-                                if (confirm("UPLOAD AUDIO TO CLOUD ARCHIVE? (Private Storage)")) {
+                                // Проверка авторизации
+                                const isAuth = window.auth && window.auth.currentUser;
+                                
+                                if (isAuth && confirm("UPLOAD AUDIO TO CLOUD ARCHIVE? (Private Storage)")) {
                                     files.forEach(file => {
                                         if(window.CloudSystem) window.CloudSystem.uploadMedia(file, 'audio');
                                     });
                                 } else {
+                                    // Локальное воспроизведение
                                     files.forEach(file => {
                                         const url = URL.createObjectURL(file);
-                                        self.playlist.push({ name: file.name, url: url, isCloud: false });
+                                        // Создаем объект трека
+                                        const track = { name: file.name, url: url, isCloud: false, cover: null };
+                                        
+                                        self.playlist.push(track);
+                                        
+                                        // Пытаемся вытащить обложку
+                                        self.extractCover(file, track);
                                     });
+                                    
                                     self.renderPlaylist();
+                                    
+                                    // Если это первые добавленные треки (или был только дефолтный)
+                                    // Можно включить логику авто-переключения, если нужно
                                     if (self.currentIndex === -1) {
-                                        self.currentIndex = 0;
-                                        self.loadTrack(0);
+                                        self.currentIndex = self.playlist.length - files.length;
+                                        self.loadTrack(self.currentIndex);
                                     }
                                 }
-                                self.localInput.value = '';
+                            }
+                        };
+                    }
+
+                    // Слайдеры
+                    if(self.volSlider) {
+                        self.volSlider.oninput = (e) => { if(self.audio) self.audio.volume = e.target.value; };
+                    }
+
+                    if(self.seekSlider) {
+                        self.seekSlider.onmousedown = () => self.isDragging = true;
+                        self.seekSlider.ontouchstart = () => self.isDragging = true;
+                        self.seekSlider.onchange = (e) => {
+                            if (self.audio && self.audio.duration) {
+                                self.audio.currentTime = (e.target.value / 100) * self.audio.duration;
+                            }
+                            self.isDragging = false;
+                        };
+                        self.seekSlider.oninput = (e) => {
+                            self.isDragging = true;
+                            if(self.audio && self.audio.duration) {
+                                const t = (e.target.value / 100) * self.audio.duration;
+                                const curEl = document.getElementById('currentTime');
+                                if(curEl) curEl.textContent = self.fmtTime(t);
+                            }
+                        };
+                    }
+
+                    // Аудио события
+                    if(self.audio) {
+                        self.audio.addEventListener('timeupdate', () => self.updateProgress());
+                        self.audio.addEventListener('loadedmetadata', () => {
+                            const durEl = document.getElementById('durationTime');
+                            const curEl = document.getElementById('currentTime');
+                            if (durEl) durEl.textContent = self.fmtTime(self.audio.duration);
+                            if (curEl) curEl.textContent = "00:00";
+                            if (self.seekSlider) self.seekSlider.value = 0;
+                            
+                            // Обновляем SVG круг
+                            const circle = document.querySelector('.progress-ring__circle');
+                            if (circle) {
+                                const r = circle.r.baseVal.value;
+                                const c = 2 * Math.PI * r;
+                                circle.style.strokeDasharray = `${c} ${c}`;
+                                circle.style.strokeDashoffset = c;
                             }
                         });
+                        self.audio.addEventListener('ended', () => self.nextTrack());
+                        self.audio.addEventListener('play', () => {
+                            if(self.playBtn) self.playBtn.textContent = '⏸';
+                            if (!self.animationId) self.draw();
+                            if(self.mobileBtn) self.mobileBtn.classList.add('playing');
+                        });
+                        self.audio.addEventListener('pause', () => {
+                            if(self.playBtn) self.playBtn.textContent = 'PLAY STREAM';
+                            if(self.mobileBtn) self.mobileBtn.classList.remove('playing');
+                        });
+                        
+                        // Инициализация AudioContext по клику (для автоплея)
+                        document.body.addEventListener('click', () => {
+                             if(!self.audioCtx) self.initAudioCtx();
+                        }, { once: true });
                     }
 
                     // Загрузка из базы
                     setTimeout(() => {
-                        if(window.db && window.auth.currentUser) {
+                        if(window.db && window.auth && window.auth.currentUser) {
                             const q = window.fbQuery(
                                 window.fbCol(window.db, "audios"), 
                                 window.fbWhere("author", "==", window.auth.currentUser.uid), 
@@ -458,9 +425,7 @@
                     const dropZone = self.menu; 
                     if (dropZone) {
                         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                            dropZone.addEventListener(eventName, (e) => {
-                                e.preventDefault(); e.stopPropagation();
-                            }, false);
+                            dropZone.addEventListener(eventName, (e) => { e.preventDefault(); e.stopPropagation(); }, false);
                         });
                         dropZone.addEventListener('dragover', () => {
                             dropZone.style.boxShadow = "inset 0 0 50px var(--vox-cyan)";
@@ -485,7 +450,9 @@
                                     Array.from(files).forEach(file => {
                                         if (file.type.startsWith('audio/')) {
                                             const url = URL.createObjectURL(file);
-                                            self.playlist.push({ name: file.name, url: url, isCloud: false });
+                                            const track = { name: file.name, url: url, isCloud: false, cover: null };
+                                            self.playlist.push(track);
+                                            self.extractCover(file, track);
                                         }
                                     });
                                     self.renderPlaylist();
@@ -493,23 +460,94 @@
                             }
                         });
                     }
+                    
+                    // Рендерим плейлист при старте!
                     self.renderPlaylist();
+
+                }, // конец init()
+
+                // 🔥 ФУНКЦИЯ ЧТЕНИЯ ОБЛОЖКИ (jsmediatags) 🔥
+                extractCover(file, trackObj) {
+                    if(!window.jsmediatags) return; 
+
+                    window.jsmediatags.read(file, {
+                        onSuccess: (tag) => {
+                            const picture = tag.tags.picture;
+                            if (picture) {
+                                const { data, format } = picture;
+                                let base64String = "";
+                                for (let i = 0; i < data.length; i++) {
+                                    base64String += String.fromCharCode(data[i]);
+                                }
+                                const url = `data:${format};base64,${window.btoa(base64String)}`;
+                                
+                                trackObj.cover = url;
+
+                                // Если трек играет прямо сейчас - обновляем картинку
+                                if (this.playlist[this.currentIndex] === trackObj) {
+                                    this.updateCoverArt(url);
+                                }
+                                // Перерисовываем плейлист (чтобы иконка появилась)
+                                // this.renderPlaylist(); // Можно раскомментировать, если добавишь иконки в список
+                            }
+                        },
+                        onError: (error) => {
+                            console.log('Cover extract error:', error);
+                        }
+                    });
+                },
+
+                updateCoverArt(url) {
+                    const img = document.getElementById('coverImg');
+                    const mobileArt = document.getElementById('mobileBtnArt');
+                    const fallback = "cover.png"; 
+
+                    if(img) img.src = url || fallback;
+                    
+                    if(mobileArt) {
+                        mobileArt.src = url || fallback;
+                        mobileArt.style.display = 'block';
+                        const icon = document.querySelector('.mobile-only-btn .btn-icon');
+                        if(icon) icon.style.display = 'none';
+                    }
                 },
 
                 togglePlay() {
                     if (this.audioCtx && this.audioCtx.state === 'suspended') this.audioCtx.resume();
-                    if (this.audio.paused) this.audio.play().catch(e => console.error(e));
-                    else this.audio.pause();
+                    
+                    if (this.audio.paused) {
+                        this.audio.play().catch(e => {
+                            console.error("Autoplay prevented", e);
+                            if(window.voxNotify) window.voxNotify("INTERACTION REQUIRED", "warn");
+                        });
+                    } else {
+                        this.audio.pause();
+                    }
+                },
+
+                initAudioCtx() {
+                    try {
+                        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        this.analyser = this.audioCtx.createAnalyser();
+                        this.analyser.fftSize = 64; 
+                        const source = this.audioCtx.createMediaElementSource(this.audio);
+                        source.connect(this.analyser);
+                        this.analyser.connect(this.audioCtx.destination);
+                    } catch (e) {
+                        console.log("Audio API restricted");
+                        this.useSimulation = true;
+                    }
                 },
 
                 renderPlaylist() {
+                    if(!this.playlistContainer) return;
                     this.playlistContainer.innerHTML = '';
                     this.playlist.forEach((track, idx) => {
                         const div = document.createElement('div');
                         div.className = `playlist-item ${idx === this.currentIndex ? 'active' : ''}`;
                         div.innerHTML = `
                             <span>${idx+1}. ${track.name}</span>
-                            <span class="playlist-remove" onclick="MusicSystem.removeTrack(${idx}, event)">×</span>
+                            <span class="playlist-remove" onclick="window.MusicSystem.removeTrack(${idx}, event)">×</span>
                         `;
                         div.onclick = (e) => {
                             if(!e.target.classList.contains('playlist-remove')) {
@@ -521,26 +559,23 @@
                     });
                 },
 
-                // --- 3. ОБНОВЛЕННОЕ УДАЛЕНИЕ (УДАЛЯЕТ ИЗ ОБЛАКА) ---
                 async removeTrack(idx, e) {
-                    e.stopPropagation();
+                    if(e) e.stopPropagation();
                     const track = this.playlist[idx];
                     
-                    // Если это облачный трек — удаляем из базы
                     if (track.isCloud && track.id) {
                         if(await confirm("PERMANENTLY DELETE FROM CLOUD ARCHIVE?")) {
                             window.fbDelete(window.fbDoc(window.db, "audios", track.id));
                             if(window.voxNotify) window.voxNotify("AUDIO DATA PURGED", "success");
                         }
-                        return; // Список обновится сам через слушатель fbSnap
+                        return; 
                     }
                     
-                    // Если локальный — удаляем просто из массива
                     this.playlist.splice(idx, 1);
                     if(this.currentIndex === idx) {
                         this.audio.pause();
                         this.currentIndex = -1;
-                        this.playBtn.textContent = "▶"; // Сброс иконки
+                        if(this.playBtn) this.playBtn.textContent = "▶"; 
                     } else if (this.currentIndex > idx) this.currentIndex--;
                     this.renderPlaylist();
                 },
@@ -548,8 +583,8 @@
                 playCurrent() {
                     if(this.currentIndex < 0 || this.currentIndex >= this.playlist.length) return;
                     this.loadTrack(this.currentIndex);
-                    this.startAudioContext();
-                    this.audio.play();
+                    if (this.audioCtx && this.audioCtx.state === 'suspended') this.audioCtx.resume();
+                    this.audio.play().catch(e => console.error(e));
                     this.renderPlaylist();
                 },
 
@@ -569,25 +604,34 @@
                     const track = this.playlist[idx];
                     this.audio.crossOrigin = "anonymous";
                     this.audio.src = track.url;
-                    this.useSimulation = false;
                     
                     const coverText = document.querySelector('.cover-text');
                     if(coverText) {
                         coverText.innerHTML = `<span>${idx+1}. ${track.name.replace(/\.[^/.]+$/, "")}</span>`;
                     }
 
-                    const mobileArt = document.getElementById('mobileBtnArt');
-                    const mobileIcon = document.querySelector('.mobile-only-btn .btn-icon');
-                    if(mobileArt && mobileIcon) {
-                        mobileArt.src = "cover.png"; 
-                        mobileArt.style.display = 'block';
-                        mobileIcon.style.display = 'none';
-                    }
+                    // Обновляем обложку (или дефолт)
+                    this.updateCoverArt(track.cover || "cover.png");
                 },
+                
+                updateProgress() {
+                     if(!this.audio || isNaN(this.audio.duration)) return;
+                     const per = (this.audio.currentTime / this.audio.duration) * 100;
+                     if (this.seekSlider) this.seekSlider.value = per;
+                     
+                     const cur = document.getElementById('currentTime');
+                     const dur = document.getElementById('durationTime');
+                     if(cur) cur.textContent = this.fmtTime(this.audio.currentTime);
+                     if(dur) dur.textContent = this.fmtTime(this.audio.duration);
 
-                startAudioContext() {
-                    if (this.audioCtx) return;
-                    this.init(); // Перестраховка
+                     // Круговой прогресс
+                     const circle = document.querySelector('.progress-ring__circle');
+                     if (circle) {
+                        const r = circle.r.baseVal.value;
+                        const c = 2 * Math.PI * r;
+                        const offset = c - ((this.audio.currentTime / this.audio.duration) * c);
+                        if (!isNaN(offset)) circle.style.strokeDashoffset = offset;
+                     }
                 },
 
                 draw() {
@@ -704,7 +748,7 @@
                     this.animationId = requestAnimationFrame(render);
                 }
             };
-            
+
             // 1. Делаем системы глобальными (чтобы HTML мог их видеть)
             window.MusicSystem = MusicSystem;
 
