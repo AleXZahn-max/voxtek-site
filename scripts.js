@@ -230,7 +230,7 @@
                 localInput: document.getElementById('localAudioInput'),
                 playlistContainer: document.getElementById('audioPlaylist'),
                 playlist: [
-                    { name: "Brighter", url: "embient.mp3" } // Дефолтный трек
+                    { name: "Hazbin Hotel: Season 2 - Brighter", url: "embient.mp3" } // Дефолтный трек
                 ], 
                 currentIndex: 0,
                 ctx: null,
@@ -493,6 +493,7 @@
                             }
                         });
                     }
+                    self.renderPlaylist();
                 },
 
                 togglePlay() {
