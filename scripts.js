@@ -218,27 +218,29 @@
             };
             window.SoundFX = SoundFX;
 
-           // --- 1.1 AMBIENT MUSIC SYSTEM (FINAL FIX) ---
-            window.MusicSystem = { 
-                audio: null,
-                menu: null,
-                toggleBtn: null,
-                mobileBtn: null,
-                playBtn: null,
-                volSlider: null,
-                seekSlider: null,
-                localInput: null,
-                playlistContainer: null,
-                
+           // --- 1.1 AMBIENT MUSIC SYSTEM (FIXED & UPDATED) ---
+            const MusicSystem = {
+                audio: document.getElementById('bg-music'),
+                menu: document.getElementById('slide-music-menu'),
+                toggleBtn: document.getElementById('toggleMenuBtn'),
+                playBtn: document.getElementById('playPauseBtn'),
+                volSlider: document.getElementById('volumeControl'),
+                seekSlider: document.getElementById('seekControl'),
+                canvas: document.getElementById('audioCanvas'),
+                localInput: document.getElementById('localAudioInput'),
+                playlistContainer: document.getElementById('audioPlaylist'),
                 playlist: [
                     { name: "Brighter", url: "embient.mp3" } // Дефолтный трек
                 ], 
                 currentIndex: 0,
-                isInitialized: false,
-                isDragging: false,
-                audioCtx: null,
+                ctx: null,
                 analyser: null,
+                source: null,
+                audioCtx: null,
                 animationId: null,
+                useSimulation: false,
+                isDragging: false,
+                isInitialized: false,
 
                 toggleMenu() {
                     if (this.menu) {
@@ -247,6 +249,7 @@
                     }
                 },
 
+                // 🔥 ДОБАВЛЕНА НЕДОСТАЮЩАЯ ФУНКЦИЯ 🔥
                 fmtTime(s) {
                     if (isNaN(s) || !isFinite(s)) return "--:--";
                     const m = Math.floor(s / 60);
@@ -255,245 +258,257 @@
                 },
 
                 init() {
-                    // Разрешаем повторную инициализацию элементов, но не логики
-                    const self = this; 
 
-                    // 1. Получаем элементы заново (на всякий случай)
-                    self.audio = document.getElementById('bg-music');
-                    self.menu = document.getElementById('slide-music-menu');
-                    self.toggleBtn = document.getElementById('toggleMenuBtn');
-                    self.mobileBtn = document.getElementById('mobileMusicBtn');
-                    self.playBtn = document.getElementById('playPauseBtn');
-                    self.volSlider = document.getElementById('volumeControl');
-                    self.seekSlider = document.getElementById('seekControl');
-                    self.canvas = document.getElementById('audioCanvas');
-                    self.localInput = document.getElementById('localAudioInput');
-                    self.playlistContainer = document.getElementById('audioPlaylist');
+                    if (this.isInitialized) return; 
+                    this.isInitialized = true;
 
-                    // 2. Настраиваем громкость
-                    if(self.audio) self.audio.volume = 0.5;
+                    const self = this; // 🔥 СОХРАНЯЕМ ПРАВИЛЬНУЮ ССЫЛКУ НА СИСТЕМУ
 
-                    // 🔥 ВАЖНО: Используем .onclick/.onchange вместо addEventListener
-                    // Это предотвращает дублирование и работает стабильнее
-
-                    // Кнопка меню (Нота)
-                    if(self.toggleBtn) {
-                        self.toggleBtn.onclick = (e) => {
-                            e.stopPropagation();
-                            self.toggleMenu();
-                        };
+                    // Базовые настройки
+                    self.audio.volume = 0.5;
+                    
+                    if (this.localInput) {
+                        const newClone = this.localInput.cloneNode(true);
+                        this.localInput.parentNode.replaceChild(newClone, this.localInput);
+                        this.localInput = newClone;
                     }
 
-                    // Мобильная кнопка (Круг)
-                    if(self.mobileBtn) {
-                        self.mobileBtn.onclick = (e) => {
-                            e.stopPropagation();
-                            self.toggleMenu();
-                        };
+                    // --- 1. СЛУШАТЕЛЬ ГРОМКОСТИ ---
+                    if(self.volSlider) {
+                        self.volSlider.addEventListener('input', (e) => {
+                            self.audio.volume = e.target.value;
+                        });
                     }
 
-                    // Кнопка Play
-                    if (self.playBtn) {
-                        self.playBtn.onclick = (e) => {
-                            e.preventDefault(); 
-                            self.togglePlay();
-                        };
-                    }
-
-                    // 🔥 ЗАГРУЗКА ФАЙЛОВ (ИСПРАВЛЕНО: БЕЗ CLONE) 🔥
-                    if (self.localInput) {
-                        self.localInput.onclick = (e) => {
-                            // Сбрасываем значение, чтобы можно было выбрать тот же файл снова
-                            e.target.value = null;
-                        };
+                    // --- 2. СЛУШАТЕЛЬ ПЕРЕМОТКИ (SEEK) ---
+                    if(self.seekSlider) {
+                        self.seekSlider.addEventListener('mousedown', () => self.isDragging = true);
+                        self.seekSlider.addEventListener('touchstart', () => self.isDragging = true);
                         
-                        self.localInput.onchange = (e) => {
+                        self.seekSlider.addEventListener('change', (e) => {
+                            if (self.audio.duration) {
+                                const time = (e.target.value / 100) * self.audio.duration;
+                                self.audio.currentTime = time;
+                            }
+                            self.isDragging = false;
+                        });
+                        
+                        self.seekSlider.addEventListener('input', (e) => {
+                            self.isDragging = true;
+                            // Визуальное обновление при перетаскивании
+                            const time = (e.target.value / 100) * self.audio.duration;
+                            const curTimeEl = document.getElementById('currentTime');
+                            if(curTimeEl) curTimeEl.textContent = self.fmtTime(time);
+                        });
+                    }
+
+                    // --- 3. ОБНОВЛЕНИЕ ВРЕМЕНИ (TIMEUPDATE) ---
+                    self.audio.addEventListener('timeupdate', () => {
+                        // Используем self вместо this, чтобы точно обращаться к системе
+                        if (!self.isDragging && !isNaN(self.audio.duration)) {
+                            const percent = (self.audio.currentTime / self.audio.duration) * 100;
+                            
+                            if (self.seekSlider) self.seekSlider.value = percent;
+                            
+                            const curTimeEl = document.getElementById('currentTime');
+                            const durTimeEl = document.getElementById('durationTime');
+                            
+                            // Теперь self.fmtTime существует и не вызовет ошибку!
+                            if(curTimeEl) curTimeEl.textContent = self.fmtTime(self.audio.currentTime);
+                            if(durTimeEl) durTimeEl.textContent = self.fmtTime(self.audio.duration);
+                            
+                            // Круговой прогресс (Мобильная кнопка)
+                            const circle = document.querySelector('.progress-ring__circle');
+                            if (circle) {
+                                // Добавляем проверку на валидность чисел, чтобы точка не исчезала
+                                const radius = circle.r.baseVal.value;
+                                const circumference = 2 * Math.PI * radius;
+                                const offset = circumference - ((self.audio.currentTime / self.audio.duration) * circumference);
+                                
+                                // Если offset валиден, применяем его
+                                if (!isNaN(offset)) {
+                                    circle.style.strokeDashoffset = offset;
+                                }
+                            }
+                        }
+                    });
+
+                    // --- 4. ЗАГРУЗКА МЕТАДАННЫХ (ФИКС ВРЕМЕНИ И КРУГА) ---
+                    self.audio.addEventListener('loadedmetadata', () => {
+                        const durEl = document.getElementById('durationTime');
+                        const curEl = document.getElementById('currentTime');
+                        
+                        // 1. Чиним время
+                        if (durEl) {
+                            // Если длительность бесконечна (стрим) или NaN, покажем прочерки
+                            durEl.textContent = self.fmtTime(self.audio.duration);
+                        }
+                        if (curEl) curEl.textContent = "00:00";
+                        if (self.seekSlider) self.seekSlider.value = 0;
+
+                        // 🔥 2. ЧИНИМ КРУГ (ANDROID BUTTON) 🔥
+                        const circle = document.querySelector('.progress-ring__circle');
+                        if (circle) {
+                            const radius = circle.r.baseVal.value;
+                            const circumference = 2 * Math.PI * radius; // Считаем длину окружности
+                            
+                            // Говорим CSS, какой длины наша линия
+                            circle.style.strokeDasharray = `${circumference} ${circumference}`;
+                            // Скрываем её полностью (offset = длина), чтобы она начала заполняться с 0
+                            circle.style.strokeDashoffset = circumference;
+                        }
+                    });
+
+                    // --- ОСТАЛЬНЫЕ СЛУШАТЕЛИ ---
+                    if (self.playBtn) {
+                        self.playBtn.addEventListener('click', () => self.togglePlay());
+                    }
+
+                    self.audio.addEventListener('ended', () => self.nextTrack());
+
+                    self.audio.addEventListener('play', () => {
+                        const playBtn = document.getElementById('playPauseBtn');
+                        if (playBtn) playBtn.textContent = '⏸';
+                        if (!self.animationId) self.draw();
+                        
+                        // Активируем анимацию мобильной кнопки
+                        const mobileBtn = document.getElementById('mobileMusicBtn');
+                        if(mobileBtn) mobileBtn.classList.add('playing');
+                    });
+
+                    self.audio.addEventListener('pause', () => {
+                        const playBtn = document.getElementById('playPauseBtn');
+                        if (playBtn) playBtn.textContent = 'PLAY STREAM';
+                        
+                        // Останавливаем анимацию мобильной кнопки
+                        const mobileBtn = document.getElementById('mobileMusicBtn');
+                        if(mobileBtn) mobileBtn.classList.remove('playing');
+                    });
+
+                    // Audio Context
+                    try {
+                        self.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        self.analyser = self.audioCtx.createAnalyser();
+                        self.analyser.fftSize = 64; 
+                        const source = self.audioCtx.createMediaElementSource(self.audio);
+                        source.connect(self.analyser);
+                        self.analyser.connect(self.audioCtx.destination);
+                    } catch (e) {
+                        console.log("Audio API restricted");
+                        self.useSimulation = true;
+                    }
+                    
+                    // Загрузка локальных файлов
+                    if (self.localInput) {
+                        self.localInput.addEventListener('change', (e) => {
                             const files = Array.from(e.target.files);
                             if (files.length > 0) {
-                                // Проверка авторизации перед загрузкой
-                                const isAuth = window.auth && window.auth.currentUser;
-                                
-                                if (isAuth && confirm("UPLOAD AUDIO TO CLOUD ARCHIVE? (Private Storage)")) {
+                                if (confirm("UPLOAD AUDIO TO CLOUD ARCHIVE? (Private Storage)")) {
                                     files.forEach(file => {
                                         if(window.CloudSystem) window.CloudSystem.uploadMedia(file, 'audio');
                                     });
                                 } else {
-                                    // Локальное воспроизведение
                                     files.forEach(file => {
                                         const url = URL.createObjectURL(file);
                                         self.playlist.push({ name: file.name, url: url, isCloud: false });
                                     });
                                     self.renderPlaylist();
-                                    // Если это первые треки - загружаем первый
-                                    if (self.currentIndex === -1 || self.playlist.length === files.length) {
-                                        self.currentIndex = self.playlist.length - files.length;
-                                        self.loadTrack(self.currentIndex);
+                                    if (self.currentIndex === -1) {
+                                        self.currentIndex = 0;
+                                        self.loadTrack(0);
                                     }
                                 }
-                            }
-                        };
-                    }
-
-                    // Ползунок громкости
-                    if(self.volSlider) {
-                        self.volSlider.oninput = (e) => {
-                            if(self.audio) self.audio.volume = e.target.value;
-                        };
-                    }
-
-                    // Ползунок времени
-                    if(self.seekSlider) {
-                        self.seekSlider.onmousedown = () => self.isDragging = true;
-                        self.seekSlider.ontouchstart = () => self.isDragging = true;
-                        
-                        self.seekSlider.onchange = (e) => {
-                            if (self.audio && self.audio.duration) {
-                                const time = (e.target.value / 100) * self.audio.duration;
-                                self.audio.currentTime = time;
-                            }
-                            self.isDragging = false;
-                        };
-                        
-                        self.seekSlider.oninput = (e) => {
-                            self.isDragging = true;
-                            if(self.audio && self.audio.duration) {
-                                const time = (e.target.value / 100) * self.audio.duration;
-                                const curTimeEl = document.getElementById('currentTime');
-                                if(curTimeEl) curTimeEl.textContent = self.fmtTime(time);
-                            }
-                        };
-                    }
-
-                    // --- СЛУШАТЕЛИ АУДИО (Оставляем addEventListener, так как они вешаются на <audio>) ---
-                    if(self.audio && !self.isInitialized) { // Вешаем только один раз!
-                        self.audio.addEventListener('timeupdate', () => {
-                            if (!self.isDragging && !isNaN(self.audio.duration)) {
-                                const percent = (self.audio.currentTime / self.audio.duration) * 100;
-                                if (self.seekSlider) self.seekSlider.value = percent;
-                                
-                                const curTimeEl = document.getElementById('currentTime');
-                                const durTimeEl = document.getElementById('durationTime');
-                                
-                                if(curTimeEl) curTimeEl.textContent = self.fmtTime(self.audio.currentTime);
-                                if(durTimeEl) durTimeEl.textContent = self.fmtTime(self.audio.duration);
-                                
-                                // Круговой прогресс
-                                const circle = document.querySelector('.progress-ring__circle');
-                                if (circle) {
-                                    const radius = circle.r.baseVal.value;
-                                    const circumference = 2 * Math.PI * radius;
-                                    const offset = circumference - ((self.audio.currentTime / self.audio.duration) * circumference);
-                                    if (!isNaN(offset)) circle.style.strokeDashoffset = offset;
-                                }
+                                self.localInput.value = '';
                             }
                         });
-
-                        self.audio.addEventListener('loadedmetadata', () => {
-                            const durEl = document.getElementById('durationTime');
-                            const curEl = document.getElementById('currentTime');
-                            if (durEl) durEl.textContent = self.fmtTime(self.audio.duration);
-                            if (curEl) curEl.textContent = "00:00";
-                            if (self.seekSlider) self.seekSlider.value = 0;
-
-                            const circle = document.querySelector('.progress-ring__circle');
-                            if (circle) {
-                                const radius = circle.r.baseVal.value;
-                                const circumference = 2 * Math.PI * radius;
-                                circle.style.strokeDasharray = `${circumference} ${circumference}`;
-                                circle.style.strokeDashoffset = circumference;
-                            }
-                        });
-
-                        self.audio.addEventListener('ended', () => self.nextTrack());
-
-                        self.audio.addEventListener('play', () => {
-                            if(self.playBtn) self.playBtn.textContent = '⏸';
-                            if (!self.animationId) self.draw();
-                            if(self.mobileBtn) self.mobileBtn.classList.add('playing');
-                        });
-
-                        self.audio.addEventListener('pause', () => {
-                            if(self.playBtn) self.playBtn.textContent = 'PLAY STREAM';
-                            if(self.mobileBtn) self.mobileBtn.classList.remove('playing');
-                        });
-                        
-                        // Инициализация визуализатора при первом клике
-                        document.body.addEventListener('click', () => {
-                            if(!self.audioCtx) {
-                                try {
-                                    self.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                                    self.analyser = self.audioCtx.createAnalyser();
-                                    self.analyser.fftSize = 64; 
-                                    const source = self.audioCtx.createMediaElementSource(self.audio);
-                                    source.connect(self.analyser);
-                                    self.analyser.connect(self.audioCtx.destination);
-                                } catch(e) { console.log("Audio API init deferred"); }
-                            }
-                        }, { once: true });
                     }
 
-                    // Загрузка из базы (таймаут, чтобы успел прогрузиться Auth)
-                    if(!self.isInitialized) {
-                        setTimeout(() => {
-                            if(window.db && window.auth) { // Убрали жесткую проверку currentUser для слушателя
-                                window.fbAuthListener(window.auth, (user) => {
-                                    if(user) {
-                                         const q = window.fbQuery(
-                                            window.fbCol(window.db, "audios"), 
-                                            window.fbWhere("author", "==", user.uid), 
-                                            window.fbOrder("createdAt", "desc")
-                                        );
-                                        window.fbSnap(q, (snapshot) => {
-                                            snapshot.docChanges().forEach((change) => {
-                                                if (change.type === "added") {
-                                                    const data = change.doc.data();
-                                                    if(!self.playlist.some(t => t.id === change.doc.id)) {
-                                                        self.playlist.push({ 
-                                                            id: change.doc.id, 
-                                                            name: data.name, 
-                                                            url: data.url, 
-                                                            isCloud: true 
-                                                        });
-                                                        self.renderPlaylist();
-                                                    }
-                                                }
-                                                if (change.type === "removed") {
-                                                    self.playlist = self.playlist.filter(t => t.id !== change.doc.id);
-                                                    self.renderPlaylist();
-                                                }
+                    // Загрузка из базы
+                    setTimeout(() => {
+                        if(window.db && window.auth.currentUser) {
+                            const q = window.fbQuery(
+                                window.fbCol(window.db, "audios"), 
+                                window.fbWhere("author", "==", window.auth.currentUser.uid), 
+                                window.fbOrder("createdAt", "desc")
+                            );
+                            window.fbSnap(q, (snapshot) => {
+                                snapshot.docChanges().forEach((change) => {
+                                    if (change.type === "added") {
+                                        const data = change.doc.data();
+                                        if(!self.playlist.some(t => t.id === change.doc.id)) {
+                                            self.playlist.push({ 
+                                                id: change.doc.id, 
+                                                name: data.name, 
+                                                url: data.url, 
+                                                isCloud: true 
                                             });
-                                        });
+                                            self.renderPlaylist();
+                                        }
+                                    }
+                                    if (change.type === "removed") {
+                                        self.playlist = self.playlist.filter(t => t.id !== change.doc.id);
+                                        self.renderPlaylist();
                                     }
                                 });
+                            });
+                        }
+                    }, 2500);
+
+                    // Drag & Drop
+                    const dropZone = self.menu; 
+                    if (dropZone) {
+                        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                            dropZone.addEventListener(eventName, (e) => {
+                                e.preventDefault(); e.stopPropagation();
+                            }, false);
+                        });
+                        dropZone.addEventListener('dragover', () => {
+                            dropZone.style.boxShadow = "inset 0 0 50px var(--vox-cyan)";
+                            dropZone.style.borderColor = "white";
+                        });
+                        dropZone.addEventListener('dragleave', () => {
+                            dropZone.style.boxShadow = "none";
+                            dropZone.style.borderColor = "var(--vox-cyan)";
+                        });
+                        dropZone.addEventListener('drop', (e) => {
+                            dropZone.style.boxShadow = "none";
+                            dropZone.style.borderColor = "var(--vox-cyan)";
+                            const files = e.dataTransfer.files;
+                            if (files.length > 0) {
+                                if (confirm("UPLOAD DROPPED FILES TO CLOUD?")) {
+                                    Array.from(files).forEach(file => {
+                                        if (file.type.startsWith('audio/')) {
+                                            if(window.CloudSystem) window.CloudSystem.uploadMedia(file, 'audio');
+                                        }
+                                    });
+                                } else {
+                                    Array.from(files).forEach(file => {
+                                        if (file.type.startsWith('audio/')) {
+                                            const url = URL.createObjectURL(file);
+                                            self.playlist.push({ name: file.name, url: url, isCloud: false });
+                                        }
+                                    });
+                                    self.renderPlaylist();
+                                }
                             }
-                        }, 2000);
+                        });
                     }
-                    
-                    self.isInitialized = true;
                 },
 
                 togglePlay() {
                     if (this.audioCtx && this.audioCtx.state === 'suspended') this.audioCtx.resume();
-                    
-                    if (this.audio.paused) {
-                        this.audio.play().catch(e => {
-                            console.error("Autoplay prevented", e);
-                            if(window.voxNotify) window.voxNotify("INTERACTION REQUIRED", "warn");
-                        });
-                    } else {
-                        this.audio.pause();
-                    }
+                    if (this.audio.paused) this.audio.play().catch(e => console.error(e));
+                    else this.audio.pause();
                 },
 
                 renderPlaylist() {
-                    if(!this.playlistContainer) return;
                     this.playlistContainer.innerHTML = '';
                     this.playlist.forEach((track, idx) => {
                         const div = document.createElement('div');
                         div.className = `playlist-item ${idx === this.currentIndex ? 'active' : ''}`;
                         div.innerHTML = `
                             <span>${idx+1}. ${track.name}</span>
-                            <span class="playlist-remove" onclick="window.MusicSystem.removeTrack(${idx}, event)">×</span>
+                            <span class="playlist-remove" onclick="MusicSystem.removeTrack(${idx}, event)">×</span>
                         `;
                         div.onclick = (e) => {
                             if(!e.target.classList.contains('playlist-remove')) {
@@ -505,23 +520,26 @@
                     });
                 },
 
+                // --- 3. ОБНОВЛЕННОЕ УДАЛЕНИЕ (УДАЛЯЕТ ИЗ ОБЛАКА) ---
                 async removeTrack(idx, e) {
-                    if(e) e.stopPropagation();
+                    e.stopPropagation();
                     const track = this.playlist[idx];
                     
+                    // Если это облачный трек — удаляем из базы
                     if (track.isCloud && track.id) {
                         if(await confirm("PERMANENTLY DELETE FROM CLOUD ARCHIVE?")) {
                             window.fbDelete(window.fbDoc(window.db, "audios", track.id));
                             if(window.voxNotify) window.voxNotify("AUDIO DATA PURGED", "success");
                         }
-                        return; 
+                        return; // Список обновится сам через слушатель fbSnap
                     }
                     
+                    // Если локальный — удаляем просто из массива
                     this.playlist.splice(idx, 1);
                     if(this.currentIndex === idx) {
                         this.audio.pause();
                         this.currentIndex = -1;
-                        if(this.playBtn) this.playBtn.textContent = "▶"; 
+                        this.playBtn.textContent = "▶"; // Сброс иконки
                     } else if (this.currentIndex > idx) this.currentIndex--;
                     this.renderPlaylist();
                 },
@@ -529,8 +547,8 @@
                 playCurrent() {
                     if(this.currentIndex < 0 || this.currentIndex >= this.playlist.length) return;
                     this.loadTrack(this.currentIndex);
-                    if (this.audioCtx && this.audioCtx.state === 'suspended') this.audioCtx.resume();
-                    this.audio.play().catch(e => console.error(e));
+                    this.startAudioContext();
+                    this.audio.play();
                     this.renderPlaylist();
                 },
 
@@ -550,6 +568,7 @@
                     const track = this.playlist[idx];
                     this.audio.crossOrigin = "anonymous";
                     this.audio.src = track.url;
+                    this.useSimulation = false;
                     
                     const coverText = document.querySelector('.cover-text');
                     if(coverText) {
@@ -563,6 +582,11 @@
                         mobileArt.style.display = 'block';
                         mobileIcon.style.display = 'none';
                     }
+                },
+
+                startAudioContext() {
+                    if (this.audioCtx) return;
+                    this.init(); // Перестраховка
                 },
 
                 draw() {
@@ -608,9 +632,11 @@
                         }
                         lastFrame = ts;
 
-                        if (this.analyser) {
+                        if (!this.useSimulation && this.analyser) {
                             this.analyser.getByteFrequencyData(dataArray);
-                        } 
+                        } else {
+                            for (let i = 0; i < bufferLength; i++) dataArray[i] = Math.random() * 50;
+                        }
 
                         const w = this.canvas.width;
                         const h = this.canvas.height;
@@ -2051,168 +2077,6 @@
                 }
             };
 
-            // --- 🔒 TWO FACTOR AUTH SYSTEM (OTPAuth Version) ---
-            window.TwoFactorSystem = {
-                secret: null,
-                isSetupMode: false,
-
-                // Helper: Сами генерируем случайный секрет (Base32)
-                generateSecret(length = 20) {
-                    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-                    let secret = '';
-                    const random = new Uint8Array(length);
-                    window.crypto.getRandomValues(random);
-                    for (let i = 0; i < length; i++) {
-                        secret += chars[random[i] % 32];
-                    }
-                    return secret;
-                },
-
-                // 1. Начинаем настройку
-                startSetup() {
-                    this.isSetupMode = true;
-                    // Генерируем секрет вручную
-                    this.secret = this.generateSecret(); 
-                    
-                    const user = window.auth.currentUser;
-                    const name = user.email || "VoxTek_User";
-                    
-                    // Создаем объект TOTP для получения ссылки (otpauth://)
-                    // Используем глобальный объект OTPAuth
-                    const totp = new OTPAuth.TOTP({
-                        issuer: "VOXTEK ENTERPRISES",
-                        label: name,
-                        algorithm: "SHA1",
-                        digits: 6,
-                        period: 30,
-                        secret: OTPAuth.Secret.fromBase32(this.secret)
-                    });
-
-                    const otpauth_url = totp.toString(); 
-
-                    // Показываем модалку
-                    document.getElementById('modal2FASetup').classList.add('active');
-                    document.getElementById('secret-text').textContent = this.secret;
-                    
-                    // Рисуем QR
-                    const container = document.getElementById('qrcode-container');
-                    container.innerHTML = '';
-                    new QRCode(container, {
-                        text: otpauth_url,
-                        width: 128,
-                        height: 128,
-                        colorDark : "#000000",
-                        colorLight : "#ffffff",
-                        correctLevel : QRCode.CorrectLevel.H
-                    });
-                },
-
-                // 2. Подтверждаем настройку
-                confirmSetup() {
-                    const input = document.getElementById('verify2FAInput');
-                    const code = input.value.trim();
-                    
-                    if (!code) {
-                        voxNotify("PLEASE ENTER CODE FROM APP.", "warning");
-                        return;
-                    }
-                    
-                    try {
-                        const totp = new OTPAuth.TOTP({
-                            algorithm: "SHA1",
-                            digits: 6,
-                            period: 30,
-                            secret: OTPAuth.Secret.fromBase32(this.secret)
-                        });
-
-                        // validate возвращает разницу во времени (число) или null, если код неверный
-                        const delta = totp.validate({ token: code, window: 1 });
-                        const isValid = delta !== null;
-
-                        if (isValid) {
-                            const uid = window.auth.currentUser.uid;
-                            // Сохраняем в базу
-                            window.fbSet(window.fbDoc(window.db, "users", uid), {
-                                mfaSecret: this.secret,
-                                mfaEnabled: true
-                            }, { merge: true }).then(() => {
-                                voxNotify("2FA SECURITY ENABLED.", "success");
-                                document.getElementById('modal2FASetup').classList.remove('active');
-                                AuthSystem.unlockApp(); // Пускаем в приложение
-                            });
-                        } else {
-                            voxNotify("INVALID CODE. TRY AGAIN.", "error");
-                            input.classList.add('input-error');
-                            setTimeout(() => input.classList.remove('input-error'), 300);
-                            if(window.SoundFX) window.SoundFX.error();
-                        }
-                    } catch (e) {
-                        console.error(e);
-                        voxNotify("ERROR: " + e.message, "error");
-                    }
-                },
-
-                // 3. Проверка при входе
-                checkLogin(user) {
-                    window.fbGet(window.fbDoc(window.db, "users", user.uid)).then(doc => {
-                        const data = doc.data();
-                        
-                        if (data && data.isBanned === true) {
-                            AuthSystem.monitorBan(user.uid);
-                            return;
-                        }
-
-                        if (data && data.mfaEnabled && data.mfaSecret) {
-                            // Если 2FA включена -> БЛОКИРУЕМ и просим код
-                            this.secret = data.mfaSecret;
-                            document.getElementById('modal2FALogin').classList.add('active');
-                            
-                            const inp = document.getElementById('login2FAInput');
-                            inp.value = '';
-                            setTimeout(() => inp.focus(), 100);
-                        } else {
-                            // Если нет -> заставляем настроить
-                            voxNotify("SECURITY PROTOCOL UPDATE. SETUP 2FA REQUIRED.", "warn");
-                            this.startSetup();
-                        }
-                    });
-                },
-
-                // 4. Проверка кода при входе
-                verifyLogin() {
-                    const input = document.getElementById('login2FAInput');
-                    const code = input.value.trim();
-                    
-                    try {
-                        const totp = new OTPAuth.TOTP({
-                            algorithm: "SHA1",
-                            digits: 6,
-                            period: 30,
-                            secret: OTPAuth.Secret.fromBase32(this.secret)
-                        });
-
-                        const delta = totp.validate({ token: code, window: 1 });
-                        const isValid = delta !== null;
-                        
-                        if (isValid) {
-                            document.getElementById('modal2FALogin').classList.remove('active');
-                            voxNotify("IDENTITY CONFIRMED. WELCOME.", "success");
-                            if(window.SoundFX) window.SoundFX.playTone(600, 'sine', 0.2);
-                            AuthSystem.unlockApp();
-                        } else {
-                            voxNotify("ACCESS DENIED. INCORRECT CODE.", "error");
-                            if(window.SoundFX) window.SoundFX.error();
-                            
-                            input.classList.add('input-error');
-                            setTimeout(() => input.classList.remove('input-error'), 300);
-                        }
-                    } catch (e) {
-                        console.error(e);
-                        voxNotify("SYSTEM ERROR", "error");
-                    }
-                }
-            };
-
             // --- UPDATED AUTH SYSTEM (GOOGLE + 2FA INTEGRATED) ---
             window.AuthSystem = {
                 currentUser: null,
@@ -2232,13 +2096,10 @@
                                 // 1. Скрываем экран входа
                                 document.getElementById('msgAuth').style.display = 'none';
                                 
-                                // 2. НЕ показываем приложение сразу.
-                                // 3. Запускаем проверку 2FA. Она сама решит, пускать или нет.
-                                TwoFactorSystem.checkLogin(user);
+                                this.unlockApp(); 
 
-                                // Фоновая регистрация и проверка банов
                                 if(window.CloudSystem) CloudSystem.registerUser(user);
-                                this.monitorBan(user.uid); 
+                                this.monitorBan(user.uid);
 
                             } else {
                                 // Юзер вышел
@@ -2306,8 +2167,6 @@
                     this.banListener = window.fbSnap(window.fbDoc(window.db, "users", uid), (doc) => {
                         const data = doc.data();
                         if (data && data.isBanned === true) {
-                            voxNotify("YOU HAVE BEEN BANNED FROM VOXTEK ENTERPRISES.", "error");
-                            
                             // Если прилетел бан — выкидываем мгновенно
                             document.getElementById('modal2FALogin').classList.remove('active');
                             window.fbLogout(window.auth);
@@ -3535,39 +3394,14 @@
                 
                 // USER MANAGEMENT
                 registerUser(user) {
-                    if (!user) return;
-                    const userRef = window.fbDoc(window.db, "users", user.uid);
-
-                    // 1. Сначала ПРОВЕРЯЕМ, существует ли юзер
-                    window.fbGet(userRef).then((docSnap) => {
-                        if (docSnap.exists()) {
-                            // А. Если юзер ЕСТЬ: Обновляем только время входа (не трогаем 2FA!)
-                            window.fbSet(userRef, {
-                                email: user.email,
-                                lastSeen: window.fbTime(),
-                                isOnline: true,
-                                // photoURL: user.photoURL || null // Можно раскомментировать, если нужно обновлять аватарку Google
-                            }, { merge: true });
-                        } else {
-                            // Б. Если юзера НЕТ (Реально новый): Создаем с нуля
-                            window.fbSet(userRef, {
-                                uid: user.uid,
-                                email: user.email,
-                                name: user.displayName || user.email.split('@')[0],
-                                photoURL: user.photoURL || null,
-                                createdAt: window.fbTime(),
-                                lastSeen: window.fbTime(),
-                                isOnline: true,
-                                trustScore: 50,
-                                role: 'user',
-                                mfaEnabled: false, // Только для НОВЫХ ставим false
-                                bio: "New Citizen"
-                            });
-                            console.log("NEW CITIZEN REGISTERED IN DATABASE.");
-                        }
-                    }).catch((error) => {
-                        console.error("REGISTER ERROR:", error);
-                    });
+                    const ref = window.fbDoc(window.db, "users", user.uid);
+                    window.fbSet(ref, {
+                        uid: user.uid,
+                        email: user.email,
+                        name: user.displayName || user.email.split('@')[0],
+                        avatar: user.photoURL,
+                        lastSeen: window.fbTime()
+                    }, { merge: true });
                 },
                 
                 listenToUsers() {

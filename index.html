@@ -7,13 +7,7 @@
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     <title>VoxTek Enterprises | Submission is Safety</title>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/otpauth/9.1.4/otpauth.umd.min.js"></script>
-
     <link rel="stylesheet" href="styles.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#00f3ff">
@@ -21,7 +15,7 @@
 <body id="top">
 
     <div id="bootSequence" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 99999; display: flex; flex-direction: column; justify-content: center; align-items: center; font-family: 'JetBrains Mono', monospace;">
-        <img src="icon.png" style="width: 80px; margin-bottom: 20px; filter: drop-shadow(0 0 10px var(--vox-cyan));" onerror="this.style.display='none'">
+        <img src="icon.png" style="width: 80px; margin-bottom: 20px; filter: drop-shadow(0 0 10px var(--vox-cyan));">
         <div id="bootText" style="color: var(--vox-cyan); font-size: 14px; margin-bottom: 10px;">INITIALIZING VANGUARD KERNEL...</div>
         <div style="width: 300px; height: 4px; background: #222; border-radius: 2px; overflow: hidden;">
             <div id="bootBar" style="width: 0%; height: 100%; background: var(--vox-cyan); box-shadow: 0 0 10px var(--vox-cyan); transition: width 0.1s;"></div>
@@ -288,11 +282,6 @@
                         <input type="text" id="loginUser" class="form-input" placeholder="USERNAME">
                         <input type="password" id="loginPass" class="form-input" placeholder="PASSWORD">
                         <button class="btn-tech" style="width:100%" onclick="AuthSystem.login()">CONNECT</button>
-                        
-                        <div style="margin: 10px 0; font-size: 10px; color: #666;">--- OR ---</div>
-                        <button class="btn-tech" style="width:100%; border-color:#fff; color:#fff;" onclick="AuthSystem.loginGoogle()">
-                            G-SUITE LOGIN
-                        </button>
                     </div>
 
                     <div id="formRegister" class="auth-form">
@@ -669,33 +658,6 @@
         </div>
     </div>
 
-    <div id="modal2FASetup" class="modal-overlay">
-        <div class="vox-modal" style="text-align:center; border-color: var(--vox-cyan);">
-            <h3 style="color:var(--vox-cyan);">REQUEST 2FA CONNECTION</h3>
-            <p style="color:#ccc; font-size:12px;">SCAN THIS QR CODE WITH YOUR AUTHENTICATOR</p>
-            
-            <div id="qrcode-container" style="background:white; padding:10px; display:inline-block; margin:15px 0;"></div>
-            
-            <p style="font-size:10px; color:#666; margin-bottom:10px;">OR ENTER SECRET: <span id="secret-text" style="color:white; font-family:monospace;">...</span></p>
-
-            <input type="text" id="verify2FAInput" class="form-input" placeholder="ENTER 6-DIGIT CODE" style="text-align:center; letter-spacing:5px; font-size:20px;">
-            
-            <button class="btn-tech" style="width:100%" onclick="TwoFactorSystem.confirmSetup()">ACTIVATE 2FA</button>
-        </div>
-    </div>
-
-    <div id="modal2FALogin" class="modal-overlay" style="z-index: 99999;">
-        <div class="vox-modal" style="text-align:center; border-color: var(--alert-red);">
-            <h3 style="color:var(--alert-red);">AUTHENTICATION REQUIRED</h3>
-            <p style="color:#ccc; font-size:12px;">ENTER CODE FROM AUTHENTICATOR APP</p>
-            
-            <input type="text" id="login2FAInput" class="form-input" placeholder="000 000" maxlength="6" style="text-align:center; letter-spacing:5px; font-size:24px; font-weight:bold; color:var(--alert-red); border-color:var(--alert-red);">
-            
-            <button class="btn-tech" style="width:100%; border-color:var(--alert-red); color:var(--alert-red);" onclick="TwoFactorSystem.verifyLogin()">UNLOCK SYSTEM</button>
-            <button class="btn-tech" style="width:100%; margin-top:10px; border-color:#555; color:#777;" onclick="AuthSystem.logout()">ABORT</button>
-        </div>
-    </div>
-
     <button id="adminToggleBtn" class="btn-tech" 
         style="position:fixed; bottom:20px; left:50%; transform:translateX(-50%); z-index:20001; display:none; background:black; color:var(--alert-red); border-color:var(--alert-red); font-size:10px; padding:5px 15px; box-shadow: 0 0 20px rgba(255,0,0,0.2);" 
         onclick="const p=document.getElementById('adminPanel'); p.style.display = (p.style.display === 'grid') ? 'none' : 'grid'; window.SoundFX.click();">
@@ -747,10 +709,9 @@
                 </div>
                 <div class="id-qr">
                     <div style="width: 50px; height: 50px; background: white; padding: 2px;">
-                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=VOXTEK_CITIZEN_VERIFIED" 
-                            style="width: 100%; height: 100%;" 
-                            alt="QR">
-                    </div>
+                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyAQMAAAAk8RryAAAABlBMVEX///8AAABVwtN+AAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAQmlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4KPHg6eG11ZXRhIHhtbG5zOng9ImFkb2JlOm5zOm1ldGEvIiB4OnhtcHRrPSJBZG9iZSBYTVAgQ29yZSA1LjYtYzE0MCA3OS4xNjA0NTEsIDIwMTcvMDUvMDYtMDE6MDg6MjEgICAgICAgICI+CiA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPgogIDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PSIiLz4KIDwvcmRmOlJERj4KPC94OnhtcG1ldGE+Cjw/eHBhY2tldCBlbmQ9InIiPz6O1kUCAAAAB3RJTUUH5gMREh0y/tT80gAAAEZJREFUGNNjYKAxYIAO2Bj4/w/A4P//A4j4/x8Y2P8fAImD5P///w8R//8DSQx//wMVA4v///8fIvr/H0wMhAYQ0Q91Iw8AAMUWMx3JT4N4AAAAAElFTkSuQmCC" 
+                        style="width: 100%; height: 100%; image-rendering: pixelated;" 
+                        alt="QR">
                 </div>
             </div>
 
