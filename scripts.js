@@ -314,7 +314,11 @@
                                         self.playlist.push(track);
                                         
                                         // Пытаемся вытащить обложку
-                                        self.extractCover(file, track);
+                                        if (file.type.includes('image')) {
+                                            track.cover = URL.createObjectURL(file);
+                                        } else {
+                                            self.extractCover(file, track);
+                                        }
                                     });
                                     
                                     self.renderPlaylist();
@@ -455,7 +459,6 @@
                                             self.extractCover(file, track);
                                         }
                                     });
-                                    self.renderPlaylist();
                                 }
                             }
                         });
@@ -466,14 +469,24 @@
 
                 }, // конец init()
 
-                // 🔥 ФУНКЦИЯ ЧТЕНИЯ ОБЛОЖКИ (jsmediatags) 🔥
+                // 🔥 ВЕРСИЯ ДЛЯ ОТЛАДКИ (DEBUG) 🔥
                 extractCover(file, trackObj) {
-                    if(!window.jsmediatags) return; 
+                    console.log("🔍 1. Starting search cover for:", file.name);
+
+                    // Проверяем, загрузилась ли библиотека
+                    if(!window.jsmediatags) {
+                        console.error("❌ Error: Library jsmediatags not found! Check index.html");
+                        alert("ERROR: jsmediatags library missing!"); // Чтобы ты точно увидел
+                        return;
+                    }
 
                     window.jsmediatags.read(file, {
                         onSuccess: (tag) => {
+                            console.log("✅ 2. Tags find:", tag);
                             const picture = tag.tags.picture;
+                            
                             if (picture) {
+                                console.log("🖼️ 3. Cover inside a audio!");
                                 const { data, format } = picture;
                                 let base64String = "";
                                 for (let i = 0; i < data.length; i++) {
@@ -483,16 +496,16 @@
                                 
                                 trackObj.cover = url;
 
-                                // Если трек играет прямо сейчас - обновляем картинку
+                                // Если трек играет - обновляем
                                 if (this.playlist[this.currentIndex] === trackObj) {
                                     this.updateCoverArt(url);
                                 }
-                                // Перерисовываем плейлист (чтобы иконка появилась)
-                                // this.renderPlaylist(); // Можно раскомментировать, если добавишь иконки в список
+                            } else {
+                                console.warn("⚠️ 3. There's no any cover in your audio (тtag APIC empty).");
                             }
                         },
                         onError: (error) => {
-                            console.log('Cover extract error:', error);
+                            console.error("❌ Error while file reading:", error.type, error.info);
                         }
                     });
                 },
