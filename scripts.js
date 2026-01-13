@@ -218,30 +218,27 @@
             };
             window.SoundFX = SoundFX;
 
-           // --- 1.1 AMBIENT MUSIC SYSTEM (FIXED INPUTS & LISTENERS) ---
-            window.MusicSystem = { // Используем window для глобального доступа
-                audio: document.getElementById('bg-music'),
-                menu: document.getElementById('slide-music-menu'),
-                toggleBtn: document.getElementById('toggleMenuBtn'),
-                mobileBtn: document.getElementById('mobileMusicBtn'), // 🔥 Добавили мобильную кнопку
-                playBtn: document.getElementById('playPauseBtn'),
-                volSlider: document.getElementById('volumeControl'),
-                seekSlider: document.getElementById('seekControl'),
-                canvas: document.getElementById('audioCanvas'),
-                localInput: document.getElementById('localAudioInput'),
-                playlistContainer: document.getElementById('audioPlaylist'),
+           // --- 1.1 AMBIENT MUSIC SYSTEM (FINAL FIX) ---
+            window.MusicSystem = { 
+                audio: null,
+                menu: null,
+                toggleBtn: null,
+                mobileBtn: null,
+                playBtn: null,
+                volSlider: null,
+                seekSlider: null,
+                localInput: null,
+                playlistContainer: null,
+                
                 playlist: [
                     { name: "Brighter", url: "embient.mp3" } // Дефолтный трек
                 ], 
                 currentIndex: 0,
-                ctx: null,
-                analyser: null,
-                source: null,
-                audioCtx: null,
-                animationId: null,
-                useSimulation: false,
-                isDragging: false,
                 isInitialized: false,
+                isDragging: false,
+                audioCtx: null,
+                analyser: null,
+                animationId: null,
 
                 toggleMenu() {
                     if (this.menu) {
@@ -258,30 +255,36 @@
                 },
 
                 init() {
-                    if (this.isInitialized) return; 
-                    this.isInitialized = true;
-
+                    // Разрешаем повторную инициализацию элементов, но не логики
                     const self = this; 
 
-                    // 0. Обновляем ссылки на элементы (на случай, если DOM долго грузился)
+                    // 1. Получаем элементы заново (на всякий случай)
                     self.audio = document.getElementById('bg-music');
+                    self.menu = document.getElementById('slide-music-menu');
                     self.toggleBtn = document.getElementById('toggleMenuBtn');
                     self.mobileBtn = document.getElementById('mobileMusicBtn');
                     self.playBtn = document.getElementById('playPauseBtn');
+                    self.volSlider = document.getElementById('volumeControl');
+                    self.seekSlider = document.getElementById('seekControl');
+                    self.canvas = document.getElementById('audioCanvas');
                     self.localInput = document.getElementById('localAudioInput');
+                    self.playlistContainer = document.getElementById('audioPlaylist');
 
-                    // Базовые настройки
+                    // 2. Настраиваем громкость
                     if(self.audio) self.audio.volume = 0.5;
 
-                    // 🔥 1. СЛУШАТЕЛЬ ДЛЯ КНОПКИ МЕНЮ (НОТА) 🔥
+                    // 🔥 ВАЖНО: Используем .onclick/.onchange вместо addEventListener
+                    // Это предотвращает дублирование и работает стабильнее
+
+                    // Кнопка меню (Нота)
                     if(self.toggleBtn) {
                         self.toggleBtn.onclick = (e) => {
-                            e.stopPropagation(); // Чтобы клик не ушел ниже
+                            e.stopPropagation();
                             self.toggleMenu();
                         };
                     }
 
-                    // 🔥 2. СЛУШАТЕЛЬ ДЛЯ МОБИЛЬНОЙ КНОПКИ (КРУГ) 🔥
+                    // Мобильная кнопка (Круг)
                     if(self.mobileBtn) {
                         self.mobileBtn.onclick = (e) => {
                             e.stopPropagation();
@@ -289,70 +292,80 @@
                         };
                     }
 
-                    // --- 3. ЗАГРУЗКА ФАЙЛОВ (ИСПРАВЛЕННЫЙ CLONE) ---
-                    if (self.localInput) {
-                        // Удаляем старые слушатели путем клонирования
-                        const newClone = self.localInput.cloneNode(true);
-                        self.localInput.parentNode.replaceChild(newClone, self.localInput);
-                        self.localInput = newClone;
+                    // Кнопка Play
+                    if (self.playBtn) {
+                        self.playBtn.onclick = (e) => {
+                            e.preventDefault(); 
+                            self.togglePlay();
+                        };
+                    }
 
-                        // Вешаем слушатель на НОВЫЙ элемент
-                        self.localInput.addEventListener('change', (e) => {
+                    // 🔥 ЗАГРУЗКА ФАЙЛОВ (ИСПРАВЛЕНО: БЕЗ CLONE) 🔥
+                    if (self.localInput) {
+                        self.localInput.onclick = (e) => {
+                            // Сбрасываем значение, чтобы можно было выбрать тот же файл снова
+                            e.target.value = null;
+                        };
+                        
+                        self.localInput.onchange = (e) => {
                             const files = Array.from(e.target.files);
                             if (files.length > 0) {
-                                if (confirm("UPLOAD AUDIO TO CLOUD ARCHIVE? (Private Storage)")) {
+                                // Проверка авторизации перед загрузкой
+                                const isAuth = window.auth && window.auth.currentUser;
+                                
+                                if (isAuth && confirm("UPLOAD AUDIO TO CLOUD ARCHIVE? (Private Storage)")) {
                                     files.forEach(file => {
                                         if(window.CloudSystem) window.CloudSystem.uploadMedia(file, 'audio');
                                     });
                                 } else {
+                                    // Локальное воспроизведение
                                     files.forEach(file => {
                                         const url = URL.createObjectURL(file);
                                         self.playlist.push({ name: file.name, url: url, isCloud: false });
                                     });
                                     self.renderPlaylist();
-                                    // Если ничего не играло - загружаем первый добавленный
+                                    // Если это первые треки - загружаем первый
                                     if (self.currentIndex === -1 || self.playlist.length === files.length) {
                                         self.currentIndex = self.playlist.length - files.length;
                                         self.loadTrack(self.currentIndex);
                                     }
                                 }
-                                self.localInput.value = ''; // Сброс, чтобы можно было выбрать тот же файл
                             }
-                        });
+                        };
                     }
 
-                    // --- 4. СЛУШАТЕЛЬ ГРОМКОСТИ ---
+                    // Ползунок громкости
                     if(self.volSlider) {
-                        self.volSlider.addEventListener('input', (e) => {
+                        self.volSlider.oninput = (e) => {
                             if(self.audio) self.audio.volume = e.target.value;
-                        });
+                        };
                     }
 
-                    // --- 5. СЛУШАТЕЛЬ ПЕРЕМОТКИ ---
+                    // Ползунок времени
                     if(self.seekSlider) {
-                        self.seekSlider.addEventListener('mousedown', () => self.isDragging = true);
-                        self.seekSlider.addEventListener('touchstart', () => self.isDragging = true);
+                        self.seekSlider.onmousedown = () => self.isDragging = true;
+                        self.seekSlider.ontouchstart = () => self.isDragging = true;
                         
-                        self.seekSlider.addEventListener('change', (e) => {
+                        self.seekSlider.onchange = (e) => {
                             if (self.audio && self.audio.duration) {
                                 const time = (e.target.value / 100) * self.audio.duration;
                                 self.audio.currentTime = time;
                             }
                             self.isDragging = false;
-                        });
+                        };
                         
-                        self.seekSlider.addEventListener('input', (e) => {
+                        self.seekSlider.oninput = (e) => {
                             self.isDragging = true;
                             if(self.audio && self.audio.duration) {
                                 const time = (e.target.value / 100) * self.audio.duration;
                                 const curTimeEl = document.getElementById('currentTime');
                                 if(curTimeEl) curTimeEl.textContent = self.fmtTime(time);
                             }
-                        });
+                        };
                     }
 
-                    // --- 6. ВРЕМЯ И ПРОГРЕСС ---
-                    if(self.audio) {
+                    // --- СЛУШАТЕЛИ АУДИО (Оставляем addEventListener, так как они вешаются на <audio>) ---
+                    if(self.audio && !self.isInitialized) { // Вешаем только один раз!
                         self.audio.addEventListener('timeupdate', () => {
                             if (!self.isDragging && !isNaN(self.audio.duration)) {
                                 const percent = (self.audio.currentTime / self.audio.duration) * 100;
@@ -403,116 +416,70 @@
                             if(self.playBtn) self.playBtn.textContent = 'PLAY STREAM';
                             if(self.mobileBtn) self.mobileBtn.classList.remove('playing');
                         });
+                        
+                        // Инициализация визуализатора при первом клике
+                        document.body.addEventListener('click', () => {
+                            if(!self.audioCtx) {
+                                try {
+                                    self.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                                    self.analyser = self.audioCtx.createAnalyser();
+                                    self.analyser.fftSize = 64; 
+                                    const source = self.audioCtx.createMediaElementSource(self.audio);
+                                    source.connect(self.analyser);
+                                    self.analyser.connect(self.audioCtx.destination);
+                                } catch(e) { console.log("Audio API init deferred"); }
+                            }
+                        }, { once: true });
                     }
 
-                    // --- 7. КНОПКА PLAY ---
-                    if (self.playBtn) {
-                        self.playBtn.onclick = (e) => {
-                            e.preventDefault(); 
-                            self.togglePlay();
-                        };
-                    }
-
-                    // Audio Context
-                    try {
-                        self.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                        if(self.audio) {
-                            self.analyser = self.audioCtx.createAnalyser();
-                            self.analyser.fftSize = 64; 
-                            const source = self.audioCtx.createMediaElementSource(self.audio);
-                            source.connect(self.analyser);
-                            self.analyser.connect(self.audioCtx.destination);
-                        }
-                    } catch (e) {
-                        console.log("Audio API restricted or already active");
-                        self.useSimulation = true;
-                    }
-                    
-                    // Загрузка из базы
-                    setTimeout(() => {
-                        if(window.db && window.auth && window.auth.currentUser) {
-                            const q = window.fbQuery(
-                                window.fbCol(window.db, "audios"), 
-                                window.fbWhere("author", "==", window.auth.currentUser.uid), 
-                                window.fbOrder("createdAt", "desc")
-                            );
-                            window.fbSnap(q, (snapshot) => {
-                                snapshot.docChanges().forEach((change) => {
-                                    if (change.type === "added") {
-                                        const data = change.doc.data();
-                                        if(!self.playlist.some(t => t.id === change.doc.id)) {
-                                            self.playlist.push({ 
-                                                id: change.doc.id, 
-                                                name: data.name, 
-                                                url: data.url, 
-                                                isCloud: true 
+                    // Загрузка из базы (таймаут, чтобы успел прогрузиться Auth)
+                    if(!self.isInitialized) {
+                        setTimeout(() => {
+                            if(window.db && window.auth) { // Убрали жесткую проверку currentUser для слушателя
+                                window.fbAuthListener(window.auth, (user) => {
+                                    if(user) {
+                                         const q = window.fbQuery(
+                                            window.fbCol(window.db, "audios"), 
+                                            window.fbWhere("author", "==", user.uid), 
+                                            window.fbOrder("createdAt", "desc")
+                                        );
+                                        window.fbSnap(q, (snapshot) => {
+                                            snapshot.docChanges().forEach((change) => {
+                                                if (change.type === "added") {
+                                                    const data = change.doc.data();
+                                                    if(!self.playlist.some(t => t.id === change.doc.id)) {
+                                                        self.playlist.push({ 
+                                                            id: change.doc.id, 
+                                                            name: data.name, 
+                                                            url: data.url, 
+                                                            isCloud: true 
+                                                        });
+                                                        self.renderPlaylist();
+                                                    }
+                                                }
+                                                if (change.type === "removed") {
+                                                    self.playlist = self.playlist.filter(t => t.id !== change.doc.id);
+                                                    self.renderPlaylist();
+                                                }
                                             });
-                                            self.renderPlaylist();
-                                        }
-                                    }
-                                    if (change.type === "removed") {
-                                        self.playlist = self.playlist.filter(t => t.id !== change.doc.id);
-                                        self.renderPlaylist();
+                                        });
                                     }
                                 });
-                            });
-                        }
-                    }, 2500);
-
-                    // Drag & Drop
-                    const dropZone = self.menu; 
-                    if (dropZone) {
-                        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                            dropZone.addEventListener(eventName, (e) => {
-                                e.preventDefault(); e.stopPropagation();
-                            }, false);
-                        });
-                        dropZone.addEventListener('dragover', () => {
-                            dropZone.style.boxShadow = "inset 0 0 50px var(--vox-cyan)";
-                            dropZone.style.borderColor = "white";
-                        });
-                        dropZone.addEventListener('dragleave', () => {
-                            dropZone.style.boxShadow = "none";
-                            dropZone.style.borderColor = "var(--vox-cyan)";
-                        });
-                        dropZone.addEventListener('drop', (e) => {
-                            dropZone.style.boxShadow = "none";
-                            dropZone.style.borderColor = "var(--vox-cyan)";
-                            const files = e.dataTransfer.files;
-                            if (files.length > 0) {
-                                if (confirm("UPLOAD DROPPED FILES TO CLOUD?")) {
-                                    Array.from(files).forEach(file => {
-                                        if (file.type.startsWith('audio/')) {
-                                            if(window.CloudSystem) window.CloudSystem.uploadMedia(file, 'audio');
-                                        }
-                                    });
-                                } else {
-                                    Array.from(files).forEach(file => {
-                                        if (file.type.startsWith('audio/')) {
-                                            const url = URL.createObjectURL(file);
-                                            self.playlist.push({ name: file.name, url: url, isCloud: false });
-                                        }
-                                    });
-                                    self.renderPlaylist();
-                                }
                             }
-                        });
+                        }, 2000);
                     }
+                    
+                    self.isInitialized = true;
                 },
 
                 togglePlay() {
-                    // Важно: на телефонах AudioContext нужно "будить" по клику
-                    if (this.audioCtx && this.audioCtx.state === 'suspended') {
-                        this.audioCtx.resume();
-                    }
+                    if (this.audioCtx && this.audioCtx.state === 'suspended') this.audioCtx.resume();
                     
                     if (this.audio.paused) {
-                        this.audio.play()
-                            .catch(e => {
-                                console.error("Play error:", e);
-                                // Если ошибка (например, нет взаимодействия), можно показать уведомление
-                                if(window.voxNotify) window.voxNotify("CLICK TO PLAY", "warn");
-                            });
+                        this.audio.play().catch(e => {
+                            console.error("Autoplay prevented", e);
+                            if(window.voxNotify) window.voxNotify("INTERACTION REQUIRED", "warn");
+                        });
                     } else {
                         this.audio.pause();
                     }
@@ -562,7 +529,7 @@
                 playCurrent() {
                     if(this.currentIndex < 0 || this.currentIndex >= this.playlist.length) return;
                     this.loadTrack(this.currentIndex);
-                    this.startAudioContext();
+                    if (this.audioCtx && this.audioCtx.state === 'suspended') this.audioCtx.resume();
                     this.audio.play().catch(e => console.error(e));
                     this.renderPlaylist();
                 },
@@ -583,7 +550,6 @@
                     const track = this.playlist[idx];
                     this.audio.crossOrigin = "anonymous";
                     this.audio.src = track.url;
-                    this.useSimulation = false;
                     
                     const coverText = document.querySelector('.cover-text');
                     if(coverText) {
@@ -597,11 +563,6 @@
                         mobileArt.style.display = 'block';
                         mobileIcon.style.display = 'none';
                     }
-                },
-
-                startAudioContext() {
-                    if (this.audioCtx) return;
-                    this.init(); 
                 },
 
                 draw() {
@@ -647,11 +608,9 @@
                         }
                         lastFrame = ts;
 
-                        if (!this.useSimulation && this.analyser) {
+                        if (this.analyser) {
                             this.analyser.getByteFrequencyData(dataArray);
-                        } else {
-                            for (let i = 0; i < bufferLength; i++) dataArray[i] = Math.random() * 50;
-                        }
+                        } 
 
                         const w = this.canvas.width;
                         const h = this.canvas.height;
