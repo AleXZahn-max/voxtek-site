@@ -320,16 +320,29 @@
                         }
                     });
 
-                    // --- 4. ЗАГРУЗКА МЕТАДАННЫХ (Убираем --:--) ---
+                    // --- 4. ЗАГРУЗКА МЕТАДАННЫХ (ФИКС ВРЕМЕНИ И КРУГА) ---
                     self.audio.addEventListener('loadedmetadata', () => {
                         const durEl = document.getElementById('durationTime');
                         const curEl = document.getElementById('currentTime');
                         
+                        // 1. Чиним время
                         if (durEl && self.audio.duration && isFinite(self.audio.duration)) {
                             durEl.textContent = self.fmtTime(self.audio.duration);
                         }
                         if (curEl) curEl.textContent = "00:00";
                         if (self.seekSlider) self.seekSlider.value = 0;
+
+                        // 🔥 2. ЧИНИМ КРУГ (ANDROID BUTTON) 🔥
+                        const circle = document.querySelector('.progress-ring__circle');
+                        if (circle) {
+                            const radius = circle.r.baseVal.value;
+                            const circumference = 2 * Math.PI * radius; // Считаем длину окружности
+                            
+                            // Говорим CSS, какой длины наша линия
+                            circle.style.strokeDasharray = `${circumference} ${circumference}`;
+                            // Скрываем её полностью (offset = длина), чтобы она начала заполняться с 0
+                            circle.style.strokeDashoffset = circumference;
+                        }
                     });
 
                     // --- ОСТАЛЬНЫЕ СЛУШАТЕЛИ ---
@@ -2362,6 +2375,23 @@
                     voxNotify('GLOBAL ALERT SENT.', 'success');
                 },
                 
+                updateNews() {
+                    const txt = document.getElementById('adminNewsInput').value.trim();
+                    if(!txt) return voxNotify("EMPTY NEWS TEXT", "error");
+
+                    // Пишем в базу данных
+                    window.fbSet(window.fbDoc(window.db, "system_state", "news"), {
+                        text: txt.toUpperCase(), // Всегда капсом, как у Вокса
+                        updatedAt: window.fbTime(),
+                        author: window.auth.currentUser.email
+                    }, { merge: true })
+                    .then(() => {
+                        voxNotify("NEWS FEED UPDATED", "success");
+                        document.getElementById('adminNewsInput').value = '';
+                    })
+                    .catch(e => voxNotify("ERROR: " + e.message, "error"));
+                },
+
                 forceView() {
                     const url = document.getElementById('adminForceUrl').value.trim();
                     if(!url) return voxNotify("URL REQUIRED", "error");
@@ -4845,6 +4875,41 @@
                 }
             };
 
+            // --- 18. LIVE NEWS SYSTEM (NEW) ---
+            window.NewsSystem = {
+                init() {
+                    if (!window.db) return;
+                    
+                    // Слушаем документ 'system_state/news'
+                    window.fbSnap(window.fbDoc(window.db, "system_state", "news"), (doc) => {
+                        if (doc.exists()) {
+                            const data = doc.data();
+                            this.renderTicker(data.text);
+                        }
+                    });
+                },
+
+                renderTicker(text) {
+                    const tickerContainer = document.querySelector('.ticker-move');
+                    if (!tickerContainer) return;
+
+                    // Если текста нет, ставим дефолтный
+                    const safeText = text || "WELCOME TO VOXTEK ENTERPRISES /// SUBMISSION IS SAFETY";
+
+                    // 🔥 ВАЖНО: Дублируем текст для бесшовной анимации (CSS translateX -50%)
+                    // Структура: ТЕКСТ /// ТЕКСТ
+                    const itemHtml = `
+                        <span>${safeText}</span>
+                        <span style="color:var(--alert-red); margin:0 20px;">///</span>
+                        <span>${safeText}</span>
+                        <span style="color:var(--alert-red); margin:0 20px;">///</span>
+                    `;
+                    
+                    // Вставляем ДВА раза (чтобы заполнить всю ленту)
+                    tickerContainer.innerHTML = itemHtml + itemHtml; 
+                }
+            };
+
             const initVoxSystem = () => {
                 // Если система уже загружена, выходим, чтобы не дублировать уведомления
                 if (systemLoaded) return;
@@ -4860,6 +4925,7 @@
                     // 1. Запускаем авторизацию (проверку входа)
                     if(window.AuthSystem) AuthSystem.init();
                     if(window.DefconSystem) DefconSystem.init();
+                    if(window.NewsSystem) NewsSystem.init();
                     
                     // 🔥 ПРОВЕРКА РЕФЕРАЛЬНОЙ ССЫЛКИ НА СРОК ГОДНОСТИ 🔥
                     const urlParams = new URLSearchParams(window.location.search);

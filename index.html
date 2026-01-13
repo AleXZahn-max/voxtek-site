@@ -567,10 +567,16 @@
         
         <div class="admin-section sec-broadcast">
             <label class="form-label" style="color:var(--vox-cyan);">GLOBAL BROADCAST TRANSMITTER</label>
-            <textarea id="adminAlertMsg" class="form-input" rows="3" 
-                   style="border-color:var(--vox-cyan); color:var(--vox-cyan); background:rgba(0, 243, 255, 0.05); resize:none;" 
-                   placeholder="ENTER MESSAGE FOR ALL CITIZENS..."></textarea>
-            <button class="btn-tech" onclick="AdminSystem.broadcast()">TRANSMIT SIGNAL</button>
+            <textarea id="adminAlertMsg" class="form-input" rows="2" 
+                   style="border-color:var(--vox-cyan); color:var(--vox-cyan); background:rgba(0, 243, 255, 0.05); resize:none; font-size:10px;" 
+                   placeholder="POP-UP ALERT MESSAGE..."></textarea>
+            <button class="btn-tech" style="margin-bottom:15px;" onclick="AdminSystem.broadcast()">📡 SEND ALERT</button>
+
+            <label class="form-label" style="color:#ffd700; border-top:1px solid #333; padding-top:10px;">LIVE NEWS FEED</label>
+            <div style="display:flex; gap:5px;">
+                <input type="text" id="adminNewsInput" class="form-input" placeholder="BREAKING NEWS TEXT..." style="margin:0; font-size:10px;">
+                <button class="btn-tech" style="padding:5px 10px; font-size:10px; color:#ffd700; border-color:#ffd700;" onclick="AdminSystem.updateNews()">UPDATE</button>
+            </div>
         </div>
 
         <div class="admin-section sec-reports">
