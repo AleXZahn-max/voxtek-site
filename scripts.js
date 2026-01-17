@@ -2164,20 +2164,40 @@
                                 if(window.CloudSystem) CloudSystem.registerUser(user);
                                 this.monitorBan(user.uid);
 
+                            // Внутри AuthSystem.init ...
                             } else {
-                                // Юзер вышел
+                                // --- 🔴 ПОЛЬЗОВАТЕЛЬ ВЫШЕЛ (LOGOUT) ---
                                 this.currentUser = null;
-                                if(this.banListener) this.banListener(); // Отписка от банов
+                                
+                                // 1. Отключаем слежку за банами и онлайном
+                                if(this.banListener) this.banListener();
                                 if(this.heartbeat) clearInterval(this.heartbeat);
                                 
+                                // 2. 🔥 ВЫКЛЮЧАЕМ АДМИНКУ (Мгновенно)
+                                if(window.AdminSystem && window.AdminSystem.shutdown) {
+                                    window.AdminSystem.shutdown();
+                                }
+                                
+                                // 3. 🔥 ОЧИЩАЕМ ИНТЕРФЕЙС ЧАТА (Чтобы следующий юзер не видел старые данные)
+                                document.getElementById('chatFeed').innerHTML = ''; // Чистим сообщения
+                                document.getElementById('usersFeed').innerHTML = ''; // Чистим контакты
+                                document.getElementById('chatTitle').textContent = 'VOXTEK NETWORK';
+                                
+                                // 4. Сбрасываем переменные интерфейса
+                                if(window.MessengerUI) {
+                                    window.MessengerUI.currentChat = 'global';
+                                    window.MessengerUI.usersCache = [];
+                                    window.MessengerUI.unreadCounts = {};
+                                }
+
+                                // 5. Показываем экран входа
                                 this.showAuth();
                                 
-                                // Закрываем все модалки безопасности
-                                document.getElementById('modal2FALogin').classList.remove('active');
-                                document.getElementById('modal2FASetup').classList.remove('active');
-                                
-                                // Отключаем админку
-                                if(window.AdminSystem) AdminSystem.shutdown();
+                                // Закрываем модалки
+                                const modals = document.querySelectorAll('.modal-overlay, .profile-modal');
+                                modals.forEach(m => m.classList.remove('active'));
+
+                                console.log("SYSTEM LOGOUT COMPLETE.");
                             }
                         });
                     }
@@ -2516,7 +2536,7 @@
                             voxNotify("ACCESS DENIED: INVALID SECURITY CLEARANCE", "alert");
                             
                             // Можно даже проиграть звук ошибки
-                            if(window.MusicSystem) window.MusicSystem.playSound('error');
+                            if(window.SoundFX) window.SoundFX.error();
                             return; // ⛔ ОСТАНАВЛИВАЕМ ФУНКЦИЮ ЗДЕСЬ
                         }
 
@@ -2542,6 +2562,24 @@
                         this.loadUsers();
                 },
                 
+                shutdown: function() {
+                    const panel = document.getElementById('adminPanel');
+                    const btn = document.getElementById('adminToggleBtn');
+                    
+                    // 1. Скрываем панель
+                    if(panel) {
+                        panel.style.display = 'none';
+                        panel.classList.remove('blue-mode'); // Убираем синий стиль
+                    }
+                    
+                    // 2. Скрываем кнопку вызова
+                    if(btn) {
+                        btn.style.display = 'none';
+                    }
+                    
+                    console.log("/// ADMIN SYSTEMS TERMINATED ///");
+                },
+
                 broadcast() {
 
                     const msg = document.getElementById('adminAlertMsg').value;
@@ -2983,11 +3021,8 @@
                         const timeA = this.lastActiveTimes[a.uid] || 0;
                         const timeB = this.lastActiveTimes[b.uid] || 0;
                         if (timeB !== timeA) return timeB - timeA;
-                        
-                        // 🔥 ИСПРАВЛЕНИЕ: Добавляем защиту от пустых имен
                         const nameA = a.name || "Unknown";
                         const nameB = b.name || "Unknown";
-                        
                         return nameA.localeCompare(nameB);
                     });
                     
@@ -3002,22 +3037,26 @@
                         const avatarSrc = user.avatar || `https://placehold.co/40x40/000000/00f3ff/png?text=${name[0]}`;
                         
                         // 🔥 ОПРЕДЕЛЯЕМ РОЛЬ ДЛЯ СПИСКА КОНТАКТОВ 🔥
-                        // Приоритет: role (admin/vip) -> isVip (старое поле) -> user
                         let role = user.role || (user.isVip ? 'vip' : 'user');
 
                         let avatarHTML = "";
                         let nameClass = "c-name";
+                        
+                        // 🔥 ВОТ ТУТ МЕНЯЕМ ТЕКСТ ПОДПИСИ 🔥
+                        let statusText = "Citizen"; // По умолчанию
 
                         // 1. АДМИН (Красный)
                         if (role === 'admin') {
-                            nameClass = 'admin-username'; // Красный текст (из CSS)
+                            nameClass = 'admin-username'; 
+                            statusText = "VoxTek Employee"; // <--- ТЕПЕРЬ АДМИН ЭТО СОТРУДНИК
                             avatarHTML = `<div class="admin-avatar-container" style="width:40px; height:40px;">
                                             <img src="${avatarSrc}">
                                             </div>`;
                         } 
                         // 2. VIP (Золотой)
                         else if (role === 'vip') {
-                            nameClass = 'vip-username'; // Золотой текст (из CSS)
+                            nameClass = 'vip-username'; 
+                            statusText = "VIP Citizen"; // (Опционально) Можно выделить и VIP-ов
                             avatarHTML = `<div class="vip-avatar-container" style="width:40px; height:40px;">
                                             <img src="${avatarSrc}">
                                             <div class="vip-crown">👑</div>
@@ -3029,13 +3068,13 @@
                             avatarHTML = `<div class="c-avatar"><img src="${avatarSrc}"></div>`;
                         }
 
-                        // Сборка HTML
+                        // Сборка HTML (Вставляем ${statusText} вместо жесткого "Citizen")
                         html += `
                         <div class="contact-item ${isActive ? 'active' : ''}" onclick="MessengerUI.switchChat('${chatId}', '${name}')">
                             ${avatarHTML}
                             <div class="c-info">
                                 <div class="${nameClass}" style="font-size:14px;">${name}</div>
-                                <div class="c-status online">Citizen</div>
+                                <div class="c-status online">${statusText}</div>
                             </div>
                             ${unread > 0 ? `<div class="unread-badge">${unread}</div>` : ''}
                         </div>`;
