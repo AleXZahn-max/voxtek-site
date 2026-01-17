@@ -2492,22 +2492,58 @@
                 }
             };
 
-// --- UPDATED: ADMIN SYSTEM (WITH BAN HAMMER) ---
+            // --- UPDATED: ADMIN SYSTEM (WITH BAN HAMMER) ---
             window.AdminSystem = {
-                init(user) {
-                    // Оставляем проверку по email для безопасности самого админ-интерфейса
-                    if (user && (user.email === 'voxtek@voxtek.net' || user.email === 'test@voxtek.net')) {
+                // ✅ НОВАЯ ВЕРСИЯ
+                init: function(user, passCode = "") {
+                        // 1. Секретный ключ (Твой пароль)
+                        const MASTER_KEY = "159753";
+                        
+                        // 2. Список почт Владельцев (тебе пароль вводить не нужно)
+                        const OWNERS = [
+                            'voxtek@voxtek.net',
+                            'keklex654@gmail.com'
+                        ];
+
+                        // 3. Проверка: Если это не Владелец И пароль неверный — ОТКАЗ
+                        // user?.email проверяет почту, если user вообще передан
+                        const isOwner = user && OWNERS.includes(user.email);
+                        const isKeyValid = passCode.toString() === MASTER_KEY;
+
+                        if (!isOwner && !isKeyValid) {
+                            // Если хакер пытается вызвать функцию без ключа — пугаем его
+                            console.warn("SECURITY ALERT: UNAUTHORIZED ADMIN ACCESS ATTEMPT");
+                            voxNotify("ACCESS DENIED: INVALID SECURITY CLEARANCE", "alert");
+                            
+                            // Можно даже проиграть звук ошибки
+                            if(window.MusicSystem) window.MusicSystem.playSound('error');
+                            return; // ⛔ ОСТАНАВЛИВАЕМ ФУНКЦИЮ ЗДЕСЬ
+                        }
+
+                        // --- ЕСЛИ ПРОШЛИ ПРОВЕРКУ, ВЫДАЕМ АДМИНКУ ---
+
                         const panel = document.getElementById('adminPanel');
                         if(panel) {
                             panel.classList.add('blue-mode');
                             document.getElementById('adminToggleBtn').style.display = 'block';
                         }
-                        voxNotify('ADMIN CLEARANCE GRANTED. WELCOME, VOX.', 'error');
+
+                        // Определяем имя для приветствия
+                        let adminName = "UNKNOWN";
+                        if (user && user.displayName) {
+                            adminName = user.displayName.toUpperCase();
+                        } else if (user && user.email) {
+                            adminName = user.email.split('@')[0].toUpperCase();
+                        } else if (isKeyValid) {
+                            adminName = "OPERATOR"; // Если зашли чисто по коду без юзера
+                        }
+
+                        voxNotify(`ADMIN CLEARANCE GRANTED. WELCOME, ${adminName}.`, 'success');
                         this.loadUsers();
-                    }
                 },
                 
                 broadcast() {
+
                     const msg = document.getElementById('adminAlertMsg').value;
                     if(!msg) return;
                     window.fbAdd(window.fbCol(window.db, "system_alerts"), {
@@ -2516,7 +2552,6 @@
                         author: "OVERLORD"
                     });
                     document.getElementById('adminAlertMsg').value = '';
-                    voxNotify('GLOBAL ALERT SENT.', 'success');
                 },
                 
                 updateNews() {
