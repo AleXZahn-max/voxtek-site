@@ -4050,15 +4050,45 @@
                                 msgElement.textContent = msgData.text; 
                             }
                             
+                            // --- 1. ГЕНЕРАЦИЯ HTML РЕАКЦИЙ (ЦИФРЫ ПОД СООБЩЕНИЕМ) ---
+                            let reactionsHTML = '<div class="reactions-display">';
+                            if (msgData.reactions) {
+                                Object.keys(msgData.reactions).forEach(emoji => {
+                                    const count = msgData.reactions[emoji];
+                                    if(count > 0) {
+                                        reactionsHTML += `<span class="reaction-pill">${emoji} ${count}</span>`;
+                                    }
+                                });
+                            }
+                            reactionsHTML += '</div>';
+
+                            // --- 2. СБОРКА СООБЩЕНИЯ (С МЕНЮ) ---
                             div.innerHTML = `
                                 ${avatarHtml}
-                                <div class="msg-content" 
-                                     data-context-type="message"
-                                     oncontextmenu="VMenu.show(event, 'message', {id: '${doc.id}', text: '${safeText}', uid: '${msgData.uid}'})">
+                                <div class="msg-content" style="position: relative;" 
+                                        data-context-type="message"
+                                        oncontextmenu="VMenu.show(event, 'message', {id: '${doc.id}', text: '${safeText}', uid: '${msgData.uid}'})">
+                                    
                                     <div style="margin-bottom:2px;">${nameHtml}</div>
+                                    
+                                    ${reactionsHTML}
+
+                                    <div class="reaction-menu">
+                                        <button class="reaction-btn" onclick="window.CloudSystem.addReaction('${doc.id}', '👍')">👍</button>
+                                        <button class="reaction-btn" onclick="window.CloudSystem.addReaction('${doc.id}', '❤️')">❤️</button>
+                                        <button class="reaction-btn" onclick="window.CloudSystem.addReaction('${doc.id}', '🔥')">🔥</button>
+                                        <button class="reaction-btn" onclick="window.CloudSystem.addReaction('${doc.id}', '☠️')">☠️</button>
+                                        <button class="reaction-btn" onclick="window.CloudSystem.addReaction('${doc.id}', '🤡')">🤡</button>
+                                    </div>
                                 </div>
                             `;
-                            
+
+                            // Вставляем сам текст сообщения (пузырь) ПЕРЕД реакциями
+                            // Мы ищем элемент меню, чтобы вставить пузырь ПЕРЕД ним
+                            const contentBox = div.querySelector('.msg-content');
+                            const menuEl = div.querySelector('.reaction-menu');
+                            contentBox.insertBefore(msgElement, div.querySelector('.reactions-display') || menuEl);
+
                             div.querySelector('.msg-content').appendChild(msgElement);
                             feed.appendChild(div);
 
