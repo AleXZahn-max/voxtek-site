@@ -7,8 +7,10 @@
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     <title>VoxTek Enterprises | Submission is Safety</title>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsmediatags/3.9.5/jsmediatags.min.js"></script>
+    
     <link rel="stylesheet" href="styles.css">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#00f3ff">
@@ -16,7 +18,7 @@
 <body id="top">
 
     <div id="bootSequence" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 99999; display: flex; flex-direction: column; justify-content: center; align-items: center; font-family: 'JetBrains Mono', monospace;">
-        <img src="icon.png" style="width: 80px; margin-bottom: 20px; filter: drop-shadow(0 0 10px var(--vox-cyan));">
+        <img src="icon.png" style="width: 80px; margin-bottom: 20px; filter: drop-shadow(0 0 10px var(--vox-cyan));" onerror="this.style.display='none'">
         <div id="bootText" style="color: var(--vox-cyan); font-size: 14px; margin-bottom: 10px;">INITIALIZING VANGUARD KERNEL...</div>
         <div style="width: 300px; height: 4px; background: #222; border-radius: 2px; overflow: hidden;">
             <div id="bootBar" style="width: 0%; height: 100%; background: var(--vox-cyan); box-shadow: 0 0 10px var(--vox-cyan); transition: width 0.1s;"></div>
@@ -68,9 +70,7 @@
                 <span>HERE YOU CAN MESSAGING, MAKE CALL AND MUCH MORE</span>
                 <span style="color:red; margin:0 20px;">///</span>
                 <span>YOU CAN TRUST US WITH YOUR ENTERTAINMENT</span>
-
                 <span style="color:red; margin:0 20px;">///</span>
-
                 <span>OUR SUBMISSION IS SAFETY</span>
                 <span style="color:red; margin:0 20px;">///</span>
                 <span>YOU CAN RELY ON US</span>
@@ -200,7 +200,7 @@
                     <div class="tech-card" tabindex="0">
                         <div class="badge">V9.2.0.0</div>
                         <h3>VANGUARD BUILDER</h3>
-                        <p>The best command-line deployment tool. Compiles your files to JAR, protects your code, and watches over your soul. A must-have for all developers. (Antivirus programs may report it as Trojan:Win32/Yomal!rfn. Ignore this. That's because the program was compiled with Nuitka.)</p>
+                        <p>The best command-line deployment tool. Compiles your files to JAR, protects your code, and watches over your soul.</p>
                         <button type="button" class="btn-tech" id="downloadBtn" style="margin-top:20px; width:100%; text-align:center;">DOWNLOAD .EXE</button>
                     </div>
                     <div class="tech-card" tabindex="0">
@@ -239,11 +239,11 @@
 
                     <div class="review-feed" id="reviewFeed" role="log" aria-live="polite">
                         <div class="review-item good">
-                            <div class="r-name">Velvet <div class="r-squares" aria-label="5 out of 5 stars"><div class="r-sq fill"></div><div class="r-sq fill"></div><div class="r-sq fill"></div><div class="r-sq fill"></div><div class="r-sq fill"></div></div></div>
+                            <div class="r-name">Velvet <div class="r-squares"><div class="r-sq fill"></div><div class="r-sq fill"></div><div class="r-sq fill"></div><div class="r-sq fill"></div><div class="r-sq fill"></div></div></div>
                             <div class="r-text">"Trendy. Fast. Secure. The only brand that matters. Everything else is trash. #VoxTek"</div>
                         </div>
                         <div class="review-item good">
-                            <div class="r-name">Valentino <div class="r-squares" aria-label="5 out of 5 stars"><div class="r-sq fill"></div><div class="r-sq fill"></div><div class="r-sq fill"></div><div class="r-sq fill"></div><div class="r-sq fill"></div></div></div>
+                            <div class="r-name">Valentino <div class="r-squares"><div class="r-sq fill"></div><div class="r-sq fill"></div><div class="r-sq fill"></div><div class="r-sq fill"></div><div class="r-sq fill"></div></div></div>
                             <div class="r-text">"My employees are so much more... obedient... with the new watches. Good work, Vox."</div>
                         </div>
                     </div>
@@ -283,6 +283,7 @@
                         <input type="text" id="loginUser" class="form-input" placeholder="USERNAME">
                         <input type="password" id="loginPass" class="form-input" placeholder="PASSWORD">
                         <button class="btn-tech" style="width:100%" onclick="AuthSystem.login()">CONNECT</button>
+                        <button class="btn-tech" style="width:100%; margin-top:10px; border-color:#DB4437; color:#DB4437;" onclick="AuthSystem.loginGoogle()">SIGN IN WITH GOOGLE</button>
                     </div>
 
                     <div id="formRegister" class="auth-form">
@@ -302,14 +303,7 @@
                     </div>
                     
                     <div class="user-list" id="usersFeed">
-                        <div class="contact-item active" onclick="MessengerUI.switchChat('global')">
-                            <div class="c-avatar" style="background:var(--vox-cyan); color:black; font-weight:bold;">☰</div>
-                            <div class="c-info">
-                                <div class="c-name">VOXTEK GLOBAL</div>
-                                <div class="c-status online">Global chat</div>
-                            </div>
                         </div>
-                    </div>
                 </div>
 
                 <div class="chat-main">
@@ -339,7 +333,6 @@
                         <div class="p-card">
     
                             <div class="profile-header-wrapper">
-        
                                 <label class="profile-banner-edit">
                                     <img id="pBannerPreview" src="" onerror="this.style.opacity='0'"> 
                                     <div class="banner-overlay-text">UPLOAD COVER</div>
@@ -351,8 +344,8 @@
                                     <div class="avatar-edit-icon">📷</div>
                                     <input type="file" id="pAvatarFile" accept="image/*" style="display:none;" onchange="CloudSystem.previewAvatar(this)">
                                 </label>
-
                             </div>
+
                             <div class="profile-body">
                                 <div>
                                     <label class="form-label">CITIZEN NAME</label>
@@ -389,7 +382,12 @@
                             </div>
                         </div>
                     </div>
-                </div> </div> </div> </div> <div id="view-video" class="view-section">
+                </div> 
+            </div> 
+        </div> 
+    </div> 
+
+    <div id="view-video" class="view-section">
         <div class="section-header"><h2>BROADCAST STATION</h2></div>
         
         <div class="video-wrapper" id="broadcastContainer">
@@ -506,7 +504,7 @@
     </footer>
 
     <div id="callInterface" class="call-overlay">
-            <div id="callTimer">00:00</div>
+        <div id="callTimer">00:00</div>
 
         <div class="call-video-grid">
             <video id="remoteVideo" autoplay playsinline></video>
@@ -523,16 +521,15 @@
                 SECURE LINE: <span id="callStatusText">CONNECTING...</span>
             </div>
         </div>
-        <div class="call-controls"></div>
+        <div class="call-controls">
+            </div>
     </div>
     
     <div id="customModal" class="modal-overlay">
         <div class="vox-modal">
             <h3 id="modalTitle" style="color:var(--vox-cyan);">SYSTEM ALERT</h3>
             <p id="modalText" style="color:white;">MESSAGE CONTENT</p>
-            
             <input type="text" id="modalInput" class="form-input" style="display:none; margin-bottom:20px;" placeholder="ENTER DATA">
-            
             <div id="modalActions" class="vox-modal-actions"></div>
         </div>
     </div>
@@ -540,9 +537,7 @@
     <div id="incomingCallModal" class="modal-overlay">
         <div id="incomingModalContent" class="vox-modal" style="text-align:center; border-color: var(--vox-cyan);">
             <h3 style="color:var(--vox-cyan);">INCOMING TRANSMISSION</h3>
-            
             <img id="incomingCallerAvatar" src="" class="modal-caller-avatar" onerror="this.src='https://placehold.co/80x80/000000/00f3ff?text=?'">
-            
             <p id="callerNameDisplay" style="font-size:22px; color:white; font-weight:bold; margin-bottom:5px;">Unknown User</p>
             <p style="font-size:10px; color:#666; margin-bottom:20px;">ENCRYPTED CHANNEL REQUEST</p>
             
@@ -563,7 +558,7 @@
         </div>
     </div>
 
-<div id="adminPanel">
+    <div id="adminPanel">
         <h3>/// SYSTEM CONTROL ///</h3>
         
         <div class="admin-section sec-broadcast">
@@ -706,16 +701,14 @@
                     <div class="id-row"><span class="id-label">UID:</span> <span class="id-val" id="idCardUid">#0000</span></div>
                     <div class="id-row"><span class="id-label">TRUST:</span> <span class="id-val" id="idCardTrust">50%</span></div>
                     <div class="id-row"><span class="id-label">STATUS:</span> <span class="id-val" id="idCardStatus" style="color:var(--vox-cyan);">VERIFIED</span></div>
-                
                 </div>
                 <div class="id-qr">
                     <div style="width: 50px; height: 50px; background: white; padding: 2px;">
-                    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyAQMAAAAk8RryAAAABlBMVEX///8AAABVwtN+AAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAQmlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4KPHg6eG11ZXRhIHhtbG5zOng9ImFkb2JlOm5zOm1ldGEvIiB4OnhtcHRrPSJBZG9iZSBYTVAgQ29yZSA1LjYtYzE0MCA3OS4xNjA0NTEsIDIwMTcvMDUvMDYtMDE6MDg6MjEgICAgICAgICI+CiA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPgogIDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PSIiLz4KIDwvcmRmOlJERj4KPC94OnhtcG1ldGE+Cjw/eHBhY2tldCBlbmQ9InIiPz6O1kUCAAAAB3RJTUUH5gMREh0y/tT80gAAAEZJREFUGNNjYKAxYIAO2Bj4/w/A4P//A4j4/x8Y2P8fAImD5P///w8R//8DSQx//wMVA4v///8fIvr/H0wMhAYQ0Q91Iw8AAMUWMx3JT4N4AAAAAElFTkSuQmCC" 
+                        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyAQMAAAAk8RryAAAABlBMVEX///8AAABVwtN+AAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAQmlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4KPHg6eG11ZXRhIHhtbG5zOng9ImFkb2JlOm5zOm1ldGEvIiB4OnhtcHRrPSJBZG9iZSBYTVAgQ29yZSA1LjYtYzE0MCA3OS4xNjA0NTEsIDIwMTcvMDUvMDYtMDE6MDg6MjEgICAgICAgICI+CiA8cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPgogIDxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PSIiLz4KIDwvcmRmOlJERj4KPC94OnhtcG1ldGE+Cjw/eHBhY2tldCBlbmQ9InIiPz6O1kUCAAAAB3RJTUUH5gMREh0y/tT80gAAAEZJREFUGNNjYKAxYIAO2Bj4/w/A4P//A4j4/x8Y2P8fAImD5P///w8R//8DSQx//wMVA4v///8fIvr/H0wMhAYQ0Q91Iw8AAMUWMx3JT4N4AAAAAElFTkSuQmCC" 
                         style="width: 100%; height: 100%; image-rendering: pixelated;" 
                         alt="QR">
+                    </div>
                 </div>
-            </div>
-
             </div>
             <div class="id-footer">SUBMISSION IS SAFETY /// VOXTEK ENTERPRISES</div>
         </div>
@@ -777,31 +770,33 @@
     </div>
 
     <div id="installer-modal" class="modal-overlay">
-    <div class="vox-modal" style="text-align:center;">
-        <h3>VANGUARD INSTALLER</h3>
-        <canvas id="downloadCanvas" width="300" height="100" style="width:100%; height:100px; margin-bottom:10px;"></canvas>
-        <div id="install-step" style="color:var(--vox-cyan); margin-bottom:5px;">INITIALIZING...</div>
-        <div style="width:100%; height:4px; background:#333;">
-            <div id="installBar" style="width:0%; height:100%; background:var(--vox-cyan); transition:width 0.1s;"></div>
+        <div class="vox-modal" style="text-align:center;">
+            <h3>VANGUARD INSTALLER</h3>
+            <canvas id="downloadCanvas" width="300" height="100" style="width:100%; height:100px; margin-bottom:10px;"></canvas>
+            <div id="install-step" style="color:var(--vox-cyan); margin-bottom:5px;">INITIALIZING...</div>
+            <div style="width:100%; height:4px; background:#333;">
+                <div id="installBar" style="width:0%; height:100%; background:var(--vox-cyan); transition:width 0.1s;"></div>
+            </div>
+            <div id="installPercent" style="text-align:right; font-size:10px; margin-top:5px;">0%</div>
+            <div id="installLog" style="height:100px; overflow-y:auto; font-size:10px; color:#666; text-align:left; margin-top:10px; font-family:var(--font-code); border:1px solid #333; padding:5px;"></div>
         </div>
-        <div id="installPercent" style="text-align:right; font-size:10px; margin-top:5px;">0%</div>
-        <div id="installLog" style="height:100px; overflow-y:auto; font-size:10px; color:#666; text-align:left; margin-top:10px; font-family:var(--font-code); border:1px solid #333; padding:5px;"></div>
     </div>
-</div>
 
-<button id="mobileMusicBtn" class="mobile-only-btn">
-    <div class="pulse-ring"></div>
-    <svg class="progress-ring" width="76" height="76">
-        <circle class="progress-ring__circle" stroke="var(--vox-cyan)" stroke-width="3" fill="transparent" r="34" cx="38" cy="38"/>
-    </svg>
-    <div class="btn-inner-content">
-        <img id="mobileBtnArt" src="cover.png" onerror="this.style.display='none'" alt="Art">
-        <span class="btn-icon">M</span>
-    </div>
-</button>
+    <button id="mobileMusicBtn" class="mobile-only-btn">
+        <div class="pulse-ring"></div>
+        <svg class="progress-ring" width="76" height="76">
+            <circle class="progress-ring__circle" stroke="var(--vox-cyan)" stroke-width="3" fill="transparent" r="34" cx="38" cy="38"/>
+        </svg>
+        <div class="btn-inner-content">
+            <img id="mobileBtnArt" src="cover.png" onerror="this.style.display='none'" alt="Art">
+            <span class="btn-icon">M</span>
+        </div>
+    </button>
 
-<div id="cursor-main" class="custom-cursor"></div>
+    <div id="cursor-main" class="custom-cursor"></div>
     <div id="cursor-follower" class="custom-cursor-follower"></div>
-<script type="module" src="scripts.js"></script>
+
+    <script type="module" src="scripts.js"></script>
+
 </body>
 </html>

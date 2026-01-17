@@ -1,6 +1,6 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
   import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-  import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, setDoc, doc, where, limit, getDoc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, setDoc, doc, where, limit, getDoc, deleteDoc, getDocs, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getStorage, ref, uploadBytes, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
   const firebaseConfig = {
@@ -3681,6 +3681,28 @@
                     });
                 },
 
+                // Функция добавления реакции
+                addReaction: async function(messageId, emoji) {
+                    if(!messageId) return;
+                    
+                    try {
+                        const msgRef = doc(db, "chats", "global", "messages", messageId);
+                        
+                        // Мы обновляем поле reactions внутри документа
+                        // Используем notation "dot path" для обновления конкретного ключа в объекте
+                        await updateDoc(msgRef, {
+                            [`reactions.${emoji}`]: increment(1)
+                        });
+                        
+                        // Звук клика (опционально)
+                        if(window.MusicSystem) window.MusicSystem.playSound('click');
+                        
+                    } catch (e) {
+                        console.error("Reaction Error:", e);
+                        voxNotify("REACTION FAILED", "alert");
+                    }
+                },
+
                 // --- ВСТАВИТЬ ЭТО ВНУТРЬ CloudSystem (ОБНОВЛЕННАЯ ВЕРСИЯ) ---
                 uploadMedia(file, type) {
                     const user = window.auth.currentUser;
@@ -5510,7 +5532,10 @@ const initDraggableButton = () => {
             }
         }, { passive: false });
 
-        btn.addEventListener('touchend', () => {
+        btn.addEventListener('touchend', (e) => {
+
+            if (e.cancelable) e.preventDefault();
+
             // Возвращаем анимации (для эффектов пульсации и т.д.)
             btn.style.transition = 'transform 0.1s ease, box-shadow 0.1s ease';
 
