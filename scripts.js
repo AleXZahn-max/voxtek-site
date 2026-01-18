@@ -3,6 +3,8 @@
   import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, setDoc, doc, where, limit, getDoc, deleteDoc, getDocs, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
   import { getStorage, ref, uploadBytes, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
+  import { injectSpeedInsights } from 'https://cdn.jsdelivr.net/npm/@vercel/speed-insights@1.0.10/+esm';
+
   const firebaseConfig = {
     apiKey: "AIzaSyDaYxxhxjrvjVgqYcvPH53989Wr5dMgqHI",
     authDomain: "voxtek-system.firebaseapp.com",
@@ -13,6 +15,8 @@
   };
 
   const app = initializeApp(firebaseConfig);
+
+  injectSpeedInsights();
   
   window.auth = getAuth(app);
   window.db = getFirestore(app);
